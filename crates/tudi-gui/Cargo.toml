@@ -1,15 +1,22 @@
 [package]
 name = "tudi-gui"
 description = "tudi: a fast, tree-first file browser for Linux"
+default-run = "tudi-gui"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 
+# The GUI. Normally started by `tudi`.
+[[bin]]
+name = "tudi-gui"
+path = "src/main.rs"
+
+# GIO-only launcher that forwards to a running instance (P2).
 [[bin]]
 name = "tudi"
-path = "src/main.rs"
+path = "src/bin/tudi.rs"
 
 [lints]
 workspace = true
@@ -20,6 +27,8 @@ anyhow.workspace = true
 async-channel.workspace = true
 rustix.workspace = true
 gettext-rs.workspace = true
+gio.workspace = true
+glib.workspace = true
 gtk.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true

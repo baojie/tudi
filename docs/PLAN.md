@@ -552,7 +552,9 @@ tudi q --dir acme               # directories only (for cd)
 tudi index status|rescan|stop
 ```
 
-The `q` path must not initialize GTK. If dynamic linking of GTK makes
+`tudi` is a GIO-only launcher binary (ADR-015): it forwards to a running
+instance or execs the GUI binary `tudi-gui`. The `q` path lives in the
+launcher and must not initialize GTK. If dynamic linking of GTK makes
 `tudi q` slower than 30 ms total, split into a separate `tudi-q` binary
 (record in decisions.md).
 
@@ -867,8 +869,10 @@ Every core module has unit tests; tree splicing and index mutation have
 
 ### 9.2 Performance benchmarks
 - `cargo bench -p tudi-core` / `-p tudi-index` (criterion) on fixtures.
-- GUI benchmarks: the `--bench` mode from M1 is kept and extended in
-  `tudi-gui` behind a hidden flag `tudi --bench <scenario>`, emitting JSON.
+- GUI benchmarks: the M1 bench mode is kept and extended in `tudi-gui`,
+  selected with `TUDI_BENCH=<scenario>` (an environment variable, so the
+  single-instance command-line forwarding is not involved), emitting JSON
+  (`crates/tudi-gui/src/bench.rs`).
 - `scripts/bench_all.sh` runs everything and updates
   `docs/benchmarks.md` with machine info (CPU, disk, kernel, GTK version).
 - A regression of > 20% on any budgeted metric blocks a milestone.

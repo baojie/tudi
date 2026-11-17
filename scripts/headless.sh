@@ -9,8 +9,8 @@
 # change the 60 s limit.
 set -eu
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-BIN="$ROOT/target/debug/tudi"
-if [ "${1:-}" = "--release" ]; then BIN="$ROOT/target/release/tudi"; shift; fi
+BIN="$ROOT/target/debug/tudi-gui"
+if [ "${1:-}" = "--release" ]; then BIN="$ROOT/target/release/tudi-gui"; shift; fi
 exec dbus-run-session -- sh -c '
   gnome-shell --headless --wayland --no-x11 --virtual-monitor 1280x800@60 \
       --wayland-display tudi-headless >/dev/null 2>&1 &

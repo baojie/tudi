@@ -24,6 +24,8 @@ toml = "1.2.1"
 gettext-rs = { version = "0.8.0", features = ["gettext-system"] }
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 gtk = { package = "gtk4", version = "0.11.5", features = ["v4_14"] }
+gio = "0.22.11"
+glib = "0.22.11"
 adw = { package = "libadwaita", version = "0.9.2", features = ["v1_5"] }
 
 [workspace.lints.rust]

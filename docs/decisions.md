@@ -186,3 +186,18 @@ Short ADR-style records: context / decision / consequences. Newest last.
   double-click, `Enter` or drop on an item the user added themselves; normal
   folders keep "open with default app" for executables. Spawning and
   `.desktop` parsing happen off the main thread.
+
+## ADR-015: `tudi` is a GIO-only launcher; the GUI is `tudi-gui`
+
+- **Context.** A second `tudi PATH` (P2, < 50 ms) took 45–53 ms in release
+  builds although it only forwards its command line: linking GTK 4.22 pulls
+  in `libgstgl` → `libGL` → the NVIDIA GLX driver, which initializes at load
+  time (about 5,800 syscalls) even when nothing is drawn.
+- **Decision.** Two binaries in `tudi-gui`: `tudi`, linking only GLib/GIO,
+  registers the application id; if an instance is running it forwards the
+  command line (GApplication remote protocol), otherwise it execs
+  `tudi-gui` next to it with the same arguments. Both declare the same
+  options. `cargo run -p tudi-gui` runs the GUI directly.
+- **Consequences.** P2 drops to 10–11 ms. A cold start pays one extra
+  `exec` of a small binary (~2 ms). The CLI (`tudi q`, M6) goes into the
+  launcher, which keeps it free of GTK as §5.8 requires.
