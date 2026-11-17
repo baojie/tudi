@@ -15,7 +15,12 @@ use tudi_core::tree::{Expand, NodeId};
 
 use crate::pane::{self, PaneModel, Wanted};
 use crate::sidebar::{self, TreeModel};
-use crate::worker::{Job, Reply, Worker};
+use crate::worker::{Job, Reply, WatchKey, Worker};
+
+/// Most directories watched for live updates per window (PLAN §5.1).
+const WATCH_LIMIT: usize = 512;
+/// Most selected entries carried over a live reload.
+const KEEP_SELECTION_LIMIT: usize = 5000;
 
 /// Metadata worker threads per listing.
 const META_WORKERS: usize = 4;
@@ -39,6 +44,11 @@ pub struct Browser {
     pub(crate) toasts: adw::ToastOverlay,
     pub(crate) typeahead: crate::actions::TypeAheadState,
     pub(crate) worker: Worker,
+    watcher: Option<tudi_core::watch::Watcher<WatchKey>>,
+    /// Tree nodes with a live watch (expanded and listed).
+    watched: RefCell<std::collections::HashSet<NodeId>>,
+    /// Scroll position to restore after a live reload of the pane.
+    keep_scroll: Cell<Option<f64>>,
 
     pub(crate) tree: TreeModel,
     pub(crate) tree_sel: gtk::SingleSelection,
@@ -101,6 +111,12 @@ impl Browser {
         let show_hidden = config.browse.show_hidden;
         let (worker, replies) = Worker::start();
         worker.send(Job::WarmMime);
+        let tx = worker.reply_sender();
+        let watcher = tudi_core::watch::Watcher::start(WATCH_LIMIT, move |keys| {
+            let _ = tx.send_blocking(Reply::Changed(keys));
+        })
+        .map_err(|e| tracing::warn!("live updates disabled: {e}"))
+        .ok();
 
         // --- tree
         let tree = TreeModel::default();
@@ -161,6 +177,9 @@ impl Browser {
                 toasts: adw::ToastOverlay::new(),
                 typeahead: Rc::default(),
                 worker,
+                watcher,
+                watched: RefCell::default(),
+                keep_scroll: Cell::new(None),
                 tree,
                 tree_sel,
                 tree_view,
@@ -433,8 +452,16 @@ impl Browser {
             generation,
             spec: self.spec.get(),
             show_hidden: self.show_hidden.get(),
-            select: self.select_after_load.borrow_mut().take(),
+            select: self
+                .select_after_load
+                .borrow_mut()
+                .take()
+                .into_iter()
+                .collect(),
         });
+        if let Some(w) = &self.watcher {
+            w.watch(WatchKey::Pane, path.clone(), true);
+        }
         self.reveal_in_tree(path);
     }
 
@@ -481,6 +508,8 @@ impl Browser {
     pub(crate) fn toggle_hidden(self: &Rc<Self>) {
         self.show_hidden.set(!self.show_hidden.get());
         self.request_sort();
+        let nodes: Vec<NodeId> = self.watched.borrow().iter().copied().collect();
+        self.refresh_tree_nodes(&nodes);
     }
 
     pub(crate) fn activate_entry(self: &Rc<Self>, pos: u32) {
@@ -530,14 +559,45 @@ impl Browser {
             };
             (e, s)
         });
-        if let Expand::NeedsListing(node) = outcome {
-            self.list_tree_node(node);
+        match outcome {
+            Expand::NeedsListing(node) => self.list_tree_node(node),
+            Expand::Spliced(_) => self.watch_tree_node(node),
+            Expand::Nothing => {}
+        }
+    }
+
+    fn watch_tree_node(&self, node: NodeId) {
+        if let Some(w) = &self.watcher
+            && self.watched.borrow_mut().insert(node)
+        {
+            w.watch(WatchKey::Tree(node), self.tree.tree().path(node), false);
+        }
+    }
+
+    fn unwatch_tree_node(&self, node: NodeId) {
+        if let Some(w) = &self.watcher
+            && self.watched.borrow_mut().remove(&node)
+        {
+            w.unwatch(WatchKey::Tree(node));
+        }
+    }
+
+    /// Re-list tree nodes (live update or hidden-files toggle).
+    fn refresh_tree_nodes(&self, nodes: &[NodeId]) {
+        for &node in nodes {
+            self.worker.send(Job::ListTree {
+                node,
+                path: self.tree.tree().path(node),
+                show_hidden: self.show_hidden.get(),
+                refresh: true,
+            });
         }
     }
 
     pub(crate) fn collapse_tree_row(&self, pos: usize) {
         let node = self.tree.tree().rows()[pos].node;
         self.tree.update(Some(node), |t| ((), t.collapse(pos)));
+        self.unwatch_tree_node(node);
     }
 
     fn collapse_or_parent(self: &Rc<Self>, pos: usize) {
@@ -564,6 +624,7 @@ impl Browser {
             node,
             path,
             show_hidden: self.show_hidden.get(),
+            refresh: false,
         });
     }
 
@@ -858,7 +919,7 @@ impl Browser {
             Reply::Sorted { generation, order } => {
                 let keep = self.selected_entries();
                 if self.pane.set_order(generation, order, self.spec.get()) {
-                    self.after_order_change(keep, None);
+                    self.after_order_change(keep, Vec::new());
                 }
             }
             Reply::Meta(batch) => {
@@ -869,25 +930,97 @@ impl Browser {
                     self.update_status();
                 }
             }
-            Reply::Tree { node, result } => {
-                self.tree
-                    .update(Some(node), |t| ((), t.set_children(node, result)));
+            Reply::Tree {
+                node,
+                refresh,
+                result,
+            } => {
+                let ok = result.is_ok();
+                self.tree.update(Some(node), |t| {
+                    let s = if refresh {
+                        t.refresh_children(node, result)
+                    } else {
+                        t.set_children(node, result)
+                    };
+                    ((), s)
+                });
+                if ok && self.tree.tree().node(node).is_expanded() {
+                    self.watch_tree_node(node);
+                }
                 self.continue_reveal();
+            }
+            Reply::Changed(keys) => {
+                let mut tree_nodes = Vec::new();
+                for k in keys {
+                    match k {
+                        WatchKey::Pane => self.live_reload_pane(),
+                        WatchKey::Tree(n) => tree_nodes.push(n),
+                    }
+                }
+                self.refresh_tree_nodes(&tree_nodes);
             }
         }
     }
 
+    /// Re-list the current folder after it changed on disk, keeping the
+    /// selection (by name) and the scroll position.
+    fn live_reload_pane(&self) {
+        let selected = self.selected_entries();
+        let select = if selected.len() <= KEEP_SELECTION_LIMIT {
+            let d = self.pane.data();
+            selected.iter().map(|&e| d.name(e).to_vec()).collect()
+        } else {
+            Vec::new()
+        };
+        self.keep_scroll
+            .set(Some(self.pane_scroll.vadjustment().value()));
+        let generation = self.generation.get() + 1;
+        self.generation.set(generation);
+        self.worker.send(Job::ListPane {
+            path: self.current.borrow().clone(),
+            generation,
+            spec: self.spec.get(),
+            show_hidden: self.show_hidden.get(),
+            select,
+        });
+    }
+
     /// Restore selection after the rows were replaced: the given entries,
-    /// or the row at `select` (e.g. the folder we came up from).
-    fn after_order_change(&self, keep: Vec<u32>, select: Option<u32>) {
-        if let Some(p) = select {
-            self.pane_sel.select_item(p, true);
-            self.pane_view
-                .scroll_to(p, gtk::ListScrollFlags::FOCUS, None);
+    /// or the rows at `select` (focusing the first unless the scroll
+    /// position is being kept).
+    fn after_order_change(&self, keep: Vec<u32>, select: Vec<u32>) {
+        let scroll = self.keep_scroll.take();
+        if !select.is_empty() {
+            let bits = gtk::Bitset::new_empty();
+            for &p in &select {
+                bits.add(p);
+            }
+            self.pane_sel
+                .set_selection(&bits, &gtk::Bitset::new_range(0, self.pane.n_items()));
+            if scroll.is_none() {
+                self.pane_view
+                    .scroll_to(select[0], gtk::ListScrollFlags::FOCUS, None);
+            }
         } else if !keep.is_empty() {
             self.select_entries(&keep);
-        } else {
+        } else if scroll.is_none() {
             self.pane_scroll.vadjustment().set_value(0.0);
+        }
+        if let Some(v) = scroll {
+            // Wait for the new rows' layout before restoring the position.
+            let sw = self.pane_scroll.downgrade();
+            let frames = Cell::new(0);
+            self.pane_view.add_tick_callback(move |_, _| {
+                if let Some(sw) = sw.upgrade() {
+                    sw.vadjustment().set_value(v);
+                }
+                frames.set(frames.get() + 1);
+                if frames.get() < 2 {
+                    glib::ControlFlow::Continue
+                } else {
+                    glib::ControlFlow::Break
+                }
+            });
         }
         self.update_status();
     }

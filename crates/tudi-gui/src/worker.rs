@@ -24,8 +24,9 @@ pub enum Job {
         generation: u64,
         spec: SortSpec,
         show_hidden: bool,
-        /// Name of an entry whose position should be reported.
-        select: Option<Vec<u8>>,
+        /// Names of entries whose positions should be reported (to keep or
+        /// set the selection).
+        select: Vec<Vec<u8>>,
     },
     /// Recompute the pane order (sort change, hidden toggle, metadata).
     Sort {
@@ -36,11 +37,13 @@ pub enum Job {
         spec: SortSpec,
         show_hidden: bool,
     },
-    /// List the sub-directories of a tree node.
+    /// List the sub-directories of a tree node. With `refresh`, the node
+    /// was listed before and this is a live update.
     ListTree {
         node: NodeId,
         path: PathBuf,
         show_hidden: bool,
+        refresh: bool,
     },
     /// Warm up GIO's MIME database so the main thread's first
     /// `content_type_guess` does not read it.
@@ -59,8 +62,8 @@ pub struct PaneListing {
     pub listing: Arc<Listing>,
     pub rank: Arc<NameRank>,
     pub order: Order,
-    /// Position of the requested `select` entry, if visible.
-    pub select: Option<u32>,
+    /// Positions of the requested `select` entries that are visible.
+    pub select: Vec<u32>,
 }
 
 pub enum Reply {
@@ -75,9 +78,21 @@ pub enum Reply {
     },
     Tree {
         node: NodeId,
+        refresh: bool,
         result: Result<Vec<Box<[u8]>>, ListFailure>,
     },
     Meta(MetaBatch),
+    /// Watched directories changed.
+    Changed(Vec<WatchKey>),
+}
+
+/// What a directory watch belongs to.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum WatchKey {
+    /// The folder shown in the details list.
+    Pane,
+    /// An expanded folder in the tree.
+    Tree(NodeId),
 }
 
 #[derive(Clone)]
@@ -106,6 +121,11 @@ impl Worker {
         let _ = self.jobs.send_blocking(job);
     }
 
+    /// A sender for replies produced elsewhere (e.g. the directory watcher).
+    pub fn reply_sender(&self) -> async_channel::Sender<Reply> {
+        self.replies.clone()
+    }
+
     /// A sink for metadata batches, forwarding them as [`Reply::Meta`].
     pub fn meta_sink(&self) -> tudi_core::listing::meta::Sink {
         let tx = self.replies.clone();
@@ -130,10 +150,7 @@ fn run(jobs: async_channel::Receiver<Job>, replies: async_channel::Sender<Reply>
                     let rank = NameRank::new(&listing);
                     let metas = MetaTable::new(listing.len());
                     let order = filtered_order(&listing, &rank, &metas, spec, show_hidden);
-                    let select = select
-                        .and_then(|n| (0..listing.len()).find(|&i| listing.name(i) == n))
-                        .map(|e| order.pos_of[e])
-                        .filter(|&p| p != u32::MAX);
+                    let select = positions_of(&listing, &order, &select);
                     Reply::Pane(PaneListing {
                         generation,
                         listing: Arc::new(listing),
@@ -159,8 +176,10 @@ fn run(jobs: async_channel::Receiver<Job>, replies: async_channel::Sender<Reply>
                 node,
                 path,
                 show_hidden,
+                refresh,
             } => Reply::Tree {
                 node,
+                refresh,
                 result: list_subdirs(&mut lister, &path, show_hidden),
             },
             Job::WarmMime => {
@@ -172,6 +191,19 @@ fn run(jobs: async_channel::Receiver<Job>, replies: async_channel::Sender<Reply>
             return;
         }
     }
+}
+
+/// Visible positions of the entries named in `names`.
+fn positions_of(listing: &Listing, order: &Order, names: &[Vec<u8>]) -> Vec<u32> {
+    if names.is_empty() {
+        return Vec::new();
+    }
+    let wanted: std::collections::HashSet<&[u8]> = names.iter().map(|n| n.as_slice()).collect();
+    (0..listing.len())
+        .filter(|&i| wanted.contains(listing.name(i)))
+        .map(|i| order.pos_of[i])
+        .filter(|&p| p != u32::MAX)
+        .collect()
 }
 
 pub fn is_hidden(name: &[u8]) -> bool {
