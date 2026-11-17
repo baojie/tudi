@@ -12,6 +12,7 @@
 //! `GApplication`: a second `tudi PATH` is forwarded to the running one.
 
 mod actions;
+mod bench;
 mod browser;
 mod dev;
 mod format;
@@ -97,6 +98,15 @@ impl App {
         if let Some(e) = err.filter(|_| first) {
             b.toast(&e);
         }
+        let (me, app2) = (Rc::downgrade(self), app.clone());
+        bench::attach(
+            &b,
+            Rc::new(move || {
+                if let Some(me) = me.upgrade() {
+                    me.open_window(&app2, None);
+                }
+            }),
+        );
         if first {
             dev::install(&b);
         }
@@ -162,6 +172,8 @@ impl App {
 }
 
 fn main() -> glib::ExitCode {
+    bench::START.get_or_init(std::time::Instant::now);
+    bench::init();
     tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .init();

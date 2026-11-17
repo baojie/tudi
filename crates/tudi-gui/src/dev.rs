@@ -138,6 +138,11 @@ fn dump(b: &Browser) {
         );
     }
     println!("status: {}", b.status.text());
+    let f = crate::bench::frame_stats();
+    println!(
+        "frames: {} long(>16ms): {} max: {:.1} ms",
+        f.frames, f.long_frames, f.max_ms
+    );
 }
 
 fn screenshot(b: &Browser, out: &Path) {

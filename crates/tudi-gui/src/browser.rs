@@ -755,6 +755,12 @@ impl Browser {
         self.syncing.set(false);
     }
 
+    /// The list shows the listing of the current navigation.
+    pub(crate) fn pane_settled(&self) -> bool {
+        let d = self.pane.data();
+        d.generation == self.generation.get() && d.listing.is_some()
+    }
+
     /// Window state to remember: size, current folder, expanded folders.
     pub fn snapshot_state(&self) -> WindowState {
         let mut st = WindowState {
