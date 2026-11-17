@@ -97,3 +97,19 @@ Short ADR-style records: context / decision / consequences. Newest last.
   `getdents`/`statx` costs differ from ext4.
 - **Decision.** The fixture generator defaults to `~/.cache/tudi-fixtures`.
 - **Consequences.** Benchmarks and docs use that path.
+
+## ADR-010: Two-pane layout with a browser-style bookmarks bar
+
+- **Context.** The original plan had a single expandable tree containing
+  both folders and files, with bookmarks in a sidebar. The maintainer prefers
+  the classic layout.
+- **Decision.** Left pane: folder tree, directories only, with Home, File
+  System, and mounted volumes as roots. Right pane: the selected folder's
+  contents as a flat details list (name/size/modified, sortable); folders are
+  entered by double-click/`Enter`, not expanded in place. Bookmarks live in a
+  browser-style bar below the header (`Alt+1..9`), with a "Frequent ▾" menu
+  at its right end.
+- **Consequences.** The tree model (§5.2) only holds directories, so it is
+  much smaller; the 100k-row budgets apply to the details list. Both panes
+  use our own `ListModel`. P5/P6 numbers are unchanged; their wording now
+  names which pane they apply to.

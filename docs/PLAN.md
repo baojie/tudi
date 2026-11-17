@@ -3,7 +3,7 @@
 > **Tudi (土地)** is the Chinese earth god who knows every inch of his local land.
 > **tudi** knows every file on yours.
 
-tudi is a fast, tree-first local file browser for Linux, with a memory-driven
+tudi is a fast, two-pane (folder tree + details list) local file browser for Linux, with a memory-driven
 search ("I remember it had *contract* in the name, was a PDF, and lived somewhere
 under *acme*") and keyboard-reachable bookmarks.
 
@@ -35,10 +35,12 @@ criteria pass, except where noted.
 
 1. **Speed above everything.** A directory with 10,000+ entries opens and scrolls
    without perceptible lag. The UI thread never blocks on I/O.
-2. **Tree-first browsing.** The main view is an expandable tree (not a
-   column/icon view). Expanding a large directory is instant.
-3. **Bookmarks with instant jumps.** `Alt+1..9`, a sidebar, and an auto-generated
-   "frequent places" section ranked by frecency.
+2. **Two-pane browsing.** A folder tree on the left (directories only) and a
+   details list on the right (the selected directory's contents, flat, with
+   name/size/modified columns). Expanding a large folder in the tree and
+   opening a 100k-entry directory in the list are both instant.
+3. **Bookmarks with instant jumps.** A browser-style bookmarks bar, `Alt+1..9`,
+   and an auto-generated "frequent places" menu ranked by frecency.
 4. **Memory-stub search.** Type a few fragments in any order — name pieces, path
    pieces, pinyin initials, file type, rough time — and get the file in < 30 ms
    per keystroke over millions of paths. Enter reveals it in the tree.
@@ -68,8 +70,8 @@ cache unless stated). Every budget has an automated benchmark (see §9).
 | P2 | Second launch (single instance, window raise) | < 50 ms |
 | P3 | Open a 10k-entry directory → first painted rows | < 50 ms |
 | P4 | Open a 100k-entry directory → first painted rows | < 250 ms |
-| P5 | Scroll through a 100k-row tree | no frame > 16.7 ms (60 fps) at p99 |
-| P6 | Expand node inserting 10k rows → next frame painted | < 50 ms |
+| P5 | Scroll through 100k rows (details list or folder tree) | no frame > 16.7 ms (60 fps) at p99 |
+| P6 | Expand a tree node inserting 10k rows → next frame painted | < 50 ms |
 | P7 | Memory search keystroke over 2M indexed paths → results | < 30 ms p95 |
 | P8 | Index daemon RSS with 2M entries | < 150 MB |
 | P9 | Initial full scan of 2M entries (warm cache) | < 20 s, nice'd, never stalls UI |
@@ -220,6 +222,10 @@ linked — compatible.
 
 ### 5.2 Tree data structure (`tudi-core::tree`)
 
+Used by the **left folder tree**, which holds directories only (files are
+listed in the right pane). The right pane's model is the flat, sorted listing
+of one directory (§5.1) and needs no tree logic.
+
 - The visible tree is a **flattened array of rows** (`Vec<Row>`), in display
   order. `Row { node_id, depth, flags (expanded, has_children, loading) }`.
 - Node data (name, metadata) lives in a separate slab keyed by `node_id`.
@@ -243,10 +249,13 @@ linked — compatible.
     index/node id; create on demand and keep a small cache keyed by node id
     (GTK requests only visible items plus a margin).
   - Emit `items_changed` exactly from the tree splice triples.
-- View: `gtk::ListView` (or `gtk::ColumnView` — decided by the M1 spike) with
-  `SignalListItemFactory`. Row widget: indentation (margin = depth × 16 px),
-  expander, icon, name label (ellipsized), right-aligned size and date labels
-  in fixed-width columns.
+- Two models of this kind: the folder tree (rows = visible tree rows) and the
+  details list (rows = sorted indices into the current listing).
+- Views: `gtk::ListView` or `gtk::ColumnView` (decided by the M1 spike) with
+  `SignalListItemFactory`. Tree row widget: indentation (margin = depth ×
+  16 px), expander, folder icon, name label (ellipsized). Details row: icon,
+  name (ellipsized), right-aligned size and modified columns; clicking a
+  column header re-sorts on the worker (never through `GtkSortListModel`).
 - Selection: `gtk::MultiSelection` over the custom model. Avoid any API that
   iterates all items on the main thread (e.g. select-all must be implemented
   against our model, not by iterating `GListModel`).
@@ -424,46 +433,59 @@ weights it needs for ranking periodically and when a client sends
 Layout (libadwaita `AdwApplicationWindow`):
 
 ```
-┌───────────────────────────────────────────────────────────────┐
-│ [◀][▶][▲]  ~/projects/acme                  [ search… Ctrl+P ]│  header bar
-├──────────────┬────────────────────────────────────────────────┤
-│ BOOKMARKS    │ ▾ projects                       —     2 days  │
-│ 1 Home       │   ▾ acme                         —     1 hour  │
-│ 2 Projects   │     ▸ docs                       —     3 days  │
-│ 3 Downloads  │       report-2026Q3.pdf      2.1 MB    5 days  │
-│ …            │       合同核对.xlsx            88 KB    3 weeks │
-│ FREQUENT     │   ▸ tudi                         —     now     │
-│ acme         │                                                │
-│ notes        │                                                │
-│ DEVICES      │                                                │
-├──────────────┴────────────────────────────────────────────────┤
-│ 12,034 items · 3 selected (4.2 MB) · index: 1.9M entries ✓     │  status bar
-└───────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│ [◀][▶][▲]  ~/projects/acme                        [ search… Ctrl+P ]│ header bar
+├─────────────────────────────────────────────────────────────────────┤
+│ 1 Home │ 2 Projects │ 3 Downloads │ 4 acme │ …          Frequent ▾ │ bookmarks bar
+├──────────────────────┬──────────────────────────────────────────────┤
+│ ▾ Home               │ Name                      Size     Modified  │
+│   ▸ Documents        │ ▸ docs                       —     3 days    │
+│   ▾ projects         │   report-2026Q3.pdf      2.1 MB    5 days    │
+│     ▾ acme           │   合同核对.xlsx            88 KB    3 weeks   │
+│       ▸ docs         │   notes.md                4 KB     1 hour    │
+│     ▸ tudi           │                                              │
+│ ▸ File System        │                                              │
+│ ▸ data (exFAT)       │                                              │
+├──────────────────────┴──────────────────────────────────────────────┤
+│ 12,034 items · 3 selected (4.2 MB) · index: 1.9M entries ✓          │ status bar
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
+- **Left: folder tree** (directories only). Roots: Home, File System, and
+  mounted volumes (from `gio::VolumeMonitor`). Selecting a folder shows it in
+  the right pane. The tree follows navigation: entering a folder from the
+  list, the path bar, a bookmark, or a search result expands its ancestors
+  and selects it.
+- **Right: details list**, the default and (in v0.x) only view of the
+  selected folder's contents: flat, sortable columns (name, size, modified;
+  more columns later). Double-click / `Enter` on a folder enters it; on a file
+  opens it.
+- **Bookmarks bar** below the header, like a web browser's: one button per
+  bookmark, numbered for `Alt+1..9`, overflow into a `»` menu; a
+  "Frequent ▾" menu at the right end lists the top frecency directories not
+  already bookmarked. `Ctrl+D` bookmarks the current folder; drag to
+  reorder; right-click to rename/remove. Stored in
+  `$XDG_CONFIG_HOME/tudi/bookmarks.toml`.
 - **Path bar** is a normal `GtkEntry` (selectable, copyable, editable;
   Tab-completion; `Ctrl+L` focuses it).
-- **Memory search**: `Ctrl+P` or `/` opens a search overlay above the tree
+- **Memory search**: `Ctrl+P` or `/` opens a search overlay above the panes
   with live results (name with matched characters highlighted, parent path
-  dimmed, size/date). `Enter` reveals the result in the tree (expand
-  ancestors, scroll, select). `Ctrl+Enter` opens it. `Alt+Enter` opens its
-  containing folder in a terminal.
-- **Plain typing in the tree** = type-ahead jump among siblings of the
-  focused row (prefix match), not global search.
-- **Bookmarks**: `Alt+1..9` jump, `Ctrl+D` bookmark current dir,
-  drag to reorder, stored in `$XDG_CONFIG_HOME/tudi/bookmarks.toml`.
-  "Frequent" section is the top frecency directories not already
-  bookmarked.
+  dimmed, size/date). `Enter` reveals the result: the tree selects its
+  folder and the list selects and scrolls to the file. `Ctrl+Enter` opens
+  it. `Alt+Enter` opens its containing folder in a terminal.
+- **Plain typing** in either pane = type-ahead jump among the visible rows
+  (prefix match), not global search.
 
 Default keybindings (all remappable in `config.toml`):
 
 | Key | Action |
 |-----|--------|
 | `↑ ↓` / `PgUp PgDn` / `Home End` | move |
-| `→` / `←` | expand / collapse (or go to parent) |
-| `Shift+→` | expand recursively (async, capped at 50k rows) |
-| `Enter` | open file / toggle directory |
-| `Backspace` / `Alt+↑` | go up (re-root at parent) |
+| `F6` / `Tab` | switch focus between tree and list |
+| `→` / `←` (tree) | expand / collapse (or go to parent) |
+| `Shift+→` (tree) | expand recursively (async, capped at 50k rows) |
+| `Enter` (list) | open file / enter folder |
+| `Backspace` / `Alt+↑` | go to parent folder |
 | `Ctrl+P`, `/` | memory search |
 | `Ctrl+L` | path bar |
 | `Ctrl+H` | toggle hidden files |
@@ -603,10 +625,11 @@ before investing.
 - 10k list + sort (no stat) < 10 ms; 100k < 80 ms (warm cache).
 - All tests green; benches recorded in `docs/benchmarks.md`.
 
-### M3 — Tree browser MVP (daily-driver candidate)
+### M3 — Two-pane browser MVP (daily-driver candidate)
 
 **Tasks**
-- GUI per §5.3 / §5.7 using the M1-chosen view and M2 engine.
+- GUI per §5.3 / §5.7 using the M1-chosen views and M2 engine: folder tree
+  (left, directories only) + details list (right, sortable columns).
 - Path bar, back/forward/up history, hidden-files toggle, type-ahead among
   siblings, status bar counts.
 - Open with default app (`gio::AppInfo::launch_default_for_uri`),
@@ -620,8 +643,8 @@ before investing.
 
 **Acceptance**
 - P1, P2, P3, P4, P5, P6 measured on real directories and fixtures, recorded.
-- Creating/deleting/renaming files from a terminal is reflected in an
-  expanded directory within 200 ms without losing selection or scroll
+- Creating/deleting/renaming files from a terminal is reflected in the
+  details list and in expanded tree folders within 200 ms without losing selection or scroll
   position.
 - Input methods: renaming a file to a Chinese name via fcitx5 works under
   Wayland.
@@ -631,12 +654,12 @@ before investing.
 ### M4 — Bookmarks and frecency
 
 **Tasks**
-- Bookmarks sidebar, `Alt+1..9`, `Ctrl+D`, reorder, rename, remove;
-  `bookmarks.toml`.
-- Frecency store (§5.5) with visits from the GUI; "Frequent" section.
+- Bookmarks bar (§5.7), `Alt+1..9`, `Ctrl+D`, reorder, rename, remove,
+  overflow menu; `bookmarks.toml`.
+- Frecency store (§5.5) with visits from the GUI; "Frequent ▾" menu.
 - First-run import from autojump, zoxide, GTK bookmarks (each optional,
   silent if absent); a `--reimport` flag.
-- Devices section from `gio::VolumeMonitor` (mounted volumes only).
+- Mounted volumes as folder-tree roots from `gio::VolumeMonitor`.
 
 **Acceptance**
 - Jump to any bookmark in one keystroke; jump latency < 50 ms when the
@@ -845,7 +868,7 @@ unplugged while browsing, 100k-file directory on a slow USB stick.
 - [x] M0 Repository bootstrap
 - [ ] M1 GTK4 list spike (decision gate)
 - [ ] M2 Core listing engine
-- [ ] M3 Tree browser MVP
+- [ ] M3 Two-pane browser MVP
 - [ ] M4 Bookmarks and frecency
 - [ ] M5 Index daemon
 - [ ] M6 Memory search

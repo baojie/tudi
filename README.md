@@ -3,7 +3,8 @@
 > **Tudi (土地)** is the Chinese earth god who knows every inch of his local
 > land. **tudi** knows every file on yours.
 
-A fast, tree-first local file browser for Linux (GTK4/libadwaita), with a
+A fast, two-pane (folder tree + details list) file browser for Linux
+(GTK4/libadwaita), with a
 memory-driven search — type the fragments you remember, in any order — and
 keyboard-reachable bookmarks.
 
