@@ -66,11 +66,12 @@ cache unless stated). Every budget has an automated benchmark (see §9).
 
 | ID | Metric | Budget |
 |----|--------|--------|
-| P1 | Cold start → first window frame | < 150 ms |
+| P1a | Open a window from the resident instance (no window open) → first frame | < 150 ms |
+| P1b | Cold start (first launch after login, no tudi process) → first window frame | < 400 ms |
 | P2 | Second launch (single instance, window raise) | < 50 ms |
 | P3 | Open a 10k-entry directory → first painted rows | < 50 ms |
 | P4 | Open a 100k-entry directory → first painted rows | < 250 ms |
-| P5 | Scroll through 100k rows (details list or folder tree) | no frame > 16.7 ms (60 fps) at p99 |
+| P5 | Scroll through 100k rows (details list or folder tree) | frame work time (before-paint → after-paint) ≤ 16.7 ms at p99, and < 1 % dropped frames (interval > 1.5 refresh periods) |
 | P6 | Expand a tree node inserting 10k rows → next frame painted | < 50 ms |
 | P7 | Memory search keystroke over 2M indexed paths → results | < 30 ms p95 |
 | P8 | Index daemon RSS with 2M entries | < 150 MB |
@@ -583,7 +584,7 @@ numbers from this document.
 ### M1 — GTK4 list spike (decision gate)
 
 Throwaway app in `spikes/gtk4-list/`. Purpose: prove GTK4 meets P1, P5, P6
-before investing.
+before investing. (P1 was split into P1a/P1b by ADR-012.)
 
 **Tasks**
 - Custom `gio::ListModel` over a `Vec<Row>` of 100k synthetic rows (§5.3).
@@ -600,7 +601,7 @@ before investing.
 - Write results to stdout as JSON and to `docs/benchmarks.md`.
 
 **Acceptance**
-- On the reference machine: P1, P5, P6 met by at least one variant.
+- On the reference machine: P1a, P1b, P5, P6 met by at least one variant.
 - `docs/decisions.md` records which variant (ListView vs ColumnView) is
   chosen and the numbers.
 - **If neither variant meets the budgets:** stop, report numbers, and
@@ -638,11 +639,18 @@ before investing.
 - inotify live updates for expanded directories (§5.1).
 - Single instance + `tudi PATH`; restore last window size, root, and
   expanded paths.
+- Resident instance (ADR-012): closing the last window keeps the process
+  alive (`gio::Application::hold`), with caches trimmed; optional autostart
+  at login via an XDG autostart entry (`tudi --background`), off by default.
+  `tudi --quit` really exits.
+- Startup tuning (ADR-012): symbolic icons for file rows (no glycin/bwrap
+  decoding on the first frame); investigate rendering on the integrated GPU
+  by default on hybrid-GPU machines.
 - `config.toml` with defaults written on first run; gettext wired, zh_CN
   catalog started.
 
 **Acceptance**
-- P1, P2, P3, P4, P5, P6 measured on real directories and fixtures, recorded.
+- P1a, P1b, P2, P3, P4, P5, P6 measured on real directories and fixtures, recorded.
 - Creating/deleting/renaming files from a terminal is reflected in the
   details list and in expanded tree folders within 200 ms without losing selection or scroll
   position.

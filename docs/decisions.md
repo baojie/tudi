@@ -128,5 +128,26 @@ Short ADR-style records: context / decision / consequences. Newest last.
   row with fixed-width, sortable columns). The P1 outcome and the reading of
   P5 are for the maintainer to decide, per the M1 gate; M1 stays open until
   then.
-- **Consequences.** Whatever is chosen for P1 (tuning, a resident instance,
-  a different budget, or a Qt6 spike) is recorded as a follow-up ADR.
+- **Consequences.** The maintainer's decision on P1 and P5 is ADR-012.
+
+## ADR-012: P1 split into resident-instance open (P1a) and cold start (P1b); P5 measured as work time plus dropped frames
+
+- **Context.** ADR-011: on the reference machine even an empty libadwaita
+  window needs 157–237 ms to its first frame, so the original P1 (cold start
+  < 150 ms) cannot be met by GTK4 regardless of tudi's own code. The raw p99
+  frame interval in P5 is dominated by ±1 ms vsync jitter at 60 Hz, which is
+  not a visible stutter. The maintainer decided both questions.
+- **Decision.**
+  - tudi keeps a resident instance: closing the last window does not exit the
+    process; an optional XDG autostart entry starts it hidden at login.
+  - P1 becomes two hard budgets: **P1a** opening a window from the resident
+    instance < 150 ms, and **P1b** true cold start < 400 ms.
+  - P5 is met when frame work time (before-paint → after-paint) is
+    ≤ 16.7 ms at p99 and fewer than 1 % of frame intervals exceed 1.5
+    refresh periods (25 ms at 60 Hz).
+  - Startup tuning is part of M3: symbolic icons for file rows (themed
+    colour icons go through glycin, which spawns a `bwrap` sandbox), and
+    investigating integrated-GPU rendering on hybrid-GPU machines.
+- **Consequences.** The resident process costs memory while no window is
+  open; it must trim caches when the last window closes. P1a is measured by
+  the spike's `--bench reopen` mode and later by tudi itself.
