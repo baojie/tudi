@@ -76,3 +76,21 @@ P6 is met by both variants with a wide margin. For P5, the p99 frame interval
 is above 16.7 ms only because of vsync jitter (16.67 ms ± 1 ms); the p99 of
 dropped frames is zero and ListView's work time never exceeds a frame. These
 are headless numbers; they still need confirming on the real desktop.
+
+### M2 — core listing engine (2026-11-18)
+
+`cargo bench -p tudi-core --bench listing`, criterion medians, warm cache,
+fixtures on ext4/NVMe, load average < 2.5. An earlier run under unrelated
+load (≥ 18) was discarded.
+
+| Benchmark | flat-10k | flat-100k | Budget |
+|---|---|---|---|
+| list + sort (no stat) | 2.68 ms | 31.8 ms | < 10 ms / < 80 ms ✅ |
+| `getdents64` listing only | 1.55 ms | 18.4 ms | — |
+| natural name rank | 1.04 ms | 9.38 ms | — |
+| display order (dirs first) | 0.02 ms | 0.21 ms | — |
+| metadata (`statx`, 8 threads) | 3.56 ms | — | — |
+
+Listing is dominated by kernel time in `getdents64`. Natural sorting uses
+precomputed byte keys compared by an 8-byte prefix (`docs/design/listing.md`);
+before that change the 100k name rank took ~62 ms.
