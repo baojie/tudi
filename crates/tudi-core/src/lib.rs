@@ -5,5 +5,6 @@
 
 pub mod config;
 pub mod listing;
+pub mod state;
 pub mod tree;
 pub mod watch;
