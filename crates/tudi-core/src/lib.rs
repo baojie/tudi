@@ -2,3 +2,5 @@
 //! transliteration, frecency, and configuration.
 //!
 //! This crate must not depend on GTK.
+
+pub mod listing;

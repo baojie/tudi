@@ -10,3 +10,15 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
+rustix.workspace = true
+rayon.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+criterion.workspace = true
+tempfile.workspace = true
+
+[[bench]]
+name = "listing"
+harness = false
