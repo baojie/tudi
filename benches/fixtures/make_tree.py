@@ -336,6 +336,8 @@ class Builder:
         if rng.random() < 0.0005 and budget > 1:
             locked = os.path.join(path, _unique(b"locked", used))
             os.mkdir(locked, 0o000)  # empty and unreadable
+            mtime = _mtime(rng)
+            os.utime(locked, (mtime, mtime))
             self.count += 1
             budget -= 1
 
@@ -429,15 +431,15 @@ def digest(root: str | bytes) -> tuple[str, int]:
 
 
 def _remove(path: str) -> None:
-    def onexc(func, p, exc):
-        # Restore permissions on the unreadable test directory, then retry.
-        os.chmod(p, 0o755)
-        func(p)
-
-    if sys.version_info >= (3, 12):
-        shutil.rmtree(path, onexc=onexc)
-    else:  # pragma: no cover
-        shutil.rmtree(path, onerror=lambda f, p, e: onexc(f, p, e))
+    # Make the unreadable test directories traversable first; rmtree cannot
+    # recover from them on its own.
+    for dirpath, dirnames, _ in os.walk(os.fsencode(path)):
+        for d in dirnames:
+            full = os.path.join(dirpath, d)
+            st = os.lstat(full)
+            if stat.S_ISDIR(st.st_mode) and st.st_mode & 0o700 != 0o700:
+                os.chmod(full, 0o755)
+    shutil.rmtree(path)
 
 
 def generate(out: str, name: str, seed: int, force: bool, jobs: int,
@@ -478,12 +480,17 @@ def generate(out: str, name: str, seed: int, force: bool, jobs: int,
 def self_test() -> None:
     sizes = {"flat-10k": 2_000, "deep-2m": 30_000}
     results = []
-    for _ in range(2):
+    for run in range(2):
+        if run:
+            time.sleep(1.1)  # any mtime taken from the wall clock would now differ
         with tempfile.TemporaryDirectory(prefix="tudi-fixture-selftest-") as tmp:
             results.append([
                 generate(tmp, name, DEFAULT_SEED, False, 4, total=n)["sha256"]
                 for name, n in sizes.items()
             ])
+            # --force must replace an existing tree, including unreadable dirs.
+            again = generate(tmp, "deep-2m", DEFAULT_SEED, True, 4, total=30_000)
+            assert again["sha256"] == results[-1][1], "--force changed the tree"
             # Another seed must give a different tree.
             other = generate(tmp, "flat-10k", DEFAULT_SEED + 1, True, 1, total=2_000)
             assert other["sha256"] != results[-1][0], "seed has no effect"
