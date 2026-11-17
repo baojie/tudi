@@ -4,4 +4,5 @@
 //! This crate must not depend on GTK.
 
 pub mod listing;
+pub mod config;
 pub mod tree;

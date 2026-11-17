@@ -1467,8 +1467,10 @@ dependencies = [
  "proptest",
  "rayon",
  "rustix",
+ "serde",
  "tempfile",
  "thiserror",
+ "toml",
 ]
 
 [[package]]

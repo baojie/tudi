@@ -13,6 +13,8 @@ workspace = true
 rustix.workspace = true
 rayon.workspace = true
 thiserror.workspace = true
+serde.workspace = true
+toml.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true
