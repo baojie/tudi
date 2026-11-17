@@ -14,30 +14,60 @@ use super::{Kind, Listing, natural};
 /// Below this many entries a parallel sort is not worth its overhead.
 const PAR_THRESHOLD: usize = 8 * 1024;
 
-/// The position of each entry in natural name order.
+/// The position of each entry in natural name order, and its inverse.
 #[derive(Clone, Debug)]
-pub struct NameRank(Vec<u32>);
+pub struct NameRank {
+    rank: Vec<u32>,
+    /// Entry indices in name order.
+    sorted: Vec<u32>,
+}
+
+fn prefix(key: &[u8]) -> u64 {
+    let mut b = [0u8; 8];
+    let n = key.len().min(8);
+    b[..n].copy_from_slice(&key[..n]);
+    u64::from_be_bytes(b)
+}
 
 impl NameRank {
     pub fn new(listing: &Listing) -> Self {
-        let mut idx: Vec<u32> = (0..listing.len() as u32).collect();
-        let cmp = |a: &u32, b: &u32| {
-            natural::compare(listing.name(*a as usize), listing.name(*b as usize))
-        };
-        if idx.len() >= PAR_THRESHOLD {
-            idx.par_sort_unstable_by(cmp);
-        } else {
-            idx.sort_unstable_by(cmp);
+        let n = listing.len();
+        // Natural-order byte keys in one arena; sort by an 8-byte prefix
+        // first, falling back to the full key and then the raw name.
+        let mut arena = Vec::with_capacity(n * 16);
+        let mut spans = Vec::with_capacity(n);
+        for i in 0..n {
+            let start = arena.len();
+            natural::key(listing.name(i), &mut arena);
+            spans.push((start, arena.len()));
         }
-        let mut rank = vec![0u32; idx.len()];
-        for (r, &i) in idx.iter().enumerate() {
+        let key = |i: u32| &arena[spans[i as usize].0..spans[i as usize].1];
+        let mut items: Vec<(u64, u32)> = (0..n as u32).map(|i| (prefix(key(i)), i)).collect();
+        let cmp = |a: &(u64, u32), b: &(u64, u32)| {
+            a.0.cmp(&b.0)
+                .then_with(|| key(a.1).cmp(key(b.1)))
+                .then_with(|| listing.name(a.1 as usize).cmp(listing.name(b.1 as usize)))
+        };
+        if n >= PAR_THRESHOLD {
+            items.par_sort_unstable_by(cmp);
+        } else {
+            items.sort_unstable_by(cmp);
+        }
+        let sorted: Vec<u32> = items.into_iter().map(|(_, i)| i).collect();
+        let mut rank = vec![0u32; n];
+        for (r, &i) in sorted.iter().enumerate() {
             rank[i as usize] = r as u32;
         }
-        Self(rank)
+        Self { rank, sorted }
     }
 
     pub fn get(&self, i: usize) -> u32 {
-        self.0[i]
+        self.rank[i]
+    }
+
+    /// Entry indices in name order.
+    pub fn sorted(&self) -> &[u32] {
+        &self.sorted
     }
 }
 
@@ -78,29 +108,53 @@ fn ordered(v: i64) -> u64 {
 /// the order is recomputed after metadata arrives. Symlinks sort as files.
 /// Directories have no size, so by size they keep name order.
 pub fn order(listing: &Listing, rank: &NameRank, metas: &MetaTable, spec: SortSpec) -> Vec<u32> {
-    let key = |i: u32| -> (u8, u8, u64, u32) {
-        let i = i as usize;
-        let is_dir = metas.kind(listing, i) == Kind::Dir;
-        let group = u8::from(spec.dirs_first && !is_dir);
-        let name = rank.get(i);
-        let m = metas.get(i);
-        let (missing, primary) = match spec.key {
-            SortKey::Name => (0, u64::from(name)),
-            SortKey::Size if is_dir => (0, 0),
-            SortKey::Size | SortKey::Modified if m.status != MetaStatus::Ok => (1, 0),
-            SortKey::Size => (0, m.size),
-            SortKey::Modified => (0, ordered(m.mtime)),
+    let is_dir = |i: u32| metas.kind(listing, i as usize) == Kind::Dir;
+    if spec.key == SortKey::Name {
+        // Already sorted by name: only split off the directories. O(n).
+        let names: Box<dyn Iterator<Item = &u32>> = if spec.descending {
+            Box::new(rank.sorted().iter().rev())
+        } else {
+            Box::new(rank.sorted().iter())
         };
-        let primary = if spec.descending { !primary } else { primary };
-        (group, missing, primary, name)
-    };
-    let mut idx: Vec<u32> = (0..listing.len() as u32).collect();
-    if idx.len() >= PAR_THRESHOLD {
-        idx.par_sort_unstable_by_key(|&i| key(i));
-    } else {
-        idx.sort_unstable_by_key(|&i| key(i));
+        if !spec.dirs_first {
+            return names.copied().collect();
+        }
+        let (mut dirs, rest): (Vec<u32>, Vec<u32>) = names.partition(|&&i| is_dir(i));
+        dirs.extend(rest);
+        return dirs;
     }
-    idx
+    // One packed integer key per entry; the name rank is unique, so it both
+    // breaks ties and identifies the entry after sorting.
+    // Layout: group (1 bit) | missing (1 bit) | primary (64) | name rank (32).
+    let mut keys: Vec<u128> = (0..listing.len() as u32)
+        .map(|i| {
+            let dir = is_dir(i);
+            let group = u128::from(spec.dirs_first && !dir);
+            let m = metas.get(i as usize);
+            let (missing, primary) = if dir && spec.key == SortKey::Size {
+                (0, 0)
+            } else if m.status != MetaStatus::Ok {
+                (1, 0)
+            } else if spec.key == SortKey::Size {
+                (0, m.size)
+            } else {
+                (0, ordered(m.mtime))
+            };
+            let primary = if spec.descending { !primary } else { primary };
+            group << 97
+                | missing << 96
+                | u128::from(primary) << 32
+                | u128::from(rank.get(i as usize))
+        })
+        .collect();
+    if keys.len() >= PAR_THRESHOLD {
+        keys.par_sort_unstable();
+    } else {
+        keys.sort_unstable();
+    }
+    keys.into_iter()
+        .map(|k| rank.sorted()[(k as u32) as usize])
+        .collect()
 }
 
 #[cfg(test)]
@@ -231,5 +285,87 @@ mod tests {
     fn ordered_preserves_i64_order() {
         let v = [i64::MIN, -5, -1, 0, 1, 7, i64::MAX];
         assert!(v.windows(2).all(|w| ordered(w[0]) < ordered(w[1])));
+    }
+
+    /// Naive reference: sort with a comparator over tuples.
+    fn naive(l: &Listing, metas: &MetaTable, spec: SortSpec) -> Vec<u32> {
+        use crate::listing::meta::MetaStatus;
+        use std::cmp::Ordering;
+        let mut idx: Vec<u32> = (0..l.len() as u32).collect();
+        idx.sort_by(|&a, &b| {
+            let (a, b) = (a as usize, b as usize);
+            let dir = |i| metas.kind(l, i) == Kind::Dir;
+            let group = |i| spec.dirs_first && !dir(i);
+            let name = super::natural::compare(l.name(a), l.name(b));
+            let flip = |o: Ordering| if spec.descending { o.reverse() } else { o };
+            group(a).cmp(&group(b)).then_with(|| match spec.key {
+                SortKey::Name => flip(name),
+                _ => {
+                    let missing = |i| {
+                        !(spec.key == SortKey::Size && dir(i))
+                            && metas.get(i).status != MetaStatus::Ok
+                    };
+                    let val = |i: usize| {
+                        let m = metas.get(i);
+                        match spec.key {
+                            SortKey::Size if dir(i) => 0i128,
+                            SortKey::Size => i128::from(m.size),
+                            _ => i128::from(m.mtime),
+                        }
+                    };
+                    missing(a)
+                        .cmp(&missing(b))
+                        .then_with(|| {
+                            if missing(a) {
+                                Ordering::Equal
+                            } else {
+                                flip(val(a).cmp(&val(b)))
+                            }
+                        })
+                        .then(name)
+                }
+            })
+        });
+        idx
+    }
+
+    proptest::proptest! {
+        #![proptest_config(proptest::prelude::ProptestConfig::with_cases(128))]
+        #[test]
+        fn order_matches_naive_sort(
+            names in proptest::collection::vec("[aB0-9.]{1,5}", 1..40),
+            dirs in proptest::collection::vec(proptest::bool::ANY, 40),
+            metas in proptest::collection::vec(proptest::option::of((0u64..5, -3i64..3)), 40),
+            key in 0u8..3, descending in proptest::bool::ANY, dirs_first in proptest::bool::ANY,
+        ) {
+            use crate::listing::meta::{Meta, MetaStatus};
+            let mut names = names;
+            names.sort();
+            names.dedup();
+            names.retain(|n| n != "." && n != "..");
+            let t = tempfile::tempdir().unwrap();
+            let entries: Vec<(&[u8], Kind)> = names
+                .iter()
+                .enumerate()
+                .map(|(i, n)| (n.as_bytes(), if dirs[i] { Kind::Dir } else { Kind::File }))
+                .collect();
+            let fd = Lister::new().list(t.path(), 0).unwrap().dir;
+            let l = Listing::from_parts(fd, &entries);
+            let mut table = MetaTable::new(l.len());
+            let items = (0..l.len())
+                .filter_map(|i| metas[i].map(|(size, mtime)| (i as u32, Meta {
+                    status: MetaStatus::Ok, size, mtime, mtime_nsec: 0,
+                    mode: if dirs[i] { 0o040755 } else { 0o100644 },
+                })))
+                .collect();
+            table.apply(&l, &MetaBatch { items, ..Default::default() });
+            let spec = SortSpec {
+                key: [SortKey::Name, SortKey::Size, SortKey::Modified][key as usize],
+                descending,
+                dirs_first,
+            };
+            let rank = NameRank::new(&l);
+            proptest::prop_assert_eq!(order(&l, &rank, &table, spec), naive(&l, &table, spec));
+        }
     }
 }

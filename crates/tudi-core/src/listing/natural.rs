@@ -12,6 +12,39 @@
 
 use std::cmp::Ordering;
 
+/// Append a byte key for `name` such that comparing keys bytewise (then the
+/// raw names, as a tiebreak) gives exactly the order of [`compare`].
+///
+/// Encoding, after dropping one leading `.`: ASCII bytes are lowercased;
+/// other bytes are copied; a run of digits becomes a length class byte
+/// followed by the run without leading zeros. The class byte is `'0' + len`
+/// for `len < 9`, else `'9'` followed by `len` as 4 big-endian bytes. Class
+/// bytes stay in the digit range, so a run still compares against a
+/// non-digit byte exactly like its first digit would.
+pub fn key(name: &[u8], out: &mut Vec<u8>) {
+    let s = strip_dot(name);
+    let mut i = 0;
+    while i < s.len() {
+        let c = s[i];
+        if c.is_ascii_digit() {
+            let end = digit_run(s, i);
+            let digits = trim_zeros(&s[i..end]);
+            let len = digits.len();
+            if len < 9 {
+                out.push(b'0' + len as u8);
+            } else {
+                out.push(b'9');
+                out.extend_from_slice(&(len as u32).to_be_bytes());
+            }
+            out.extend_from_slice(digits);
+            i = end;
+        } else {
+            out.push(c.to_ascii_lowercase());
+            i += 1;
+        }
+    }
+}
+
 /// Total order used for listing names. See the module docs.
 pub fn compare(a: &[u8], b: &[u8]) -> Ordering {
     primary(strip_dot(a), strip_dot(b)).then_with(|| a.cmp(b))
@@ -149,7 +182,44 @@ mod tests {
         assert_eq!(sorted(&["a1b", "a1"]), ["a1", "a1b"]);
     }
 
+    fn by_key(a: &[u8], b: &[u8]) -> Ordering {
+        let (mut ka, mut kb) = (Vec::new(), Vec::new());
+        key(a, &mut ka);
+        key(b, &mut kb);
+        ka.cmp(&kb).then_with(|| a.cmp(b))
+    }
+
+    #[test]
+    fn key_handles_long_runs_and_zeros() {
+        for (a, b) in [
+            (&b"x123456789012"[..], &b"x99"[..]),
+            (b"x000", b"x0"),
+            (b"x0", b"xa"),
+            (b"x9", b"x:"),
+            (b"x123456789", b"x12345678"),
+            (b"a1", b"a1b"),
+            (b".a", b"a"),
+        ] {
+            assert_eq!(by_key(a, b), compare(a, b), "{a:?} vs {b:?}");
+        }
+    }
+
     proptest::proptest! {
+        /// Comparing keys is exactly the natural order.
+        #[test]
+        fn key_order_matches_compare(
+            a in proptest::collection::vec(proptest::prop_oneof![
+                proptest::sample::select(b"aA0019.:-_".to_vec()),
+                proptest::num::u8::ANY,
+            ], 0..14),
+            b in proptest::collection::vec(proptest::prop_oneof![
+                proptest::sample::select(b"aA0019.:-_".to_vec()),
+                proptest::num::u8::ANY,
+            ], 0..14),
+        ) {
+            proptest::prop_assert_eq!(by_key(&a, &b), compare(&a, &b));
+        }
+
         /// `sort_by` requires a total order; check the laws on names drawn
         /// from an alphabet that stresses digits, dots, case and zeros.
         #[test]
