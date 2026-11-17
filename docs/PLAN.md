@@ -375,6 +375,17 @@ match (AND). Token kinds (full grammar in `docs/query-syntax.md`, M8):
 (user typing), restrict to the previous hit set (+ ancestors) instead of all
 nodes.
 
+**Typo tolerance (fallback):** nucleo matches subsequences, so a
+transposition or wrong letter (`invocie`, `reprot`) finds nothing. When a
+plain token of ≥ 4 characters matches fewer than K names (default 5), the
+matcher also accepts names containing a word within Damerau-Levenshtein
+distance 1 (tokens of 4–7 characters) or 2 (≥ 8 characters) of the token.
+Candidates come from a deduplicated vocabulary of name words (split on
+separators, case and digit boundaries) with a deletion-neighbourhood index
+(SymSpell style), not from scanning all nodes. Typo matches always rank below
+exact/subsequence matches and are marked in the UI. The fallback must fit
+inside P7.
+
 **Pinyin (`tudi-core::translit`):** a pluggable transliteration trait;
 the first implementation uses the `pinyin` crate to produce full pinyin
 (no tones, e.g. `hetonghedui`) and initials (`hthd`) for names containing CJK
@@ -704,7 +715,8 @@ before investing. (P1 was split into P1a/P1b by ADR-012.)
 
 **Tasks**
 - Matcher per §5.5 (token-mask propagation, nucleo-matcher scoring,
-  incremental refinement, top-K heap), pinyin transliteration.
+  incremental refinement, top-K heap), pinyin transliteration (full and
+  initials), typo-tolerant fallback over the name-word vocabulary.
 - Ranking with frecency + recency; weights in one struct.
 - Golden search-quality test set (§9.3) with ≥ 40 cases.
 - GUI search overlay (§5.7) with highlighted matches, reveal-in-tree,
@@ -716,8 +728,10 @@ before investing. (P1 was split into P1a/P1b by ADR-012.)
   reference machine).
 - Golden set: ≥ 90% of cases have the expected file in the top 3, 100% in
   the top 10.
-- Queries: `hthd` finds `合同核对.xlsx`; `acme 季报` finds files named
-  `*季报*` under any `acme` directory; token order does not matter.
+- Queries: `hthd` (initials) and `hetong` (full pinyin) find
+  `合同核对.xlsx`; `acme 季报` finds files named `*季报*` under any `acme`
+  directory; token order does not matter; `invocie` finds `invoice-2025.pdf`
+  (typo fallback) ranked below any exact `invoice` hit.
 
 ### M7 — fanotify helper
 

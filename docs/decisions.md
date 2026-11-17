@@ -151,3 +151,17 @@ Short ADR-style records: context / decision / consequences. Newest last.
 - **Consequences.** The resident process costs memory while no window is
   open; it must trim caches when the last window closes. P1a is measured by
   the spike's `--bench reopen` mode and later by tudi itself.
+
+## ADR-013: Typo-tolerant fallback and full pinyin in memory search
+
+- **Context.** The maintainer wants to find files despite typos and by full
+  pinyin, not only by subsequence and pinyin initials. `nucleo-matcher` is a
+  subsequence matcher, so transpositions and wrong letters find nothing.
+- **Decision.** Full pinyin (already stored at index time) becomes an M6
+  acceptance query. A typo fallback (Damerau-Levenshtein ≤ 1 or 2 by token
+  length) runs only when a token has fewer than K strict matches, over a
+  deduplicated name-word vocabulary with a deletion-neighbourhood index. Typo
+  hits rank below strict hits. Content search stays out of v0.1.
+- **Consequences.** The vocabulary index adds daemon memory that counts
+  against P8, and the fallback counts against P7; both are measured in M6.
+  The golden set gets typo and full-pinyin cases.
