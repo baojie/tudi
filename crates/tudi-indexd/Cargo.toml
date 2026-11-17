@@ -1,0 +1,19 @@
+[package]
+name = "tudi-indexd"
+description = "tudi user index daemon"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+tudi-core = { path = "../tudi-core" }
+tudi-index = { path = "../tudi-index" }
+tudi-proto = { path = "../tudi-proto" }

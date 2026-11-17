@@ -1,0 +1,23 @@
+[package]
+name = "tudi-gui"
+description = "tudi: a fast, tree-first file browser for Linux"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "tudi"
+path = "src/main.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+adw.workspace = true
+anyhow.workspace = true
+gtk.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+tudi-core = { path = "../tudi-core" }

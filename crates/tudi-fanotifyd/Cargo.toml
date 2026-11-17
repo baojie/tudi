@@ -1,0 +1,15 @@
+[package]
+name = "tudi-fanotifyd"
+description = "Optional privileged helper that forwards fanotify change events to tudi-indexd"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+# Keep this list minimal: the helper runs as root and must stay auditable.
+# No async runtime.
+[dependencies]
