@@ -1,0 +1,15 @@
+[package]
+name = "gtk4-list-spike"
+description = "M1 throwaway: GTK4 list performance with a custom ListModel"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+adw.workspace = true
+gtk.workspace = true
