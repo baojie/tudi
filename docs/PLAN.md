@@ -478,6 +478,25 @@ Layout (libadwaita `AdwApplicationWindow`):
   already bookmarked. `Ctrl+D` bookmarks the current folder; drag to
   reorder; right-click to rename/remove. Stored in
   `$XDG_CONFIG_HOME/tudi/bookmarks.toml`.
+- **Launchers** (ADR-014): a special root "Launchers" in the folder tree
+  (and a button at the left end of the bookmarks bar) whose list shows the
+  user's scripts and applications: name, kind, run mode, last run.
+  Double-click / `Enter` runs the item instead of opening it:
+  - `.desktop` files launch through `gio::DesktopAppInfo`;
+  - executables (scripts with a shebang, binaries) run with their own
+    directory as the working directory and no arguments by default;
+  - run mode per item: **terminal** (default for scripts; the configured
+    `commands.terminal_exec` template, which keeps the window open after
+    the script ends) or **background** (output to
+    `$XDG_STATE_HOME/tudi/launch-logs/`, a toast on exit with the exit code
+    and a "Show log" button);
+  - dropping files from the list onto a launcher runs it with those paths
+    as arguments; per-item fixed arguments and working directory are
+    optional.
+  Items are added with "Add to Launchers" (context menu, `Ctrl+Shift+D`) or
+  by dragging files onto the Launchers root; removed/renamed/reordered like
+  bookmarks. Stored in `$XDG_CONFIG_HOME/tudi/launchers.toml`. Nothing is
+  run without an explicit double-click, `Enter` or drop.
 - **Path bar** is a normal `GtkEntry` (selectable, copyable, editable;
   Tab-completion; `Ctrl+L` focuses it).
 - **Memory search**: `Ctrl+P` or `/` opens a search overlay above the panes
@@ -679,11 +698,19 @@ before investing. (P1 was split into P1a/P1b by ADR-012.)
 - First-run import from autojump, zoxide, GTK bookmarks (each optional,
   silent if absent); a `--reimport` flag.
 - Mounted volumes as folder-tree roots from `gio::VolumeMonitor`.
+- Launchers (§5.7, ADR-014): tree root and list, run in terminal or in
+  background with log and exit-code toast, drop files as arguments,
+  per-item args/cwd, `launchers.toml`.
 
 **Acceptance**
 - Jump to any bookmark in one keystroke; jump latency < 50 ms when the
   directory is cached, < P3 otherwise.
 - Import tested with fixture files for each format.
+- Launchers: a shell script runs in the terminal and in background mode
+  (exit code shown, log written); a `.desktop` file launches its app;
+  dropping two files runs the script with both paths as arguments; the
+  GTK main thread does no filesystem work when launching (spawn and
+  `.desktop` parsing on a worker).
 
 ### M5 — Index daemon
 
@@ -822,6 +849,8 @@ translit = ["pinyin"]
 
 [commands]
 terminal = ["kitty", "--directory", "{dir}"]
+# Run a command inside the terminal (launchers); {cmd} = program + args.
+terminal_exec = ["kitty", "--directory", "{dir}", "--hold", "{cmd}"]
 editor = ["zed", "{path}"]
 
 [keys]

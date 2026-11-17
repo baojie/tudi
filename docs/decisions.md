@@ -169,3 +169,20 @@ Short ADR-style records: context / decision / consequences. Newest last.
 - **Consequences.** The vocabulary index adds daemon memory that counts
   against P8, and the fallback counts against P7; both are measured in M6.
   The golden set gets typo and full-pinyin cases.
+
+## ADR-014: Launchers — a special collection that runs scripts and apps
+
+- **Context.** The maintainer wants a special favourites collection where a
+  double-click starts any script or application.
+- **Decision.** A "Launchers" root in the folder tree (plus a bookmarks-bar
+  button) shows the collection in the details list; activating an item runs
+  it. `.desktop` files launch via GIO; executables run in their own
+  directory. Each item has a run mode: terminal (default for scripts, via a
+  `commands.terminal_exec` template that keeps the window open) or
+  background (log file plus an exit-code toast). Files dropped onto an item
+  become its arguments; fixed arguments and working directory are optional
+  per item. Stored in `launchers.toml`. Scheduled in M4 with bookmarks.
+- **Consequences.** tudi starts arbitrary programs, but only on an explicit
+  double-click, `Enter` or drop on an item the user added themselves; normal
+  folders keep "open with default app" for executables. Spawning and
+  `.desktop` parsing happen off the main thread.
