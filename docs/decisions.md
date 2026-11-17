@@ -151,6 +151,10 @@ Short ADR-style records: context / decision / consequences. Newest last.
 - **Consequences.** The resident process costs memory while no window is
   open; it must trim caches when the last window closes. P1a is measured by
   the spike's `--bench reopen` mode and later by tudi itself.
+- **Follow-up (same day).** A desktop re-run was invalid (machine fully loaded
+  by unrelated jobs, on battery). The maintainer chose to close M1 on the
+  headless numbers and continue; P1a, P1b, P5 and P6 are confirmed on the
+  desktop as part of M3 acceptance, which already measures them.
 
 ## ADR-013: Typo-tolerant fallback and full pinyin in memory search
 

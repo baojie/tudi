@@ -888,7 +888,9 @@ unplugged while browsing, 100k-file directory on a slow USB stick.
 ## 12. Progress
 
 - [x] M0 Repository bootstrap
-- [ ] M1 GTK4 list spike (decision gate)
+- [x] M1 GTK4 list spike (decision gate) — accepted by the maintainer on
+  headless numbers (ADR-011, ADR-012); desktop confirmation of P1a/P1b/P5/P6
+  moves to M3 acceptance
 - [ ] M2 Core listing engine
 - [ ] M3 Two-pane browser MVP
 - [ ] M4 Bookmarks and frecency
