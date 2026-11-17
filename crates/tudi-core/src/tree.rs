@@ -249,6 +249,89 @@ impl Tree {
         Some(self.insert(row + 1, sub))
     }
 
+    /// Replace the children of an already listed node with a fresh listing
+    /// (live update). Children whose name is unchanged keep their node id
+    /// and state (expanded, loaded descendants). A loading node is handled
+    /// like [`Tree::set_children`]; a never-listed node is left alone.
+    ///
+    /// If the node is visible and expanded, the rows that differ are
+    /// replaced in one splice spanning only the changed middle (common
+    /// leading and trailing rows are kept, and with them their selection).
+    pub fn refresh_children<N: AsRef<[u8]>>(
+        &mut self,
+        node: NodeId,
+        result: Result<impl IntoIterator<Item = N>, ListFailure>,
+    ) -> Option<Splice> {
+        match self.nodes[node as usize].children {
+            Children::Unknown => return None,
+            Children::Loading => return self.set_children(node, result),
+            Children::Loaded(_) | Children::Failed(_) => {}
+        }
+        let visible = if self.nodes[node as usize].expanded {
+            self.row_of(node)
+        } else {
+            None
+        };
+        let old_range = visible.map(|row| row + 1..self.subtree_end(row));
+
+        let depth = self.nodes[node as usize].depth + 1;
+        let children = match result {
+            Ok(names) => {
+                let old: std::collections::HashMap<Box<[u8]>, NodeId> =
+                    match &self.nodes[node as usize].children {
+                        Children::Loaded(kids) => kids
+                            .iter()
+                            .map(|&k| (self.nodes[k as usize].name.clone(), k))
+                            .collect(),
+                        _ => Default::default(),
+                    };
+                let mut kids = Vec::new();
+                for n in names {
+                    let n = n.as_ref();
+                    let id = match old.get(n) {
+                        Some(&id) => id,
+                        None => self.new_node(n.into(), Some(node), depth),
+                    };
+                    kids.push(id);
+                }
+                Children::Loaded(kids)
+            }
+            Err(f) => Children::Failed(f),
+        };
+        self.nodes[node as usize].children = children;
+
+        let range = old_range?;
+        let mut new_rows = Vec::new();
+        self.push_visible_children(node, &mut new_rows);
+        let old_rows = &self.rows[range.clone()];
+        let prefix = old_rows
+            .iter()
+            .zip(&new_rows)
+            .take_while(|(a, b)| a == b)
+            .count();
+        let suffix = old_rows[prefix..]
+            .iter()
+            .rev()
+            .zip(new_rows[prefix..].iter().rev())
+            .take_while(|(a, b)| a == b)
+            .count();
+        let removed = old_rows.len() - prefix - suffix;
+        let added = new_rows.len() - prefix - suffix;
+        if removed == 0 && added == 0 {
+            return None;
+        }
+        let at = range.start + prefix;
+        self.rows.splice(
+            at..at + removed,
+            new_rows[prefix..prefix + added].iter().copied(),
+        );
+        Some(Splice {
+            position: at as u32,
+            removed: removed as u32,
+            added: added as u32,
+        })
+    }
+
     /// Row index of a node, if it is visible.
     ///
     /// Checks that every ancestor is expanded first, then scans the row
@@ -444,6 +527,47 @@ mod tests {
     }
 
     #[test]
+    fn refresh_keeps_state_and_splices_only_the_change() {
+        let mut t = Tree::new();
+        let (root, _) = t.add_root("/r");
+        t.expand(0);
+        t.set_children(root, ok(&["a", "b", "d"]));
+        let b = t.rows()[2].node;
+        t.expand(2);
+        t.set_children(b, ok(&["x"]));
+        assert_eq!(labels(&t), ["/r", "  a", "  b", "    x", "  d"]);
+        // "c" created between b and d: one row inserted, b keeps its state.
+        let s = t.refresh_children(root, ok(&["a", "b", "c", "d"])).unwrap();
+        assert_eq!(
+            s,
+            Splice {
+                position: 4,
+                removed: 0,
+                added: 1
+            }
+        );
+        assert_eq!(labels(&t), ["/r", "  a", "  b", "    x", "  c", "  d"]);
+        assert_eq!(t.rows()[2].node, b);
+        // "a" deleted.
+        let s = t.refresh_children(root, ok(&["b", "c", "d"])).unwrap();
+        assert_eq!(
+            s,
+            Splice {
+                position: 1,
+                removed: 1,
+                added: 0
+            }
+        );
+        // No change: no splice.
+        assert_eq!(t.refresh_children(root, ok(&["b", "c", "d"])), None);
+        // Collapsed: state updates, no splice.
+        t.collapse(0);
+        assert_eq!(t.refresh_children(root, ok(&["b"])), None);
+        t.expand(0);
+        assert_eq!(labels(&t), ["/r", "  b", "    x"]);
+    }
+
+    #[test]
     fn non_utf8_names_and_paths() {
         let mut t = Tree::new();
         let (root, _) = t.add_root("/r");
@@ -488,6 +612,9 @@ mod tests {
         Collapse(usize),
         /// Deliver a listing to one pending node: `None` = failure.
         Deliver(usize, Option<u8>),
+        /// Live update of a listed node: keep each old child with the
+        /// given probability mask, add `new` children; `None` = failure.
+        Refresh(usize, Option<(u64, u8)>),
     }
 
     fn op() -> impl Strategy<Value = Op> {
@@ -495,6 +622,7 @@ mod tests {
             3 => any::<usize>().prop_map(Op::Expand),
             1 => any::<usize>().prop_map(Op::Collapse),
             3 => (any::<usize>(), prop::option::weighted(0.85, 0u8..6)).prop_map(|(i, n)| Op::Deliver(i, n)),
+            2 => (any::<usize>(), prop::option::weighted(0.9, (any::<u64>(), 0u8..3))).prop_map(|(i, r)| Op::Refresh(i, r)),
         ]
     }
 
@@ -526,6 +654,33 @@ mod tests {
                         }
                     }
                     Op::Collapse(i) => t.collapse(i % t.rows().len()),
+                    Op::Refresh(i, r) => {
+                        let listed: Vec<NodeId> = (0..t.nodes.len() as NodeId)
+                            .filter(|&id| matches!(t.node(id).children(), Children::Loaded(_) | Children::Failed(_)))
+                            .collect();
+                        if listed.is_empty() { None } else {
+                            let id = listed[i % listed.len()];
+                            let res = match r {
+                                Some((keep, new)) => {
+                                    let mut names: Vec<Vec<u8>> = match t.node(id).children() {
+                                        Children::Loaded(kids) => kids
+                                            .iter()
+                                            .enumerate()
+                                            .filter(|(k, _)| keep >> (k % 64) & 1 == 1)
+                                            .map(|(_, &k)| t.node(k).name().as_bytes().to_vec())
+                                            .collect(),
+                                        _ => Vec::new(),
+                                    };
+                                    let serial = t.nodes.len();
+                                    names.extend((0..new).map(|k| format!("n{serial}-{k}").into_bytes()));
+                                    names.sort();
+                                    Ok(names)
+                                }
+                                None => Err(denied()),
+                            };
+                            t.refresh_children(id, res)
+                        }
+                    }
                     Op::Deliver(i, n) => {
                         if pending.is_empty() { None } else {
                             let id = pending.swap_remove(i % pending.len());
