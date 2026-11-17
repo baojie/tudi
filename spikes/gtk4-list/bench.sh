@@ -3,6 +3,8 @@
 #
 #   bench.sh startup [N]    startup in the current desktop session (N runs);
 #                           also prints the externally measured launch time.
+#   bench.sh reopen [N]     P1a: close the first window, keep the process,
+#                           open a new window; prints reopen_ms (N runs).
 #   bench.sh all [VARIANT]  scroll + insert benchmark. Runs inside a private
 #                           headless gnome-shell so the window is never
 #                           occluded (an occluded Wayland window gets no frame
@@ -19,6 +21,11 @@ startup)
         out=$("$BIN" --bench startup 2>/dev/null)
         paint=$(printf '%s' "$out" | sed -E 's/.*"first_paint_epoch_ns":([0-9]+).*/\1/')
         printf '%s {"external_ms":%s}\n' "$out" "$(( (paint - t0) / 1000000 ))"
+    done
+    ;;
+reopen)
+    for _ in $(seq 1 "${2:-7}"); do
+        "$BIN" --bench reopen 2>/dev/null
     done
     ;;
 all)
@@ -38,7 +45,7 @@ all)
     done
     ;;
 *)
-    echo "usage: $0 startup [N] | all [VARIANT]" >&2
+    echo "usage: $0 startup [N] | reopen [N] | all [VARIANT]" >&2
     exit 2
     ;;
 esac

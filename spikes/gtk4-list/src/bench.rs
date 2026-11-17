@@ -1,6 +1,9 @@
 //! Automated measurement mode, driven by the window's `GdkFrameClock`.
 //!
 //! - startup: `main()` → first `after-paint`.
+//! - reopen (P1a): after the first window has painted, destroy it while the
+//!   app stays alive (like a resident instance), wait, then time building a
+//!   new window over the same model → its first `after-paint`.
 //! - scroll: move the vertical adjustment at a constant speed through the
 //!   whole list; record frame intervals (before-paint → before-paint) and
 //!   frame work time (before-paint → after-paint).
@@ -24,7 +27,16 @@ use crate::model::RowModel;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Mode {
     Startup,
+    Reopen,
+    /// The second window of `Reopen`; its first paint ends the run.
+    Reopened,
     All,
+}
+
+thread_local! {
+    /// When the reopen request was issued (P1a start).
+    static REOPEN_T0: std::cell::Cell<Option<Instant>> = const { std::cell::Cell::new(None) };
+    static REOPEN_MS: std::cell::Cell<Option<f64>> = const { std::cell::Cell::new(None) };
 }
 
 #[derive(Debug)]
@@ -175,6 +187,15 @@ fn on_after_paint(
                 finish(&s.res, window, opts, mode);
                 app.quit();
                 Phase::Done
+            } else if mode == Mode::Reopen {
+                reopen(app, window, model, opts);
+                Phase::Done
+            } else if mode == Mode::Reopened {
+                let t0 = REOPEN_T0.with(|c| c.get()).expect("reopen start recorded");
+                REOPEN_MS.with(|c| c.set(Some(ms(now - t0))));
+                finish(&s.res, window, opts, mode);
+                app.quit();
+                Phase::Done
             } else {
                 Phase::Settle {
                     frames: 30,
@@ -289,6 +310,27 @@ fn arm(st: &Rc<RefCell<State>>, model: &RowModel, opts: &Options, rep: usize, in
     });
 }
 
+/// Close the first window without quitting, then open a fresh one later.
+fn reopen(
+    app: &adw::Application,
+    window: &adw::ApplicationWindow,
+    model: &RowModel,
+    opts: &Options,
+) {
+    let guard = app.hold();
+    let (app, window, model, opts) = (app.clone(), window.clone(), model.clone(), opts.clone());
+    glib::idle_add_local_once(move || {
+        window.destroy();
+        // Let the compositor and GTK settle, as if the user closed the window
+        // a while ago.
+        glib::timeout_add_local_once(Duration::from_millis(500), move || {
+            let _guard = guard;
+            REOPEN_T0.with(|c| c.set(Some(Instant::now())));
+            crate::build_window(&app, &opts, &model, Some(Mode::Reopened));
+        });
+    });
+}
+
 fn finish(r: &Results, window: &adw::ApplicationWindow, opts: &Options, mode: Mode) {
     let renderer = window
         .renderer()
@@ -321,6 +363,9 @@ fn finish(r: &Results, window: &adw::ApplicationWindow, opts: &Options, mode: Mo
         }
     });
     out.push('}');
+    if let Some(v) = REOPEN_MS.with(|c| c.get()) {
+        let _ = write!(out, ",\"reopen_ms\":{v:.3}");
+    }
     if mode == Mode::All {
         let _ = write!(
             out,

@@ -3,7 +3,7 @@
 //!
 //! ```text
 //! gtk4-list-spike [--variant listview|columnview] [--rows N]
-//!                 [--bench startup|all] [--speed PX_PER_S]
+//!                 [--bench startup|reopen|all] [--speed PX_PER_S]
 //!                 [--inserts N] [--insert-rows N]
 //! ```
 //!
@@ -83,6 +83,7 @@ fn parse_args() -> Result<Options, String> {
             "--bench" => {
                 o.bench = Some(match val()?.as_str() {
                     "startup" => bench::Mode::Startup,
+                    "reopen" => bench::Mode::Reopen,
                     "all" => bench::Mode::All,
                     v => return Err(format!("unknown bench mode {v}")),
                 })
@@ -109,16 +110,25 @@ fn main() -> gtk::glib::ExitCode {
         .flags(gio::ApplicationFlags::NON_UNIQUE)
         .build();
     app.connect_startup(|_| mark("startup_signal"));
-    app.connect_activate(move |app| build_window(app, &opts));
+    app.connect_activate(move |app| {
+        mark("activate");
+        let model = model::RowModel::synthetic(opts.rows);
+        mark("model_built");
+        build_window(app, &opts, &model, opts.bench);
+    });
     // Our own arguments are parsed above; do not let GApplication see them.
     app.run_with_args::<&str>(&[])
 }
 
-fn build_window(app: &adw::Application, opts: &Options) {
-    mark("activate");
-    let model = model::RowModel::synthetic(opts.rows);
-    mark("model_built");
-    let list = view::build(&model, opts.variant);
+/// Build and present a window over `model`. Also used by `--bench reopen`
+/// to open a second window from the still-running process.
+pub fn build_window(
+    app: &adw::Application,
+    opts: &Options,
+    model: &model::RowModel,
+    bench: Option<bench::Mode>,
+) {
+    let list = view::build(model, opts.variant);
     let scrolled = gtk::ScrolledWindow::builder()
         .hscrollbar_policy(gtk::PolicyType::Never)
         .vexpand(true)
@@ -137,8 +147,8 @@ fn build_window(app: &adw::Application, opts: &Options) {
         .content(&content)
         .build();
 
-    if let Some(mode) = opts.bench {
-        bench::install(app, &window, &scrolled, &model, opts, mode);
+    if let Some(mode) = bench {
+        bench::install(app, &window, &scrolled, model, opts, mode);
     }
     mark("window_built");
     window.present();
