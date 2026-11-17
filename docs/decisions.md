@@ -113,3 +113,20 @@ Short ADR-style records: context / decision / consequences. Newest last.
   much smaller; the 100k-row budgets apply to the details list. Both panes
   use our own `ListModel`. P5/P6 numbers are unchanged; their wording now
   names which pane they apply to.
+
+## ADR-011: M1 result — ListView for both panes; P1 not met (pending)
+
+- **Context.** The M1 spike measured GTK4 with 100k rows (see
+  `docs/benchmarks.md`). P6 is met with a wide margin by both variants. P5 is
+  met by ListView if read as "dropped frames at p99" (0.05 % dropped, work
+  time never above 16.7 ms); the raw p99 frame interval is 17.4 ms because of
+  vsync jitter. P1 is not met: 370–450 ms by default, ~305 ms in the best
+  GL configuration, and even an empty libadwaita window takes 237 ms (GL) or
+  157 ms (cairo).
+- **Decision.** Use `ListView` for the folder tree and the details list
+  (better frame times than `ColumnView`; the details list gets its own header
+  row with fixed-width, sortable columns). The P1 outcome and the reading of
+  P5 are for the maintainer to decide, per the M1 gate; M1 stays open until
+  then.
+- **Consequences.** Whatever is chosen for P1 (tuning, a resident instance,
+  a different budget, or a Qt6 spike) is recorded as a follow-up ADR.

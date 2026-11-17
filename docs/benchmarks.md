@@ -5,7 +5,11 @@ benchmarks and the latest measured numbers on the reference machine.
 
 ## Reference machine
 
-To be filled by `scripts/bench_all.sh` (CPU, disk, kernel, GTK version).
+Ubuntu 26.04, kernel 7.0, GNOME on Wayland, 22 cores, 30 GB RAM, NVMe SSD.
+Hybrid graphics: Intel Arc (Meteor Lake) + NVIDIA RTX 4060 Mobile; 1920×1080
+at 60 Hz. GTK 4.22.4, libadwaita 1.9.1. Desktop theme Greybird with a user
+`gtk.css`, icon theme breeze. (`scripts/bench_all.sh` will record this
+automatically from M3 on.)
 
 ## Fixtures
 
@@ -29,4 +33,46 @@ reference machine (16 processes).
 
 ## Results
 
-No measurements yet (first numbers come from M1).
+### M1 — GTK4 list spike (2026-11-18)
+
+Run with `spikes/gtk4-list/bench.sh`. 100,000 synthetic rows, custom
+`gio::ListModel`, `MultiSelection`, release build, default GSK renderer (GL).
+
+**Startup (P1, budget < 150 ms)** — `main()` → first `after-paint`, median of
+5–7 runs in the desktop session. External launch adds 30–35 ms.
+
+| Configuration | Startup | GTK/adw init | `present()` | first paint |
+|---|---|---|---|---|
+| default (GL on NVIDIA, Greybird, breeze, themed icons) | 370–450 ms | ~105 ms | ~160 ms | ~90 ms |
+| Mesa EGL (Intel iGPU) | 346 ms | 110 | 88 | 119 |
+| Mesa EGL + `GTK_THEME=Adwaita` | 305 ms | 57 | 79 | 140 |
+| Mesa EGL + Adwaita, 0 rows (empty window) | 237 ms | 77 | 65 | 94 |
+| cairo renderer + Adwaita, 0 rows (empty window) | 157 ms | 63 | 31 | 61 |
+| Vulkan renderer (NVIDIA) | 524 ms | 111 | 282 | 101 |
+
+Findings: by default GTK picks the NVIDIA EGL vendor (dGPU wake-up, ~70 ms
+extra in `present()`); themed (non-symbolic) icons are decoded through glycin,
+which spawns a `bwrap`-sandboxed loader process; fontconfig opens ~400 font
+files for the CJK fallback on first paint. Even an empty libadwaita window
+does not reach 150 ms with the GL renderer.
+
+**Scroll (P5) and insert (P6)** — run in a private headless gnome-shell
+(virtual 1920×1080@60) because an occluded window on the desktop gets no frame
+callbacks. Scroll at a constant 50,000 px/s through the whole list (every
+frame shows entirely new rows); 5 inserts and removes of 10,000 rows in the
+visible area, triggered from a main-loop callback between frames.
+
+| Metric | ListView | ColumnView | Budget |
+|---|---|---|---|
+| frames measured | 5,749 | 4,186 | |
+| frame interval p50 / p99 / max | 16.67 / 17.4 / 164 ms | 16.67 / 18.2 / 179 ms | P5: no frame > 16.7 ms at p99 |
+| dropped frames (interval > 25 ms) | 3 (0.05 %) | 5 (0.12 %) | |
+| frame work time p99 / max | 8.9 / 15.8 ms | 10.8 / 25.5 ms | |
+| frames with work > 16.7 ms | 0 | 1 | |
+| insert 10k rows: splice / → next paint (max) | 3.4 / 14.4 ms | 3.8 / 14.7 ms | P6: < 50 ms |
+| remove 10k rows → next paint (max) | 14.4 ms | 14.3 ms | |
+
+P6 is met by both variants with a wide margin. For P5, the p99 frame interval
+is above 16.7 ms only because of vsync jitter (16.67 ms ± 1 ms); the p99 of
+dropped frames is zero and ListView's work time never exceeds a frame. These
+are headless numbers; they still need confirming on the real desktop.
