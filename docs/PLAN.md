@@ -891,7 +891,8 @@ unplugged while browsing, 100k-file directory on a slow USB stick.
 - [x] M1 GTK4 list spike (decision gate) — accepted by the maintainer on
   headless numbers (ADR-011, ADR-012); desktop confirmation of P1a/P1b/P5/P6
   moves to M3 acceptance
-- [ ] M2 Core listing engine
+- [ ] M2 Core listing engine — code and tests done; acceptance benches
+  pending a quiet machine (runs on 2026-11-18 were under load ≥ 18)
 - [ ] M3 Two-pane browser MVP
 - [ ] M4 Bookmarks and frecency
 - [ ] M5 Index daemon
