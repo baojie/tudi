@@ -842,7 +842,7 @@ unplugged while browsing, 100k-file directory on a slow USB stick.
 
 ## 12. Progress
 
-- [ ] M0 Repository bootstrap
+- [x] M0 Repository bootstrap
 - [ ] M1 GTK4 list spike (decision gate)
 - [ ] M2 Core listing engine
 - [ ] M3 Tree browser MVP
