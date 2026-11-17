@@ -17,6 +17,7 @@ use gtk::{gdk, gio, glib};
 use tudi_core::config::expand_command;
 
 use crate::browser::Browser;
+use crate::i18n::{fill, ntr, tr};
 
 /// Type-ahead buffer resets after this pause.
 const TYPEAHEAD_RESET: Duration = Duration::from_millis(1000);
@@ -147,7 +148,8 @@ impl Browser {
         }
         let provider = files_provider(&paths);
         self.window.clipboard().set_content(Some(&provider)).ok();
-        self.toast(&format!("Copied {} item(s)", paths.len()));
+        let n = paths.len() as u64;
+        self.toast(&fill(&ntr("Copied {} item", "Copied {} items", n), &[&n]));
     }
 
     /// Ctrl+Shift+C: absolute paths as text (current folder if none).
@@ -162,7 +164,8 @@ impl Browser {
             .collect::<Vec<_>>()
             .join("\n");
         self.window.clipboard().set_text(&text);
-        self.toast(&format!("Copied {} path(s)", paths.len()));
+        let n = paths.len() as u64;
+        self.toast(&fill(&ntr("Copied {} path", "Copied {} paths", n), &[&n]));
     }
 
     // ------------------------------------------------------------ commands
@@ -181,7 +184,7 @@ impl Browser {
     fn run_command(self: &Rc<Self>, template: &[String], paths: &[PathBuf]) {
         let dir = self.current_dir();
         let Some((program, args)) = expand_command(template, &dir, paths) else {
-            self.toast("No command configured");
+            self.toast(&tr("No command configured"));
             return;
         };
         let (tx, rx) = async_channel::bounded::<Result<(), String>>(1);
@@ -208,7 +211,7 @@ impl Browser {
             if let Ok(Err(e)) = rx.recv().await
                 && let Some(b) = w.upgrade()
             {
-                b.toast(&format!("Cannot run {name}: {e}"));
+                b.toast(&fill(&tr("Cannot run {}: {}"), &[&name, &e]));
             }
         });
     }
@@ -233,9 +236,17 @@ impl Browser {
             let Some(b) = w.upgrade() else { return };
             let ok = paths.len() - failed.len();
             if failed.is_empty() {
-                b.toast(&format!("Moved {ok} item(s) to the trash"));
+                let ok = ok as u64;
+                b.toast(&fill(
+                    &ntr(
+                        "Moved {} item to the trash",
+                        "Moved {} items to the trash",
+                        ok,
+                    ),
+                    &[&ok],
+                ));
             } else {
-                b.toast(&format!("Could not trash {}", failed.join("; ")));
+                b.toast(&fill(&tr("Could not trash {}"), &[&failed.join("; ")]));
             }
             b.reload(None);
         });
@@ -252,7 +263,7 @@ impl Browser {
             .map(|n| n.to_string_lossy().into_owned())
             .unwrap_or_default();
         let w = Rc::downgrade(self);
-        self.ask_name("Rename", "Rename", &old, move |new| {
+        self.ask_name(&tr("Rename"), &tr("Rename"), &old, move |new| {
             if let Some(b) = w.upgrade() {
                 b.rename(path.clone(), new);
             }
@@ -269,7 +280,7 @@ impl Browser {
             let Some(b) = w.upgrade() else { return };
             match r {
                 Ok(_) => b.reload(Some(new.into_bytes())),
-                Err(e) => b.toast(&format!("Cannot rename: {e}")),
+                Err(e) => b.toast(&fill(&tr("Cannot rename: {}"), &[&e])),
             }
         });
     }
@@ -277,11 +288,16 @@ impl Browser {
     /// Ctrl+Shift+N: create a folder in the current folder.
     pub(crate) fn new_folder(self: &Rc<Self>) {
         let w = Rc::downgrade(self);
-        self.ask_name("New Folder", "Create", "New Folder", move |name| {
-            if let Some(b) = w.upgrade() {
-                b.make_folder(name);
-            }
-        });
+        self.ask_name(
+            &tr("New Folder"),
+            &tr("Create"),
+            &tr("New Folder"),
+            move |name| {
+                if let Some(b) = w.upgrade() {
+                    b.make_folder(name);
+                }
+            },
+        );
     }
 
     pub(crate) fn make_folder(self: &Rc<Self>, name: String) {
@@ -292,7 +308,7 @@ impl Browser {
             let Some(b) = w.upgrade() else { return };
             match r {
                 Ok(()) => b.reload(Some(name.into_bytes())),
-                Err(e) => b.toast(&format!("Cannot create folder: {e}")),
+                Err(e) => b.toast(&fill(&tr("Cannot create folder: {}"), &[&e])),
             }
         });
     }
@@ -310,7 +326,7 @@ impl Browser {
             .default_response("ok")
             .close_response("cancel")
             .build();
-        dialog.add_responses(&[("cancel", "Cancel"), ("ok", verb)]);
+        dialog.add_responses(&[("cancel", &tr("Cancel")), ("ok", verb)]);
         dialog.set_response_appearance("ok", adw::ResponseAppearance::Suggested);
         let stem = match initial.rfind('.') {
             Some(p) if p > 0 => initial[..p].chars().count() as i32,

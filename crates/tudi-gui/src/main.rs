@@ -1,17 +1,35 @@
 //! `tudi`: the GTK4/libadwaita file browser.
+//!
+//! ```text
+//! tudi [PATH]          open PATH (in the running instance, if any)
+//! tudi --new-window    open another window
+//! tudi --background    start the resident instance without a window
+//! tudi --quit          stop the resident instance
+//! ```
+//!
+//! tudi keeps a resident instance (ADR-012): closing the last window keeps
+//! the process, so the next window opens fast (P1a). Single instance via
+//! `GApplication`: a second `tudi PATH` is forwarded to the running one.
 
 mod actions;
 mod browser;
 mod dev;
 mod format;
+mod i18n;
 mod pane;
 mod sidebar;
 mod worker;
 
+use std::cell::RefCell;
 use std::path::PathBuf;
+use std::rc::Rc;
 
 use adw::prelude::*;
-use gtk::{gdk, glib};
+use gtk::{gdk, gio, glib};
+use tudi_core::config::{Config, ConfigError};
+use tudi_core::state::WindowState;
+
+use browser::Browser;
 
 const APP_ID: &str = "io.github.baojie.tudi";
 
@@ -24,23 +42,166 @@ const CSS: &str = "
 .tudi-tree row { padding: 3px 6px; }
 ";
 
-fn main() -> anyhow::Result<()> {
+type Loaded = (Config, Option<ConfigError>, WindowState);
+
+/// Process-wide state of the GUI (main thread only).
+#[derive(Default)]
+struct App {
+    /// Config and state, read on a thread at startup.
+    loading: RefCell<Option<std::thread::JoinHandle<Loaded>>>,
+    loaded: RefCell<Option<Loaded>>,
+    /// Open windows, most recently opened last. Owning the browsers here
+    /// keeps them alive while their windows are open.
+    browsers: RefCell<Vec<Rc<Browser>>>,
+}
+
+impl App {
+    fn loaded(&self) -> std::cell::Ref<'_, Loaded> {
+        if self.loaded.borrow().is_none() {
+            let l = self
+                .loading
+                .borrow_mut()
+                .take()
+                .and_then(|h| h.join().ok())
+                .unwrap_or_else(|| (Config::default(), None, WindowState::default()));
+            *self.loaded.borrow_mut() = Some(l);
+        }
+        std::cell::Ref::map(self.loaded.borrow(), |l| l.as_ref().unwrap())
+    }
+
+    fn open_window(self: &Rc<Self>, app: &adw::Application, path: Option<PathBuf>) {
+        let (config, err, state) = {
+            let l = self.loaded();
+            (
+                l.0.clone(),
+                l.1.as_ref().map(|e| e.to_string()),
+                l.2.clone(),
+            )
+        };
+        let start = path
+            .or_else(|| state.last_dir.as_ref().map(PathBuf::from))
+            .unwrap_or_else(glib::home_dir);
+        let b = Browser::new(app, &start, config, &state);
+        let first = self.browsers.borrow().is_empty();
+        self.browsers.borrow_mut().push(b.clone());
+
+        let me = Rc::downgrade(self);
+        let weak = Rc::downgrade(&b);
+        b.window.connect_close_request(move |_| {
+            if let (Some(me), Some(b)) = (me.upgrade(), weak.upgrade()) {
+                me.closed(&b);
+            }
+            glib::Propagation::Proceed
+        });
+        b.window.present();
+        if let Some(e) = err.filter(|_| first) {
+            b.toast(&e);
+        }
+        if first {
+            dev::install(&b);
+        }
+    }
+
+    /// A window closes: remember its state and drop the browser (its
+    /// listing, models and watches), keeping the process resident.
+    fn closed(&self, b: &Rc<Browser>) {
+        let state = b.snapshot_state();
+        if let Some(l) = self.loaded.borrow_mut().as_mut() {
+            l.2 = state.clone();
+        }
+        std::thread::spawn(move || {
+            if let Some(p) = WindowState::path()
+                && let Err(e) = state.save(&p)
+            {
+                tracing::warn!("cannot save window state: {e}");
+            }
+        });
+        self.browsers.borrow_mut().retain(|x| !Rc::ptr_eq(x, b));
+    }
+
+    /// On exit (`--quit`), save the state of the last open window. Written
+    /// synchronously: no more frames are drawn at this point.
+    fn save_on_exit(&self) {
+        let Some(b) = self.browsers.borrow().last().cloned() else {
+            return;
+        };
+        if let Some(p) = WindowState::path()
+            && let Err(e) = b.snapshot_state().save(&p)
+        {
+            tracing::warn!("cannot save window state: {e}");
+        }
+    }
+
+    fn command_line(self: &Rc<Self>, app: &adw::Application, cl: &gio::ApplicationCommandLine) {
+        let opts = cl.options_dict();
+        if opts.contains("quit") {
+            app.quit();
+            return;
+        }
+        if opts.contains("background") {
+            return;
+        }
+        let path = cl.arguments().into_iter().nth(1).map(|a| {
+            let p = PathBuf::from(a);
+            match cl.cwd() {
+                Some(cwd) if p.is_relative() => cwd.join(p),
+                _ => p,
+            }
+        });
+        let last = self.browsers.borrow().last().cloned();
+        match last {
+            Some(b) if !opts.contains("new-window") => {
+                if let Some(p) = path {
+                    b.navigate(&p, true);
+                }
+                b.window.present();
+            }
+            _ => self.open_window(app, path),
+        }
+    }
+}
+
+fn main() -> glib::ExitCode {
     tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .init();
 
-    let start = std::env::args_os()
-        .nth(1)
-        .map(PathBuf::from)
-        .unwrap_or_else(glib::home_dir);
-    let start = std::path::absolute(&start).unwrap_or(start);
+    i18n::init();
+    let me = Rc::new(App::default());
+    // Read config and window state on a thread while GTK initializes.
+    *me.loading.borrow_mut() = Some(std::thread::spawn(|| {
+        let (config, err) = Config::load_user();
+        let state = WindowState::path()
+            .map(|p| WindowState::load(&p))
+            .unwrap_or_default();
+        (config, err, state)
+    }));
 
-    // Read the config file on a thread while GTK initializes.
-    let config = std::thread::spawn(tudi_core::config::Config::load_user);
-    let config = std::cell::RefCell::new(Some(config));
-
-    let app = adw::Application::builder().application_id(APP_ID).build();
-    app.connect_startup(|_| {
+    let app = adw::Application::builder()
+        .application_id(APP_ID)
+        .flags(gio::ApplicationFlags::HANDLES_COMMAND_LINE)
+        .build();
+    for (name, short, help) in [
+        ("new-window", b'n', "Open a new window"),
+        (
+            "background",
+            0,
+            "Start the resident instance without a window",
+        ),
+        ("quit", 0, "Quit the resident instance"),
+    ] {
+        app.add_main_option(
+            name,
+            glib::Char::from(short),
+            glib::OptionFlags::NONE,
+            glib::OptionArg::None,
+            help,
+            None,
+        );
+    }
+    app.connect_startup(|app| {
+        // Resident instance: closing the last window keeps the process.
+        std::mem::forget(app.hold());
         let css = gtk::CssProvider::new();
         css.load_from_string(CSS);
         gtk::style_context_add_provider_for_display(
@@ -49,21 +210,14 @@ fn main() -> anyhow::Result<()> {
             gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
         );
     });
-    app.connect_activate(move |app| {
-        let (cfg, err) = match config.borrow_mut().take() {
-            Some(h) => h.join().unwrap_or_default(),
-            None => Default::default(),
-        };
-        let b = browser::Browser::new(app, &start, cfg);
-        b.window.present();
-        if let Some(e) = err {
-            b.toast(&e.to_string());
-        }
-        dev::install(&b);
+    let m = me.clone();
+    app.connect_command_line(move |app, cl| {
+        m.command_line(app, cl);
+        glib::ExitCode::SUCCESS
     });
-    let status = app.run_with_args::<&str>(&[]);
-    if status != glib::ExitCode::SUCCESS {
-        anyhow::bail!("application exited with status {status:?}");
-    }
-    Ok(())
+    let m = me.clone();
+    app.connect_activate(move |app| m.open_window(app, None));
+    let m = me.clone();
+    app.connect_shutdown(move |_| m.save_on_exit());
+    app.run()
 }

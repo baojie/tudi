@@ -11,8 +11,10 @@ use gtk::{gdk, gio, glib};
 use tudi_core::config::{Config, SortBy};
 use tudi_core::listing::meta::{MetaFetcher, MetaStatus};
 use tudi_core::listing::sort::{SortKey, SortSpec};
+use tudi_core::state::WindowState;
 use tudi_core::tree::{Expand, NodeId};
 
+use crate::i18n::{fill, ntr, tr};
 use crate::pane::{self, PaneModel, Wanted};
 use crate::sidebar::{self, TreeModel};
 use crate::worker::{Job, Reply, WatchKey, Worker};
@@ -32,6 +34,13 @@ const STATUS_SIZE_LIMIT: u64 = 5000;
 
 /// A window-level shortcut handler.
 type Handler = Box<dyn Fn(&Rc<Browser>)>;
+
+enum Walk {
+    Reached(NodeId),
+    /// Waiting for a listing.
+    Pending,
+    Missing,
+}
 
 /// A pending "reveal this path in the tree" that waits for listings.
 struct Reveal {
@@ -55,6 +64,8 @@ pub struct Browser {
     pub(crate) tree_view: gtk::ListView,
     pub(crate) roots: RefCell<Vec<(PathBuf, NodeId)>>,
     reveal: RefCell<Option<Reveal>>,
+    /// Folders to expand once their ancestors are listed (restored state).
+    expand_paths: RefCell<Vec<PathBuf>>,
     /// Set while the tree selection is changed programmatically.
     pub(crate) syncing: Cell<bool>,
 
@@ -98,7 +109,12 @@ fn expand_tilde(text: &str) -> PathBuf {
 }
 
 impl Browser {
-    pub fn new(app: &adw::Application, start: &Path, config: Config) -> Rc<Self> {
+    pub fn new(
+        app: &adw::Application,
+        start: &Path,
+        config: Config,
+        state: &WindowState,
+    ) -> Rc<Self> {
         let spec = SortSpec {
             key: match config.browse.sort {
                 SortBy::Name => SortKey::Name,
@@ -138,11 +154,11 @@ impl Browser {
 
         // --- header bar
         let back = gtk::Button::from_icon_name("go-previous-symbolic");
-        back.set_tooltip_text(Some("Back (Alt+Left)"));
+        back.set_tooltip_text(Some(&tr("Back (Alt+Left)")));
         let forward = gtk::Button::from_icon_name("go-next-symbolic");
-        forward.set_tooltip_text(Some("Forward (Alt+Right)"));
+        forward.set_tooltip_text(Some(&tr("Forward (Alt+Right)")));
         let up = gtk::Button::from_icon_name("go-up-symbolic");
-        up.set_tooltip_text(Some("Parent folder (Alt+Up)"));
+        up.set_tooltip_text(Some(&tr("Parent folder (Alt+Up)")));
         let path_entry = gtk::Entry::new();
         path_entry.set_hexpand(true);
         path_entry.set_width_chars(40);
@@ -160,8 +176,9 @@ impl Browser {
         let window = adw::ApplicationWindow::builder()
             .application(app)
             .title("tudi")
-            .default_width(1100)
-            .default_height(700)
+            .default_width(state.width)
+            .default_height(state.height)
+            .maximized(state.maximized)
             .build();
 
         let b = Rc::new_cyclic(|weak: &std::rc::Weak<Browser>| {
@@ -185,6 +202,7 @@ impl Browser {
                 tree_view,
                 roots: RefCell::default(),
                 reveal: RefCell::default(),
+                expand_paths: RefCell::new(state.expanded.iter().map(PathBuf::from).collect()),
                 syncing: Cell::new(false),
                 pane,
                 pane_sel,
@@ -247,9 +265,9 @@ impl Browser {
     fn add_roots(&self) {
         let home = home();
         let mut roots = self.roots.borrow_mut();
-        let id = self.tree.add_root(&home.to_string_lossy(), "Home");
+        let id = self.tree.add_root(&home.to_string_lossy(), &tr("Home"));
         roots.push((home, id));
-        let id = self.tree.add_root("/", "File System");
+        let id = self.tree.add_root("/", &tr("File System"));
         roots.push((PathBuf::from("/"), id));
     }
 
@@ -635,10 +653,10 @@ impl Browser {
         self.continue_reveal();
     }
 
-    fn continue_reveal(self: &Rc<Self>) {
-        let Some(target) = self.reveal.borrow().as_ref().map(|r| r.target.clone()) else {
-            return;
-        };
+    /// Walk the tree towards `target`, expanding (and listing) folders on
+    /// the way, and the target itself if `expand_target`.
+    fn walk_to(self: &Rc<Self>, target: &Path, expand_target: bool) -> Walk {
+        use tudi_core::tree::Children;
         // The root with the longest matching prefix.
         let Some((root_path, mut node)) = self
             .roots
@@ -648,8 +666,7 @@ impl Browser {
             .max_by_key(|(p, _)| p.as_os_str().len())
             .cloned()
         else {
-            self.reveal.replace(None);
-            return;
+            return Walk::Missing;
         };
         let rest: Vec<_> = target
             .strip_prefix(&root_path)
@@ -657,32 +674,14 @@ impl Browser {
             .components()
             .map(|c| c.as_os_str().to_owned())
             .collect();
-        let mut complete = true;
         for comp in rest {
-            // Make sure `node` is expanded and loaded.
-            let state = {
-                let tree = self.tree.tree();
-                let n = tree.node(node);
-                (n.is_expanded(), n.children().clone())
-            };
-            use tudi_core::tree::Children;
-            match state {
-                (_, Children::Loading) => return, // continue on reply
-                (false, _) | (true, Children::Unknown) => {
-                    let Some(row) = self.tree.tree().row_of(node) else {
-                        complete = false;
-                        break;
-                    };
-                    self.expand_tree_row(row);
-                    if matches!(self.tree.tree().node(node).children(), Children::Loading) {
-                        return;
-                    }
-                }
-                _ => {}
+            if !self.ensure_expanded(node) {
+                return Walk::Missing;
             }
             let child = {
                 let tree = self.tree.tree();
                 match tree.node(node).children() {
+                    Children::Loading => return Walk::Pending,
                     Children::Loaded(kids) => kids
                         .iter()
                         .copied()
@@ -692,16 +691,48 @@ impl Browser {
             };
             match child {
                 Some(c) => node = c,
-                None => {
-                    // Hidden (and hidden files are off) or not listed.
-                    complete = false;
-                    break;
-                }
+                // Hidden (and hidden files are off), deleted, or not listed.
+                None => return Walk::Missing,
             }
         }
+        if expand_target && !self.ensure_expanded(node) {
+            return Walk::Missing;
+        }
+        Walk::Reached(node)
+    }
+
+    /// Expand `node` if it is collapsed. False if it is not visible.
+    fn ensure_expanded(self: &Rc<Self>, node: NodeId) -> bool {
+        if self.tree.tree().node(node).is_expanded() {
+            return true;
+        }
+        let Some(row) = self.tree.tree().row_of(node) else {
+            return false;
+        };
+        self.expand_tree_row(row);
+        true
+    }
+
+    /// Advance the pending reveal and restored expansions after a listing.
+    fn continue_reveal(self: &Rc<Self>) {
+        let pending: Vec<PathBuf> = std::mem::take(&mut *self.expand_paths.borrow_mut());
+        let still: Vec<PathBuf> = pending
+            .into_iter()
+            .filter(|p| matches!(self.walk_to(p, true), Walk::Pending))
+            .collect();
+        self.expand_paths.borrow_mut().extend(still);
+
+        let Some(target) = self.reveal.borrow().as_ref().map(|r| r.target.clone()) else {
+            return;
+        };
+        let found = match self.walk_to(&target, false) {
+            Walk::Pending => return, // continues on the next tree reply
+            Walk::Reached(node) => self.tree.tree().row_of(node),
+            Walk::Missing => None,
+        };
         self.reveal.replace(None);
         self.syncing.set(true);
-        match self.tree.tree().row_of(node).filter(|_| complete) {
+        match found {
             Some(row) => {
                 self.tree_sel.set_selected(row as u32);
                 // Rows inserted in this turn are not measured yet; scroll
@@ -722,6 +753,28 @@ impl Browser {
             None => self.tree_sel.set_selected(gtk::INVALID_LIST_POSITION),
         }
         self.syncing.set(false);
+    }
+
+    /// Window state to remember: size, current folder, expanded folders.
+    pub fn snapshot_state(&self) -> WindowState {
+        let mut st = WindowState {
+            width: self.window.default_width(),
+            height: self.window.default_height(),
+            maximized: self.window.is_maximized(),
+            ..Default::default()
+        };
+        let tree = self.tree.tree();
+        let mut expanded: Vec<PathBuf> = self
+            .watched
+            .borrow()
+            .iter()
+            .filter(|&&n| tree.node(n).is_expanded())
+            .map(|&n| tree.path(n))
+            .collect();
+        // Parents first, so restoring expands top-down; stable file order.
+        expanded.sort();
+        st.set_paths(&self.current.borrow(), &expanded);
+        st
     }
 
     // ------------------------------------------------------------- pane
@@ -759,7 +812,7 @@ impl Browser {
 
     fn update_sort_buttons(&self) {
         let spec = self.spec.get();
-        let labels = ["Name", "Size", "Modified"];
+        let labels = [tr("Name"), tr("Size"), tr("Modified")];
         let keys = [SortKey::Name, SortKey::Size, SortKey::Modified];
         for i in 0..3 {
             let arrow = if keys[i] != spec.key {
@@ -828,14 +881,12 @@ impl Browser {
     pub(crate) fn update_status(&self) {
         let d = self.pane.data();
         let n = d.order.len();
-        let mut text = if n == 1 {
-            "1 item".to_string()
-        } else {
-            format!("{} items", fmt_count(n as u64))
-        };
+        let n = n as u64;
+        let mut text = fill(&ntr("{} item", "{} items", n), &[&fmt_count(n)]);
         let selected = self.pane_sel.selection().size();
         if selected > 0 {
-            text.push_str(&format!(" · {} selected", fmt_count(selected)));
+            text.push_str(" · ");
+            text.push_str(&fill(&tr("{} selected"), &[&fmt_count(selected)]));
             if selected <= STATUS_SIZE_LIMIT {
                 drop(d);
                 let entries = self.selected_entries();

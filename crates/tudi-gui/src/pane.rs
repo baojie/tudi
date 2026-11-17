@@ -17,6 +17,7 @@ use tudi_core::listing::sort::{NameRank, SortKey, SortSpec};
 use tudi_core::listing::{Kind, Listing};
 
 use crate::format;
+use crate::i18n::tr;
 use crate::worker::Order;
 
 // ---------------------------------------------------------------- row object
@@ -399,11 +400,11 @@ pub fn build_header() -> (gtk::Box, [gtk::Button; 3]) {
         b.add_css_class("flat");
         b
     };
-    let name = mk("Name", 0.0);
+    let name = mk(&tr("Name"), 0.0);
     name.set_hexpand(true);
-    let size = mk("Size", 1.0);
+    let size = mk(&tr("Size"), 1.0);
     size.set_width_request(COL_SIZE_CHARS * 9 + 12);
-    let date = mk("Modified", 1.0);
+    let date = mk(&tr("Modified"), 1.0);
     date.set_width_request(COL_DATE_CHARS * 9 + 12);
     header.append(&name);
     header.append(&size);

@@ -1,0 +1,101 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: tudi\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: crates/tudi-gui/src/actions.rs:187
+msgid "No command configured"
+msgstr ""
+
+#: crates/tudi-gui/src/actions.rs:214
+msgid "Cannot run {}: {}"
+msgstr ""
+
+#: crates/tudi-gui/src/actions.rs:245
+msgid "Could not trash {}"
+msgstr ""
+
+#: crates/tudi-gui/src/actions.rs:262 crates/tudi-gui/src/actions.rs:262
+msgid "Rename"
+msgstr ""
+
+#: crates/tudi-gui/src/actions.rs:279
+msgid "Cannot rename: {}"
+msgstr ""
+
+#: crates/tudi-gui/src/actions.rs:287 crates/tudi-gui/src/actions.rs:287
+msgid "New Folder"
+msgstr ""
+
+#: crates/tudi-gui/src/actions.rs:287
+msgid "Create"
+msgstr ""
+
+#: crates/tudi-gui/src/actions.rs:302
+msgid "Cannot create folder: {}"
+msgstr ""
+
+#: crates/tudi-gui/src/actions.rs:320
+msgid "Cancel"
+msgstr ""
+
+#: crates/tudi-gui/src/browser.rs:157
+msgid "Back (Alt+Left)"
+msgstr ""
+
+#: crates/tudi-gui/src/browser.rs:159
+msgid "Forward (Alt+Right)"
+msgstr ""
+
+#: crates/tudi-gui/src/browser.rs:161
+msgid "Parent folder (Alt+Up)"
+msgstr ""
+
+#: crates/tudi-gui/src/browser.rs:270
+msgid "Home"
+msgstr ""
+
+#: crates/tudi-gui/src/browser.rs:272
+msgid "File System"
+msgstr ""
+
+#: crates/tudi-gui/src/browser.rs:815 crates/tudi-gui/src/pane.rs:403
+msgid "Name"
+msgstr ""
+
+#: crates/tudi-gui/src/browser.rs:815 crates/tudi-gui/src/pane.rs:405
+msgid "Size"
+msgstr ""
+
+#: crates/tudi-gui/src/browser.rs:815 crates/tudi-gui/src/pane.rs:407
+msgid "Modified"
+msgstr ""
+
+#: crates/tudi-gui/src/browser.rs:889
+msgid "{} selected"
+msgstr ""
+
+#: crates/tudi-gui/src/actions.rs:152
+msgid "Copied {} item"
+msgid_plural "Copied {} items"
+msgstr[0] ""
+msgstr[1] ""
+
+#: crates/tudi-gui/src/actions.rs:168
+msgid "Copied {} path"
+msgid_plural "Copied {} paths"
+msgstr[0] ""
+msgstr[1] ""
+
+#: crates/tudi-gui/src/actions.rs:241
+msgid "Moved {} item to the trash"
+msgid_plural "Moved {} items to the trash"
+msgstr[0] ""
+msgstr[1] ""
+
+#: crates/tudi-gui/src/browser.rs:885
+msgid "{} item"
+msgid_plural "{} items"
+msgstr[0] ""
+msgstr[1] ""
