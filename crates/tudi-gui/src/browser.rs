@@ -8,6 +8,7 @@ use std::rc::Rc;
 
 use adw::prelude::*;
 use gtk::{gdk, gio, glib};
+use tudi_core::config::{Config, SortBy};
 use tudi_core::listing::meta::{MetaFetcher, MetaStatus};
 use tudi_core::listing::sort::{SortKey, SortSpec};
 use tudi_core::tree::{Expand, NodeId};
@@ -34,39 +35,42 @@ struct Reveal {
 
 pub struct Browser {
     pub window: adw::ApplicationWindow,
-    worker: Worker,
+    pub(crate) config: Config,
+    pub(crate) toasts: adw::ToastOverlay,
+    pub(crate) typeahead: crate::actions::TypeAheadState,
+    pub(crate) worker: Worker,
 
-    tree: TreeModel,
-    tree_sel: gtk::SingleSelection,
-    tree_view: gtk::ListView,
-    roots: RefCell<Vec<(PathBuf, NodeId)>>,
+    pub(crate) tree: TreeModel,
+    pub(crate) tree_sel: gtk::SingleSelection,
+    pub(crate) tree_view: gtk::ListView,
+    pub(crate) roots: RefCell<Vec<(PathBuf, NodeId)>>,
     reveal: RefCell<Option<Reveal>>,
     /// Set while the tree selection is changed programmatically.
-    syncing: Cell<bool>,
+    pub(crate) syncing: Cell<bool>,
 
-    pane: PaneModel,
-    pane_sel: gtk::MultiSelection,
-    pane_view: gtk::ListView,
-    pane_scroll: gtk::ScrolledWindow,
-    sort_buttons: [gtk::Button; 3],
-    fetcher: RefCell<Option<MetaFetcher>>,
-    wanted: Wanted,
-    wanted_scheduled: Cell<bool>,
+    pub(crate) pane: PaneModel,
+    pub(crate) pane_sel: gtk::MultiSelection,
+    pub(crate) pane_view: gtk::ListView,
+    pub(crate) pane_scroll: gtk::ScrolledWindow,
+    pub(crate) sort_buttons: [gtk::Button; 3],
+    pub(crate) fetcher: RefCell<Option<MetaFetcher>>,
+    pub(crate) wanted: Wanted,
+    pub(crate) wanted_scheduled: Cell<bool>,
 
-    path_entry: gtk::Entry,
-    back: gtk::Button,
-    forward: gtk::Button,
-    status: gtk::Label,
+    pub(crate) path_entry: gtk::Entry,
+    pub(crate) back: gtk::Button,
+    pub(crate) forward: gtk::Button,
+    pub(crate) status: gtk::Label,
 
-    current: RefCell<PathBuf>,
-    history: RefCell<Vec<PathBuf>>,
-    future: RefCell<Vec<PathBuf>>,
-    generation: Cell<u64>,
-    spec: Cell<SortSpec>,
-    show_hidden: Cell<bool>,
+    pub(crate) current: RefCell<PathBuf>,
+    pub(crate) history: RefCell<Vec<PathBuf>>,
+    pub(crate) future: RefCell<Vec<PathBuf>>,
+    pub(crate) generation: Cell<u64>,
+    pub(crate) spec: Cell<SortSpec>,
+    pub(crate) show_hidden: Cell<bool>,
     /// Entry name to select once the next listing arrives (e.g. the folder
     /// we came from when going up).
-    select_after_load: RefCell<Option<Vec<u8>>>,
+    pub(crate) select_after_load: RefCell<Option<Vec<u8>>>,
 }
 
 fn home() -> PathBuf {
@@ -84,7 +88,17 @@ fn expand_tilde(text: &str) -> PathBuf {
 }
 
 impl Browser {
-    pub fn new(app: &adw::Application, start: &Path) -> Rc<Self> {
+    pub fn new(app: &adw::Application, start: &Path, config: Config) -> Rc<Self> {
+        let spec = SortSpec {
+            key: match config.browse.sort {
+                SortBy::Name => SortKey::Name,
+                SortBy::Size => SortKey::Size,
+                SortBy::Mtime => SortKey::Modified,
+            },
+            descending: config.browse.sort != SortBy::Name,
+            dirs_first: config.browse.dirs_first,
+        };
+        let show_hidden = config.browse.show_hidden;
         let (worker, replies) = Worker::start();
         worker.send(Job::WarmMime);
 
@@ -143,6 +157,9 @@ impl Browser {
             });
             Browser {
                 window: window.clone(),
+                config,
+                toasts: adw::ToastOverlay::new(),
+                typeahead: Rc::default(),
                 worker,
                 tree,
                 tree_sel,
@@ -166,8 +183,8 @@ impl Browser {
                 history: RefCell::default(),
                 future: RefCell::default(),
                 generation: Cell::new(0),
-                spec: Cell::new(SortSpec::default()),
-                show_hidden: Cell::new(false),
+                spec: Cell::new(spec),
+                show_hidden: Cell::new(show_hidden),
                 select_after_load: RefCell::default(),
             }
         });
@@ -195,11 +212,13 @@ impl Browser {
         content.append(&paned);
         content.append(&gtk::Separator::new(gtk::Orientation::Horizontal));
         content.append(&b.status);
-        b.window.set_content(Some(&content));
+        b.toasts.set_child(Some(&content));
+        b.window.set_content(Some(&b.toasts));
 
         b.add_roots();
         b.connect_signals(&up);
         b.install_shortcuts();
+        b.install_drag_source();
         b.spawn_reply_loop(replies);
         b.update_sort_buttons();
         b.navigate(start, true);
@@ -276,23 +295,11 @@ impl Browser {
             }
         });
 
-        for (i, key) in [SortKey::Name, SortKey::Size, SortKey::Modified]
-            .into_iter()
-            .enumerate()
-        {
+        for i in 0..3 {
             let w = Rc::downgrade(self);
             self.sort_buttons[i].connect_clicked(move |_| {
                 if let Some(b) = w.upgrade() {
-                    let mut spec = b.spec.get();
-                    if spec.key == key {
-                        spec.descending = !spec.descending;
-                    } else {
-                        spec.key = key;
-                        spec.descending = key != SortKey::Name;
-                    }
-                    b.spec.set(spec);
-                    b.update_sort_buttons();
-                    b.request_sort();
+                    b.click_sort(i);
                 }
             });
         }
@@ -348,7 +355,31 @@ impl Browser {
         add("<Control>l", Box::new(|b| b.focus_path()));
         add("<Control>h", Box::new(|b| b.toggle_hidden()));
         add("F6", Box::new(|b| b.switch_pane_focus()));
+        add("<Control><Alt>t", Box::new(|b| b.open_terminal()));
+        add("<Control>e", Box::new(|b| b.open_editor()));
+        add("<Control><Shift>n", Box::new(|b| b.new_folder()));
         self.window.add_controller(ctl);
+
+        // List-only shortcuts, so they do not steal keys from the path bar.
+        let ctl = gtk::ShortcutController::new();
+        let add = |accel: &str, f: Handler| {
+            let w = Rc::downgrade(self);
+            let action = gtk::CallbackAction::new(move |_, _| {
+                if let Some(b) = w.upgrade() {
+                    f(&b);
+                }
+                glib::Propagation::Stop
+            });
+            ctl.add_shortcut(gtk::Shortcut::new(
+                gtk::ShortcutTrigger::parse_string(accel),
+                Some(action),
+            ));
+        };
+        add("<Control>c", Box::new(|b| b.copy_files()));
+        add("<Control><Shift>c", Box::new(|b| b.copy_paths()));
+        add("Delete", Box::new(|b| b.trash_selected()));
+        add("F2", Box::new(|b| b.rename_selected()));
+        self.pane_view.add_controller(ctl);
 
         // Backspace goes up only from the panes, not while editing the path.
         let keys = gtk::EventControllerKey::new();
@@ -359,6 +390,13 @@ impl Browser {
             };
             if key == gdk::Key::BackSpace && mods.is_empty() {
                 b.go_up();
+                return glib::Propagation::Stop;
+            }
+            let plain = (mods - gdk::ModifierType::SHIFT_MASK).is_empty();
+            if plain
+                && let Some(c) = key.to_unicode()
+                && b.type_ahead(c)
+            {
                 return glib::Propagation::Stop;
             }
             glib::Propagation::Proceed
@@ -400,7 +438,7 @@ impl Browser {
         self.reveal_in_tree(path);
     }
 
-    fn go_back(self: &Rc<Self>) {
+    pub(crate) fn go_back(self: &Rc<Self>) {
         let Some(prev) = self.history.borrow_mut().pop() else {
             return;
         };
@@ -408,7 +446,7 @@ impl Browser {
         self.navigate(&prev, false);
     }
 
-    fn go_forward(self: &Rc<Self>) {
+    pub(crate) fn go_forward(self: &Rc<Self>) {
         let Some(next) = self.future.borrow_mut().pop() else {
             return;
         };
@@ -418,7 +456,7 @@ impl Browser {
         self.navigate(&next, false);
     }
 
-    fn go_up(self: &Rc<Self>) {
+    pub(crate) fn go_up(self: &Rc<Self>) {
         let cur = self.current.borrow().clone();
         if let Some(parent) = cur.parent() {
             use std::os::unix::ffi::OsStrExt;
@@ -440,12 +478,12 @@ impl Browser {
         }
     }
 
-    fn toggle_hidden(self: &Rc<Self>) {
+    pub(crate) fn toggle_hidden(self: &Rc<Self>) {
         self.show_hidden.set(!self.show_hidden.get());
         self.request_sort();
     }
 
-    fn activate_entry(self: &Rc<Self>, pos: u32) {
+    pub(crate) fn activate_entry(self: &Rc<Self>, pos: u32) {
         let (name, is_dir) = {
             let d = self.pane.data();
             let Some(&entry) = d.order.get(pos as usize) else {
@@ -482,7 +520,7 @@ impl Browser {
         }
     }
 
-    fn expand_tree_row(self: &Rc<Self>, pos: usize) {
+    pub(crate) fn expand_tree_row(self: &Rc<Self>, pos: usize) {
         let node = self.tree.tree().rows()[pos].node;
         let outcome = self.tree.update(Some(node), |t| {
             let e = t.expand(pos);
@@ -497,7 +535,7 @@ impl Browser {
         }
     }
 
-    fn collapse_tree_row(&self, pos: usize) {
+    pub(crate) fn collapse_tree_row(&self, pos: usize) {
         let node = self.tree.tree().rows()[pos].node;
         self.tree.update(Some(node), |t| ((), t.collapse(pos)));
     }
@@ -627,7 +665,22 @@ impl Browser {
 
     // ------------------------------------------------------------- pane
 
-    fn request_sort(&self) {
+    /// A column header was clicked: sort by it, or flip the direction.
+    pub(crate) fn click_sort(&self, column: usize) {
+        let key = [SortKey::Name, SortKey::Size, SortKey::Modified][column];
+        let mut spec = self.spec.get();
+        if spec.key == key {
+            spec.descending = !spec.descending;
+        } else {
+            spec.key = key;
+            spec.descending = key != SortKey::Name;
+        }
+        self.spec.set(spec);
+        self.update_sort_buttons();
+        self.request_sort();
+    }
+
+    pub(crate) fn request_sort(&self) {
         let d = self.pane.data();
         let (Some(listing), Some(rank)) = (d.listing.clone(), d.rank.clone()) else {
             return;
@@ -676,7 +729,7 @@ impl Browser {
         });
     }
 
-    fn selected_entries(&self) -> Vec<u32> {
+    pub(crate) fn selected_entries(&self) -> Vec<u32> {
         let d = self.pane.data();
         let bits = self.pane_sel.selection();
         let mut out = Vec::with_capacity(bits.size() as usize);
@@ -711,7 +764,7 @@ impl Browser {
             .set_selection(&bits, &gtk::Bitset::new_range(0, n));
     }
 
-    fn update_status(&self) {
+    pub(crate) fn update_status(&self) {
         let d = self.pane.data();
         let n = d.order.len();
         let mut text = if n == 1 {

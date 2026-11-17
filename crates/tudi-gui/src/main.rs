@@ -1,13 +1,14 @@
 //! `tudi`: the GTK4/libadwaita file browser.
 
+mod actions;
 mod browser;
+mod dev;
 mod format;
 mod pane;
 mod sidebar;
 mod worker;
 
 use std::path::PathBuf;
-use std::rc::Rc;
 
 use adw::prelude::*;
 use gtk::{gdk, glib};
@@ -34,6 +35,10 @@ fn main() -> anyhow::Result<()> {
         .unwrap_or_else(glib::home_dir);
     let start = std::path::absolute(&start).unwrap_or(start);
 
+    // Read the config file on a thread while GTK initializes.
+    let config = std::thread::spawn(tudi_core::config::Config::load_user);
+    let config = std::cell::RefCell::new(Some(config));
+
     let app = adw::Application::builder().application_id(APP_ID).build();
     app.connect_startup(|_| {
         let css = gtk::CssProvider::new();
@@ -45,33 +50,20 @@ fn main() -> anyhow::Result<()> {
         );
     });
     app.connect_activate(move |app| {
-        let b = browser::Browser::new(app, &start);
+        let (cfg, err) = match config.borrow_mut().take() {
+            Some(h) => h.join().unwrap_or_default(),
+            None => Default::default(),
+        };
+        let b = browser::Browser::new(app, &start, cfg);
         b.window.present();
-        if let Some(out) = std::env::var_os("TUDI_DEV_SCREENSHOT") {
-            screenshot_later(b, PathBuf::from(out));
+        if let Some(e) = err {
+            b.toast(&e.to_string());
         }
+        dev::install(&b);
     });
     let status = app.run_with_args::<&str>(&[]);
     if status != glib::ExitCode::SUCCESS {
         anyhow::bail!("application exited with status {status:?}");
     }
     Ok(())
-}
-
-/// Development aid: render the window to a PNG after it settles, then quit.
-fn screenshot_later(b: Rc<browser::Browser>, out: PathBuf) {
-    glib::timeout_add_local_once(std::time::Duration::from_millis(1500), move || {
-        let w = &b.window;
-        let paintable = gtk::WidgetPaintable::new(Some(w));
-        let (width, height) = (w.width() as f64, w.height() as f64);
-        let snap = gtk::Snapshot::new();
-        paintable.snapshot(&snap, width, height);
-        if let (Some(node), Some(renderer)) = (snap.to_node(), w.renderer()) {
-            let tex = renderer.render_texture(&node, None);
-            if let Err(e) = tex.save_to_png(&out) {
-                tracing::error!("screenshot: {e}");
-            }
-        }
-        w.application().unwrap().quit();
-    });
 }
