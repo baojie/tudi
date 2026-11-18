@@ -142,6 +142,26 @@ impl Tree {
         )
     }
 
+    /// Remove a top-level root and its visible rows (e.g. an unmounted
+    /// volume). The node stays in the slab but is no longer shown.
+    pub fn remove_root(&mut self, id: NodeId) -> Option<Splice> {
+        if self.nodes[id as usize].parent.is_some() {
+            return None;
+        }
+        let row = self
+            .rows
+            .iter()
+            .position(|r| r.node == id && r.kind == RowKind::Node)?;
+        let end = self.subtree_end(row);
+        self.rows.drain(row..end);
+        self.nodes[id as usize].expanded = false;
+        Some(Splice {
+            position: row as u32,
+            removed: (end - row) as u32,
+            added: 0,
+        })
+    }
+
     fn new_node(&mut self, name: Box<[u8]>, parent: Option<NodeId>, depth: u16) -> NodeId {
         let id = NodeId::try_from(self.nodes.len()).expect("fewer than 2^32 nodes");
         self.nodes.push(Node {
@@ -565,6 +585,29 @@ mod tests {
         assert_eq!(t.refresh_children(root, ok(&["b"])), None);
         t.expand(0);
         assert_eq!(labels(&t), ["/r", "  b", "    x"]);
+    }
+
+    #[test]
+    fn remove_root_with_its_rows() {
+        let mut t = Tree::new();
+        let (a, _) = t.add_root("/a");
+        let (usb, _) = t.add_root("/media/usb");
+        let (b, _) = t.add_root("/b");
+        t.expand(1);
+        t.set_children(usb, ok(&["x", "y"]));
+        assert_eq!(labels(&t), ["/a", "/media/usb", "  x", "  y", "/b"]);
+        let s = t.remove_root(usb).unwrap();
+        assert_eq!(
+            s,
+            Splice {
+                position: 1,
+                removed: 3,
+                added: 0
+            }
+        );
+        assert_eq!(labels(&t), ["/a", "/b"]);
+        assert_eq!(t.remove_root(usb), None, "already gone");
+        let _ = (a, b);
     }
 
     #[test]
