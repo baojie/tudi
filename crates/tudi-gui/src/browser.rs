@@ -5,6 +5,7 @@
 use std::cell::{Cell, RefCell};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
+use std::sync::Arc;
 
 use adw::prelude::*;
 use gtk::{gdk, gio, glib};
@@ -60,6 +61,17 @@ pub struct Browser {
     /// The settings dialog, while open.
     pub(crate) settings: RefCell<Option<std::rc::Weak<crate::settings::Settings>>>,
     settings_strong: RefCell<Option<Rc<crate::settings::Settings>>>,
+    /// The folder the tree's context menu was opened on.
+    pub(crate) tree_target: RefCell<Option<crate::tree_menu::Target>>,
+    /// Total size below the shown folder, once computed (≤ 1 s).
+    folder_size: Cell<Option<u64>>,
+    /// Cancels the running size computation.
+    size_cancel: RefCell<Option<Arc<std::sync::atomic::AtomicBool>>>,
+    /// Folder whose size is shown or being computed.
+    size_for: RefCell<PathBuf>,
+    /// The generation the size computation was started with (a live reload
+    /// of the same folder must not make its result look stale).
+    size_gen: Cell<u64>,
     zoom_toast: RefCell<Option<adw::Toast>>,
     paned: RefCell<Option<gtk::Paned>>,
     pub(crate) toasts: adw::ToastOverlay,
@@ -213,11 +225,21 @@ impl Browser {
 
         let b = Rc::new_cyclic(|weak: &std::rc::Weak<Browser>| {
             let w = weak.clone();
-            let tree_view = sidebar::build_view(&tree, &tree_sel, move |pos| {
-                if let Some(b) = w.upgrade() {
-                    b.toggle_tree_row(pos as usize);
-                }
-            });
+            let w2 = weak.clone();
+            let tree_view = sidebar::build_view(
+                &tree,
+                &tree_sel,
+                move |pos| {
+                    if let Some(b) = w.upgrade() {
+                        b.toggle_tree_row(pos as usize);
+                    }
+                },
+                move |pos, row, x, y| {
+                    if let Some(b) = w2.upgrade() {
+                        b.tree_menu(pos as usize, row, x, y);
+                    }
+                },
+            );
             Browser {
                 window: window.clone(),
                 shared,
@@ -226,6 +248,11 @@ impl Browser {
                 hist: RefCell::default(),
                 settings: RefCell::default(),
                 settings_strong: RefCell::default(),
+                tree_target: RefCell::default(),
+                folder_size: Cell::new(None),
+                size_cancel: RefCell::default(),
+                size_for: RefCell::default(),
+                size_gen: Cell::new(0),
                 zoom_toast: RefCell::default(),
                 paned: RefCell::default(),
                 toasts: adw::ToastOverlay::new(),
@@ -306,6 +333,7 @@ impl Browser {
         b.install_drag_source();
         *menu_slot.borrow_mut() = Rc::downgrade(&b);
         b.install_file_actions();
+        b.install_tree_actions();
         let w = Rc::downgrade(&b);
         gear.connect_clicked(move |_| {
             if let Some(b) = w.upgrade() {
@@ -641,7 +669,7 @@ impl Browser {
 
     // --------------------------------------------------------------- tree
 
-    fn toggle_tree_row(self: &Rc<Self>, pos: usize) {
+    pub(crate) fn toggle_tree_row(self: &Rc<Self>, pos: usize) {
         let expanded = {
             let tree = self.tree.tree();
             match tree.rows().get(pos) {
@@ -1077,9 +1105,17 @@ impl Browser {
 
     pub(crate) fn update_status(&self) {
         let d = self.pane.data();
-        let n = d.order.len();
-        let n = n as u64;
-        let mut text = fill(&ntr("{} item", "{} items", n), &[&fmt_count(n)]);
+        let (files, dirs) = (u64::from(d.files), u64::from(d.dirs));
+        let mut text = fill(&ntr("{} file", "{} files", files), &[&fmt_count(files)]);
+        text.push_str(", ");
+        text.push_str(&fill(
+            &ntr("{} folder", "{} folders", dirs),
+            &[&fmt_count(dirs)],
+        ));
+        if let Some(size) = self.folder_size.get() {
+            text.push_str(" · ");
+            text.push_str(&crate::format::size(size));
+        }
         let selected = self.pane_sel.selection().size();
         if selected > 0 {
             text.push_str(" · ");
@@ -1156,6 +1192,13 @@ impl Browser {
                     self.worker.meta_sink(),
                 )));
                 self.after_order_change(Vec::new(), p.select);
+                self.start_folder_size(p.generation);
+            }
+            Reply::FolderSize { generation, size } => {
+                if generation == self.size_gen.get() {
+                    self.folder_size.set(size);
+                    self.update_status();
+                }
             }
             Reply::PaneError { generation, error } => {
                 if generation != self.generation.get() {
@@ -1216,6 +1259,24 @@ impl Browser {
                 self.refresh_tree_nodes(&tree_nodes);
             }
         }
+    }
+
+    /// Lazily compute the total size of a newly shown folder (live reloads
+    /// of the same folder keep the last value).
+    fn start_folder_size(&self, generation: u64) {
+        let cur = self.current.borrow().clone();
+        if *self.size_for.borrow() == cur {
+            return;
+        }
+        if let Some(c) = self.size_cancel.take() {
+            c.store(true, std::sync::atomic::Ordering::Relaxed);
+        }
+        self.folder_size.set(None);
+        *self.size_for.borrow_mut() = cur.clone();
+        let cancel = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        self.size_cancel.replace(Some(cancel.clone()));
+        self.size_gen.set(generation);
+        self.worker.folder_size(cur, generation, cancel);
     }
 
     /// Re-list the current folder after it changed on disk, keeping the

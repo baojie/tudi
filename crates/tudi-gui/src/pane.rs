@@ -77,6 +77,9 @@ pub struct PaneData {
     pub metas: MetaTable,
     pub spec: SortSpec,
     pub meta_complete: bool,
+    /// Shown folders and other entries.
+    pub dirs: u32,
+    pub files: u32,
     /// Unknown entry types were resolved since the order was computed.
     pub resort_pending: bool,
 }
@@ -179,6 +182,8 @@ impl PaneModel {
             d.rank = Some(rank);
             d.order = order.order;
             d.pos_of = order.pos_of;
+            d.dirs = order.dirs;
+            d.files = order.files;
             d.spec = spec;
             d.meta_complete = false;
             d.resort_pending = false;
@@ -206,6 +211,8 @@ impl PaneModel {
             }
             d.order = order.order;
             d.pos_of = order.pos_of;
+            d.dirs = order.dirs;
+            d.files = order.files;
             d.spec = spec;
             d.resort_pending = false;
         }

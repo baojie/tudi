@@ -125,6 +125,26 @@ fn step(b: Rc<Browser>, queue: Queue, delay: Duration) {
                 }
             }
             "ctrld" => b.bookmark_or_launcher(),
+            "treemenupath" => {
+                // Dev only: find the visible row showing this path.
+                let target = PathBuf::from(arg);
+                let pos = {
+                    let t = b.tree.tree();
+                    t.rows().iter().position(|r| {
+                        r.kind == tudi_core::tree::RowKind::Node && t.path(r.node) == target
+                    })
+                };
+                match pos {
+                    Some(pos) => {
+                        let w: gtk::Widget = b.tree_view.clone().upcast();
+                        b.tree_menu(pos, &w, 100.0, 100.0);
+                    }
+                    None => println!("treemenupath: {arg} not visible"),
+                }
+            }
+            "treeaction" => {
+                let _ = WidgetExt::activate_action(&b.window, &format!("tree.{arg}"), None);
+            }
             "treeactivate" => {
                 let pos: u32 = arg.parse().unwrap_or(0);
                 b.tree_view.emit_by_name::<()>("activate", &[&pos]);

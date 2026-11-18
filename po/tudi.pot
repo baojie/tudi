@@ -4,115 +4,115 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: crates/tudi-gui/src/actions.rs:181
+#: crates/tudi-gui/src/actions.rs:188
 msgid "Nothing to paste"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:207
+#: crates/tudi-gui/src/actions.rs:214
 msgid "Could not paste {}: {}"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:252
+#: crates/tudi-gui/src/actions.rs:267
 msgid "No command configured"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:279 crates/tudi-gui/src/launch.rs:108
+#: crates/tudi-gui/src/actions.rs:294 crates/tudi-gui/src/launch.rs:108
 msgid "Cannot run {}: {}"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:314
+#: crates/tudi-gui/src/actions.rs:332
 msgid "Could not trash {}"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:331 crates/tudi-gui/src/actions.rs:331 crates/tudi-gui/src/bar.rs:264 crates/tudi-gui/src/bar.rs:556
+#: crates/tudi-gui/src/actions.rs:349 crates/tudi-gui/src/actions.rs:349 crates/tudi-gui/src/bar.rs:267 crates/tudi-gui/src/bar.rs:569 crates/tudi-gui/src/tree_menu.rs:76 crates/tudi-gui/src/tree_menu.rs:76
 msgid "Rename"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:348
+#: crates/tudi-gui/src/actions.rs:366
 msgid "Cannot rename: {}"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:357 crates/tudi-gui/src/actions.rs:359
+#: crates/tudi-gui/src/actions.rs:380 crates/tudi-gui/src/actions.rs:382
 msgid "New Folder"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:358
+#: crates/tudi-gui/src/actions.rs:381
 msgid "Create"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:376
+#: crates/tudi-gui/src/actions.rs:405
 msgid "Cannot create folder: {}"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:430 crates/tudi-gui/src/settings.rs:399
+#: crates/tudi-gui/src/actions.rs:459 crates/tudi-gui/src/settings.rs:399
 msgid "Cancel"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:521 crates/tudi-gui/src/bar.rs:228
+#: crates/tudi-gui/src/actions.rs:550 crates/tudi-gui/src/bar.rs:231 crates/tudi-gui/src/tree_menu.rs:85
 msgid "Bookmarked {}"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:526 crates/tudi-gui/src/bar.rs:231
+#: crates/tudi-gui/src/actions.rs:555 crates/tudi-gui/src/bar.rs:234 crates/tudi-gui/src/tree_menu.rs:90
 msgid "Already bookmarked"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:560
+#: crates/tudi-gui/src/actions.rs:589 crates/tudi-gui/src/tree_menu.rs:122
 msgid "Open"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:561
+#: crates/tudi-gui/src/actions.rs:590
 msgid "Open in Editor"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:564
+#: crates/tudi-gui/src/actions.rs:593 crates/tudi-gui/src/tree_menu.rs:131
 msgid "Cut"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:565
+#: crates/tudi-gui/src/actions.rs:594 crates/tudi-gui/src/tree_menu.rs:132
 msgid "Copy"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:566 crates/tudi-gui/src/actions.rs:585
+#: crates/tudi-gui/src/actions.rs:595 crates/tudi-gui/src/actions.rs:614
 msgid "Paste"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:568
+#: crates/tudi-gui/src/actions.rs:597 crates/tudi-gui/src/tree_menu.rs:135
 msgid "Copy Path"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:574 crates/tudi-gui/src/bar.rs:421 crates/tudi-gui/src/bar.rs:481
+#: crates/tudi-gui/src/actions.rs:603 crates/tudi-gui/src/bar.rs:424 crates/tudi-gui/src/bar.rs:492 crates/tudi-gui/src/tree_menu.rs:141
 msgid "Rename…"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:576
+#: crates/tudi-gui/src/actions.rs:605 crates/tudi-gui/src/tree_menu.rs:139
 msgid "Add to Bookmarks"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:579
+#: crates/tudi-gui/src/actions.rs:608
 msgid "Add to Launchers"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:581
+#: crates/tudi-gui/src/actions.rs:610 crates/tudi-gui/src/tree_menu.rs:142
 msgid "Move to Trash"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:586
+#: crates/tudi-gui/src/actions.rs:615
 msgid "Select All"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:590
+#: crates/tudi-gui/src/actions.rs:619 crates/tudi-gui/src/tree_menu.rs:138
 msgid "New Folder…"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:595
+#: crates/tudi-gui/src/actions.rs:624 crates/tudi-gui/src/tree_menu.rs:127
 msgid "Open Terminal Here"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:600
+#: crates/tudi-gui/src/actions.rs:629
 msgid "Bookmark This Folder"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:604
+#: crates/tudi-gui/src/actions.rs:633
 msgid "Show Hidden Files"
 msgstr ""
 
@@ -120,147 +120,147 @@ msgstr ""
 msgid "All bookmarks and frequent folders"
 msgstr ""
 
-#: crates/tudi-gui/src/bar.rs:263
+#: crates/tudi-gui/src/bar.rs:266
 msgid "Rename Bookmark"
 msgstr ""
 
-#: crates/tudi-gui/src/bar.rs:310
+#: crates/tudi-gui/src/bar.rs:313
 msgid "application"
 msgstr ""
 
-#: crates/tudi-gui/src/bar.rs:312
+#: crates/tudi-gui/src/bar.rs:315
 msgid "runs in a terminal"
 msgstr ""
 
-#: crates/tudi-gui/src/bar.rs:314
+#: crates/tudi-gui/src/bar.rs:317
 msgid "runs in the background"
 msgstr ""
 
-#: crates/tudi-gui/src/bar.rs:319
+#: crates/tudi-gui/src/bar.rs:322
 msgid "Click to run · drop files here to run with them"
 msgstr ""
 
-#: crates/tudi-gui/src/bar.rs:335
+#: crates/tudi-gui/src/bar.rs:338
 msgid "Ctrl+D bookmarks the current folder"
 msgstr ""
 
-#: crates/tudi-gui/src/bar.rs:383
+#: crates/tudi-gui/src/bar.rs:386
 msgid "Bookmarks"
 msgstr ""
 
-#: crates/tudi-gui/src/bar.rs:384
+#: crates/tudi-gui/src/bar.rs:387
 msgid "Launchers"
 msgstr ""
 
-#: crates/tudi-gui/src/bar.rs:385
+#: crates/tudi-gui/src/bar.rs:388
 msgid "Frequent"
 msgstr ""
 
-#: crates/tudi-gui/src/bar.rs:423 crates/tudi-gui/src/bar.rs:483
+#: crates/tudi-gui/src/bar.rs:426 crates/tudi-gui/src/bar.rs:494
 msgid "Move Left"
 msgstr ""
 
-#: crates/tudi-gui/src/bar.rs:426 crates/tudi-gui/src/bar.rs:486
+#: crates/tudi-gui/src/bar.rs:429 crates/tudi-gui/src/bar.rs:497
 msgid "Move Right"
 msgstr ""
 
-#: crates/tudi-gui/src/bar.rs:428
+#: crates/tudi-gui/src/bar.rs:431
 msgid "Remove Bookmark"
 msgstr ""
 
-#: crates/tudi-gui/src/bar.rs:439
+#: crates/tudi-gui/src/bar.rs:442
 msgid "Pin as Bookmark"
 msgstr ""
 
-#: crates/tudi-gui/src/bar.rs:441
+#: crates/tudi-gui/src/bar.rs:444
 msgid "Never show in history"
 msgstr ""
 
-#: crates/tudi-gui/src/bar.rs:443
+#: crates/tudi-gui/src/bar.rs:446
 msgid "Never show, including subfolders"
 msgstr ""
 
-#: crates/tudi-gui/src/bar.rs:446
+#: crates/tudi-gui/src/bar.rs:449
 msgid "Remove from history"
 msgstr ""
 
-#: crates/tudi-gui/src/bar.rs:465
+#: crates/tudi-gui/src/bar.rs:468
 msgid "Run"
 msgstr ""
 
-#: crates/tudi-gui/src/bar.rs:469
+#: crates/tudi-gui/src/bar.rs:475
 msgid "Run in a Terminal"
 msgstr ""
 
-#: crates/tudi-gui/src/bar.rs:473
+#: crates/tudi-gui/src/bar.rs:483
 msgid "Run in the Background"
 msgstr ""
 
-#: crates/tudi-gui/src/bar.rs:476
+#: crates/tudi-gui/src/bar.rs:487
 msgid "Arguments…"
 msgstr ""
 
-#: crates/tudi-gui/src/bar.rs:480
+#: crates/tudi-gui/src/bar.rs:491
 msgid "Show in Folder"
 msgstr ""
 
-#: crates/tudi-gui/src/bar.rs:488
+#: crates/tudi-gui/src/bar.rs:499
 msgid "Remove Launcher"
 msgstr ""
 
-#: crates/tudi-gui/src/bar.rs:534
+#: crates/tudi-gui/src/bar.rs:545
 msgid "Arguments"
 msgstr ""
 
-#: crates/tudi-gui/src/bar.rs:534
+#: crates/tudi-gui/src/bar.rs:545
 msgid "Save"
 msgstr ""
 
-#: crates/tudi-gui/src/bar.rs:556
+#: crates/tudi-gui/src/bar.rs:568
 msgid "Rename Launcher"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:183
+#: crates/tudi-gui/src/browser.rs:195
 msgid "Back (Alt+Left)"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:185
+#: crates/tudi-gui/src/browser.rs:197
 msgid "Forward (Alt+Right)"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:187
+#: crates/tudi-gui/src/browser.rs:199
 msgid "Parent folder (Alt+Up)"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:196
+#: crates/tudi-gui/src/browser.rs:208
 msgid "Settings (Ctrl+,)"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:324
+#: crates/tudi-gui/src/browser.rs:352
 msgid "Home"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:326
+#: crates/tudi-gui/src/browser.rs:354
 msgid "File System"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:849
+#: crates/tudi-gui/src/browser.rs:888
 msgid "Zoom {}%"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:1001 crates/tudi-gui/src/pane.rs:501 crates/tudi-gui/src/settings.rs:87
+#: crates/tudi-gui/src/browser.rs:1040 crates/tudi-gui/src/pane.rs:508 crates/tudi-gui/src/settings.rs:87
 msgid "Name"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:1001 crates/tudi-gui/src/pane.rs:503 crates/tudi-gui/src/settings.rs:87
+#: crates/tudi-gui/src/browser.rs:1040 crates/tudi-gui/src/pane.rs:510 crates/tudi-gui/src/settings.rs:87
 msgid "Size"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:1001 crates/tudi-gui/src/pane.rs:504 crates/tudi-gui/src/settings.rs:87
+#: crates/tudi-gui/src/browser.rs:1040 crates/tudi-gui/src/pane.rs:511 crates/tudi-gui/src/settings.rs:87
 msgid "Modified"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:1075
+#: crates/tudi-gui/src/browser.rs:1119
 msgid "{} selected"
 msgstr ""
 
@@ -296,15 +296,15 @@ msgstr ""
 msgid "Already a launcher"
 msgstr ""
 
-#: crates/tudi-gui/src/main.rs:265
+#: crates/tudi-gui/src/main.rs:266
 msgid "Open a new window"
 msgstr ""
 
-#: crates/tudi-gui/src/main.rs:269
+#: crates/tudi-gui/src/main.rs:270
 msgid "Start the resident instance without a window"
 msgstr ""
 
-#: crates/tudi-gui/src/main.rs:271
+#: crates/tudi-gui/src/main.rs:272
 msgid "Quit the resident instance"
 msgstr ""
 
@@ -436,57 +436,79 @@ msgstr ""
 msgid "Clear"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:152
-msgid "Copied {} item"
-msgid_plural "Copied {} items"
-msgstr[0] ""
-msgstr[1] ""
+#: crates/tudi-gui/src/tree_menu.rs:52
+msgid "Copied the path"
+msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:164
+#: crates/tudi-gui/src/tree_menu.rs:124
+msgid "Collapse"
+msgstr ""
+
+#: crates/tudi-gui/src/tree_menu.rs:124
+msgid "Expand"
+msgstr ""
+
+#: crates/tudi-gui/src/tree_menu.rs:134
+msgid "Paste Into Folder"
+msgstr ""
+
+#: crates/tudi-gui/src/actions.rs:158
 msgid "Cut {} item"
 msgid_plural "Cut {} items"
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/tudi-gui/src/actions.rs:200
+#: crates/tudi-gui/src/actions.rs:160
+msgid "Copied {} item"
+msgid_plural "Copied {} items"
+msgstr[0] ""
+msgstr[1] ""
+
+#: crates/tudi-gui/src/actions.rs:207
 msgid "Moved {} item"
 msgid_plural "Moved {} items"
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/tudi-gui/src/actions.rs:202
+#: crates/tudi-gui/src/actions.rs:209
 msgid "Pasted {} item"
 msgid_plural "Pasted {} items"
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/tudi-gui/src/actions.rs:233
+#: crates/tudi-gui/src/actions.rs:240
 msgid "Copied {} path"
 msgid_plural "Copied {} paths"
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/tudi-gui/src/actions.rs:306
+#: crates/tudi-gui/src/actions.rs:324
 msgid "Moved {} item to the trash"
 msgid_plural "Moved {} items to the trash"
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/tudi-gui/src/bar.rs:357
+#: crates/tudi-gui/src/bar.rs:360
 msgid "opened {} time"
 msgid_plural "opened {} times"
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/tudi-gui/src/bar.rs:373
+#: crates/tudi-gui/src/bar.rs:376
 msgid "{} open"
 msgid_plural "{} opens"
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/tudi-gui/src/browser.rs:1071
-msgid "{} item"
-msgid_plural "{} items"
+#: crates/tudi-gui/src/browser.rs:1109
+msgid "{} file"
+msgid_plural "{} files"
+msgstr[0] ""
+msgstr[1] ""
+
+#: crates/tudi-gui/src/browser.rs:1111
+msgid "{} folder"
+msgid_plural "{} folders"
 msgstr[0] ""
 msgstr[1] ""
 

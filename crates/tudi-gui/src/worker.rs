@@ -52,6 +52,9 @@ pub enum Job {
 pub struct Order {
     pub order: Vec<u32>,
     pub pos_of: Vec<u32>,
+    /// Shown folders and other entries (for the status bar).
+    pub dirs: u32,
+    pub files: u32,
 }
 
 pub struct PaneListing {
@@ -79,6 +82,11 @@ pub enum Reply {
         result: Result<Vec<Box<[u8]>>, ListFailure>,
     },
     Meta(MetaBatch),
+    /// Total size below the shown folder (`None`: took over a second).
+    FolderSize {
+        generation: u64,
+        size: Option<u64>,
+    },
     /// Watched directories changed.
     Changed(Vec<WatchKey>),
     /// The folder history (for the "Frequent" view).
@@ -123,6 +131,22 @@ impl Worker {
     /// A sender for replies produced elsewhere (e.g. the directory watcher).
     pub fn reply_sender(&self) -> async_channel::Sender<Reply> {
         self.replies.clone()
+    }
+
+    /// Compute the total size below `path` on its own thread, giving up
+    /// after one second or when `cancel` is set. Replies `FolderSize`.
+    pub fn folder_size(
+        &self,
+        path: PathBuf,
+        generation: u64,
+        cancel: Arc<std::sync::atomic::AtomicBool>,
+    ) {
+        let tx = self.replies.clone();
+        std::thread::spawn(move || {
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(1);
+            let size = tudi_core::listing::meta::tree_size(&path, deadline, &cancel);
+            let _ = tx.send_blocking(Reply::FolderSize { generation, size });
+        });
     }
 
     /// A sink for metadata batches, forwarding them as [`Reply::Meta`].
@@ -217,10 +241,20 @@ fn filtered_order(
         order.retain(|&i| !is_hidden(listing.name(i as usize)));
     }
     let mut pos_of = vec![u32::MAX; listing.len()];
+    let mut dirs = 0;
     for (p, &i) in order.iter().enumerate() {
         pos_of[i as usize] = p as u32;
+        if metas.kind(listing, i as usize) == Kind::Dir {
+            dirs += 1;
+        }
     }
-    Order { order, pos_of }
+    let files = order.len() as u32 - dirs;
+    Order {
+        order,
+        pos_of,
+        dirs,
+        files,
+    }
 }
 
 /// Sub-directories of `path` in natural order, for the folder tree.

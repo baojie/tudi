@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Status bar: files and folders in the shown folder, and its total size
+  (computed in the background, skipped if it takes over a second).
+- Context menu on folders in the tree (open, expand, terminal, copy / cut /
+  paste into, new folder, rename, bookmark, trash).
 - Double-click (or Enter) on a folder in the tree expands or collapses it.
 - Launchers: `Ctrl+D` on a script, executable or `.desktop` file pins it to
   the bookmarks bar; click to run (in a terminal, or in the background with

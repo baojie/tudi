@@ -234,16 +234,30 @@ fn fill(b: &gtk::Box, model: &TreeModel, node: NodeId, error: bool) {
 
 /// Build the tree `ListView`. `on_toggle(position)` is called when an
 /// expander is clicked.
+/// `on_toggle(position)`: an expander was clicked. `on_menu(position, row,
+/// x, y)`: a row was right-clicked.
 pub fn build_view(
     model: &TreeModel,
     selection: &gtk::SingleSelection,
     on_toggle: impl Fn(u32) + 'static,
+    on_menu: impl Fn(u32, &gtk::Widget, f64, f64) + 'static,
 ) -> gtk::ListView {
     let factory = gtk::SignalListItemFactory::new();
     let on_toggle = std::rc::Rc::new(on_toggle);
+    let on_menu = std::rc::Rc::new(on_menu);
     factory.connect_setup(move |_, item| {
         let item = item.downcast_ref::<gtk::ListItem>().unwrap();
         let row = row_widget();
+        let rclick = gtk::GestureClick::new();
+        rclick.set_button(gtk::gdk::BUTTON_SECONDARY);
+        let (f, wi, wr) = (on_menu.clone(), item.downgrade(), row.downgrade());
+        rclick.connect_pressed(move |g, _, x, y| {
+            if let (Some(item), Some(row)) = (wi.upgrade(), wr.upgrade()) {
+                g.set_state(gtk::EventSequenceState::Claimed);
+                f(item.position(), row.upcast_ref(), x, y);
+            }
+        });
+        row.add_controller(rclick);
         let click = gtk::GestureClick::new();
         let (t, weak_item) = (on_toggle.clone(), item.downgrade());
         click.connect_pressed(move |g, _, _, _| {

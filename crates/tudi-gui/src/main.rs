@@ -25,6 +25,7 @@ mod pane;
 mod settings;
 mod shared;
 mod sidebar;
+mod tree_menu;
 mod worker;
 mod zoom;
 

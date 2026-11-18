@@ -142,26 +142,29 @@ impl Browser {
     /// Ctrl+C: the selected files, as a file list, GNOME's copied-files
     /// format, and plain text paths.
     pub(crate) fn copy_files(&self) {
-        let paths = self.selected_paths();
+        self.put_on_clipboard(self.selected_paths(), false);
+    }
+
+    /// Put files on the clipboard for a later paste (copy, or move if
+    /// `cut`).
+    pub(crate) fn put_on_clipboard(&self, paths: Vec<PathBuf>, cut: bool) {
         if paths.is_empty() {
             return;
         }
-        let provider = files_provider(&paths, false);
+        let provider = files_provider(&paths, cut);
         self.window.clipboard().set_content(Some(&provider)).ok();
         let n = paths.len() as u64;
-        self.toast(&fill(&ntr("Copied {} item", "Copied {} items", n), &[&n]));
+        let msg = if cut {
+            ntr("Cut {} item", "Cut {} items", n)
+        } else {
+            ntr("Copied {} item", "Copied {} items", n)
+        };
+        self.toast(&fill(&msg, &[&n]));
     }
 
     /// Ctrl+X: like copy, but pasting moves the files.
     pub(crate) fn cut_files(&self) {
-        let paths = self.selected_paths();
-        if paths.is_empty() {
-            return;
-        }
-        let provider = files_provider(&paths, true);
-        self.window.clipboard().set_content(Some(&provider)).ok();
-        let n = paths.len() as u64;
-        self.toast(&fill(&ntr("Cut {} item", "Cut {} items", n), &[&n]));
+        self.put_on_clipboard(self.selected_paths(), true);
     }
 
     /// Ctrl+A.
@@ -172,8 +175,12 @@ impl Browser {
     /// Ctrl+V: copy (or move, after a cut) the files on the clipboard into
     /// the current folder. Works with files from other file managers too.
     pub(crate) fn paste(self: &Rc<Self>) {
+        self.paste_into(self.current_dir());
+    }
+
+    /// Paste the clipboard's files into `dest`.
+    pub(crate) fn paste_into(self: &Rc<Self>, dest: PathBuf) {
         let clipboard = self.window.clipboard();
-        let dest = self.current_dir();
         let w = Rc::downgrade(self);
         glib::spawn_future_local(async move {
             let Some((paths, mode)) = read_clipboard_files(&clipboard).await else {
@@ -247,7 +254,15 @@ impl Browser {
     }
 
     fn run_command(self: &Rc<Self>, template: &[String], paths: &[PathBuf]) {
-        let dir = self.current_dir();
+        self.run_command_in(template, self.current_dir(), paths);
+    }
+
+    pub(crate) fn run_command_in(
+        self: &Rc<Self>,
+        template: &[String],
+        dir: PathBuf,
+        paths: &[PathBuf],
+    ) {
         let Some((program, args)) = expand_command(template, &dir, paths) else {
             self.toast(&tr("No command configured"));
             return;
@@ -285,7 +300,10 @@ impl Browser {
 
     /// Delete: move the selection to the trash.
     pub(crate) fn trash_selected(self: &Rc<Self>) {
-        let paths = self.selected_paths();
+        self.trash_paths(self.selected_paths());
+    }
+
+    pub(crate) fn trash_paths(self: &Rc<Self>, paths: Vec<PathBuf>) {
         if paths.is_empty() {
             return;
         }
@@ -352,6 +370,11 @@ impl Browser {
 
     /// Ctrl+Shift+N: create a folder in the current folder.
     pub(crate) fn new_folder(self: &Rc<Self>) {
+        self.new_folder_in(self.current_dir());
+    }
+
+    /// Ask for a name and create a folder in `dir`.
+    pub(crate) fn new_folder_in(self: &Rc<Self>, dir: PathBuf) {
         let w = Rc::downgrade(self);
         self.ask_name(
             &tr("New Folder"),
@@ -359,19 +382,25 @@ impl Browser {
             &tr("New Folder"),
             move |name| {
                 if let Some(b) = w.upgrade() {
-                    b.make_folder(name);
+                    b.make_folder_in(&dir, name);
                 }
             },
         );
     }
 
     pub(crate) fn make_folder(self: &Rc<Self>, name: String) {
-        let f = gio::File::for_path(self.current_dir().join(&name));
+        self.make_folder_in(&self.current_dir(), name);
+    }
+
+    pub(crate) fn make_folder_in(self: &Rc<Self>, dir: &std::path::Path, name: String) {
+        let f = gio::File::for_path(dir.join(&name));
+        let in_current = dir == self.current_dir();
         let w = Rc::downgrade(self);
         glib::spawn_future_local(async move {
             let r = f.make_directory_future(glib::Priority::DEFAULT).await;
             let Some(b) = w.upgrade() else { return };
             match r {
+                Ok(()) if !in_current => {}
                 Ok(()) => b.reload(Some(name.into_bytes())),
                 Err(e) => b.toast(&fill(&tr("Cannot create folder: {}"), &[&e])),
             }
