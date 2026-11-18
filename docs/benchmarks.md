@@ -143,5 +143,14 @@ the filters add no cost to plain queries; P7 to be re-measured when idle).
 | `size>1G` / `today` / `<7d .md` | 3.2 / 4.6 / 5.5 ms |
 | `合同 .pdf` / `in:projects main` / `dir: tudi` | 20.2 / 21.5 / 12.7 ms |
 
+**P8 on the real home index is over budget (open).** `tudi-indexd`
+started from the snapshot of a real home folder (1.85M entries, longer and
+more often Chinese names than the fixture): 181–197 MB once ready,
+195–212 MB after the first queries (typo vocabulary built), the same before
+M5, before M8 and after M8 (two runs each). Budget < 150 MB. The fixture
+measurement above (99 MB after scan, ≈ 140 MB with search data) does not
+represent real names; the index arrays plus search data alone take
+≈ 172 MB here (`examples/search`).
+
 Pinyin collation (optional, worker thread), `flat-100k` (12 % CJK names):
 name ranking 10.6 ms → 14.3 ms (`cargo bench -p tudi-core -- name-rank`).

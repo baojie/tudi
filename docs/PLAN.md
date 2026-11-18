@@ -957,7 +957,9 @@ unplugged while browsing, 100k-file directory on a slow USB stick.
 - [x] M5 Index daemon — P9 3.1 s, P8 140 MB on 1.83M entries; snapshot
   restart 157 ms; extra roots with device detection, offline roots,
   per-root reconcile (`docs/design/index.md`); the exFAT acceptance used
-  a simulated volume, not a loop-mounted image (needs root)
+  a simulated volume, not a loop-mounted image (needs root).
+  **Open: P8 is exceeded on a real home index (≈ 200 MB with 1.85M
+  entries; `docs/benchmarks.md` M8 section)**
 - [x] M6 Memory search — P7 p95 23 ms on 1.83M entries; golden set 47/47
   in the top 3; overlay, `tudi q`
 - [ ] M7 fanotify helper
