@@ -243,3 +243,22 @@ folder bookmarks, instead of a tree root with a list. `Ctrl+D` on a selected
 script, executable or `.desktop` file adds a launcher; on a folder (or with
 nothing selected) it adds a bookmark. Non-executable `.sh` / `.py` files run
 through `sh` / `python3`; `.desktop` files through `gio launch`.
+
+## ADR-018: Matcher in `tudi-index`; daemon memory and priority
+
+- **Context.** PLAN placed the matcher in `tudi-core::matcher`, but the
+  token-mask propagation works directly on the index's node arrays.
+  Measurements showed the daemon at 200–370 MB RSS although the live data
+  is about 130 MB: temporary memory of builds on rayon threads stays in
+  glibc's per-thread arenas.
+- **Decision.** The matcher lives in `tudi-index` (`tudi-core` stays free of
+  index types). Pinyin alternates and the typo vocabulary use arenas
+  instead of per-entry `String`s. The daemon calls `malloc_trim(0)` (a thin
+  `unsafe` wrapper) after builds and reconciles, streams snapshots instead
+  of encoding them in memory, and lowers its own CPU and I/O priority.
+  `tudi q` / `tudi index` live in the GIO-only launcher (ADR-015) and
+  start the daemon on demand, like the GUI's search; the systemd user unit
+  is optional.
+- **Consequences.** P8 is met (≈ 140 MB with 1.83M entries) with a
+  transient peak during the vocabulary build. The daemon depends on glibc
+  for `malloc_trim` (Linux-only project).

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Memory search: `Ctrl+P` (or `/`) searches every file and folder in your
+  home by name fragments in any order, pinyin initials or full pinyin, and
+  tolerates typos; results in ~10 ms on two million entries.
+- Index daemon `tudi-indexd` (started on demand, or at login via the
+  settings), and `tudi q TERMS…` / `tudi index status|rescan|stop` on the
+  command line.
 - First-run import of GTK bookmarks and autojump / zoxide history;
   `tudi --reimport`.
 - Mounted volumes appear as roots in the folder tree.

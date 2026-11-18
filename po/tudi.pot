@@ -44,7 +44,7 @@ msgstr ""
 msgid "Cannot create folder: {}"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:459 crates/tudi-gui/src/settings.rs:399
+#: crates/tudi-gui/src/actions.rs:459 crates/tudi-gui/src/settings.rs:436
 msgid "Cancel"
 msgstr ""
 
@@ -420,35 +420,31 @@ msgstr ""
 msgid "Counting…"
 msgstr ""
 
-#: crates/tudi-gui/src/search.rs:95
+#: crates/tudi-gui/src/search.rs:162
 msgid "The search index is not available"
 msgstr ""
 
-#: crates/tudi-gui/src/search.rs:102
+#: crates/tudi-gui/src/search.rs:169
 msgid "Cannot start the search index (tudi-indexd)"
 msgstr ""
 
-#: crates/tudi-gui/src/search.rs:300
-msgid "Search files and folders…  (pinyin initials work too)"
-msgstr ""
-
-#: crates/tudi-gui/src/search.rs:438
+#: crates/tudi-gui/src/search.rs:546
 msgid "No matches"
 msgstr ""
 
-#: crates/tudi-gui/src/search.rs:443
+#: crates/tudi-gui/src/search.rs:554
 msgid "still indexing, results may be incomplete"
 msgstr ""
 
-#: crates/tudi-gui/src/search.rs:446
+#: crates/tudi-gui/src/search.rs:557
 msgid "reveal"
 msgstr ""
 
-#: crates/tudi-gui/src/search.rs:448
+#: crates/tudi-gui/src/search.rs:559
 msgid "open"
 msgstr ""
 
-#: crates/tudi-gui/src/search.rs:450
+#: crates/tudi-gui/src/search.rs:561
 msgid "terminal"
 msgstr ""
 
@@ -500,83 +496,95 @@ msgstr ""
 msgid "Sort by"
 msgstr ""
 
+#: crates/tudi-gui/src/settings.rs:99
+msgid "Search index"
+msgstr ""
+
+#: crates/tudi-gui/src/settings.rs:102
+msgid "Start the search index at login"
+msgstr ""
+
 #: crates/tudi-gui/src/settings.rs:103
-msgid "Commands"
-msgstr ""
-
-#: crates/tudi-gui/src/settings.rs:107
-msgid "External programs"
-msgstr ""
-
-#: crates/tudi-gui/src/settings.rs:113
-msgid "Terminal (Ctrl+Alt+T)"
-msgstr ""
-
-#: crates/tudi-gui/src/settings.rs:118
-msgid "Editor (Ctrl+E)"
-msgstr ""
-
-#: crates/tudi-gui/src/settings.rs:130
-msgid "History"
-msgstr ""
-
-#: crates/tudi-gui/src/settings.rs:134
-msgid "Never record folders matching"
+msgid "Otherwise it starts the first time you search (Ctrl+P)"
 msgstr ""
 
 #: crates/tudi-gui/src/settings.rs:140
-msgid "Add pattern"
+msgid "Commands"
 msgstr ""
 
-#: crates/tudi-gui/src/settings.rs:146
-msgid "Excluded folders"
+#: crates/tudi-gui/src/settings.rs:144
+msgid "External programs"
 msgstr ""
 
-#: crates/tudi-gui/src/settings.rs:154
-msgid "Clear history"
+#: crates/tudi-gui/src/settings.rs:150
+msgid "Terminal (Ctrl+Alt+T)"
 msgstr ""
 
 #: crates/tudi-gui/src/settings.rs:155
+msgid "Editor (Ctrl+E)"
+msgstr ""
+
+#: crates/tudi-gui/src/settings.rs:167
+msgid "History"
+msgstr ""
+
+#: crates/tudi-gui/src/settings.rs:171
+msgid "Never record folders matching"
+msgstr ""
+
+#: crates/tudi-gui/src/settings.rs:177
+msgid "Add pattern"
+msgstr ""
+
+#: crates/tudi-gui/src/settings.rs:183
+msgid "Excluded folders"
+msgstr ""
+
+#: crates/tudi-gui/src/settings.rs:191
+msgid "Clear history"
+msgstr ""
+
+#: crates/tudi-gui/src/settings.rs:192
 msgid "Forget all folder visits; exclusions are kept"
 msgstr ""
 
-#: crates/tudi-gui/src/settings.rs:157
+#: crates/tudi-gui/src/settings.rs:194
 msgid "Clear…"
 msgstr ""
 
-#: crates/tudi-gui/src/settings.rs:187
+#: crates/tudi-gui/src/settings.rs:224
 msgid "Restart tudi to change the language (tudi --quit)"
 msgstr ""
 
-#: crates/tudi-gui/src/settings.rs:326
+#: crates/tudi-gui/src/settings.rs:363
 msgid "Remove pattern"
 msgstr ""
 
-#: crates/tudi-gui/src/settings.rs:359
+#: crates/tudi-gui/src/settings.rs:396
 msgid "None"
 msgstr ""
 
-#: crates/tudi-gui/src/settings.rs:369
+#: crates/tudi-gui/src/settings.rs:406
 msgid "with subfolders"
 msgstr ""
 
-#: crates/tudi-gui/src/settings.rs:371
+#: crates/tudi-gui/src/settings.rs:408
 msgid "this folder only"
 msgstr ""
 
-#: crates/tudi-gui/src/settings.rs:374
+#: crates/tudi-gui/src/settings.rs:411
 msgid "Allow"
 msgstr ""
 
-#: crates/tudi-gui/src/settings.rs:376
+#: crates/tudi-gui/src/settings.rs:413
 msgid "Allow in history again"
 msgstr ""
 
-#: crates/tudi-gui/src/settings.rs:392
+#: crates/tudi-gui/src/settings.rs:429
 msgid "Clear history?"
 msgstr ""
 
-#: crates/tudi-gui/src/settings.rs:399
+#: crates/tudi-gui/src/settings.rs:436
 msgid "Clear"
 msgstr ""
 
@@ -686,7 +694,7 @@ msgid_plural "{} items"
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/tudi-gui/src/search.rs:439
+#: crates/tudi-gui/src/search.rs:548
 msgid "{} result"
 msgid_plural "{} results"
 msgstr[0] ""

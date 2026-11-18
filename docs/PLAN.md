@@ -954,8 +954,11 @@ unplugged while browsing, 100k-file directory on a slow USB stick.
   frequent folders, launchers on the bar, settings, imports, volumes);
   open: desktop checks of launchers in a terminal, `.desktop` launch and
   file drop, and volume hot-plug
-- [ ] M5 Index daemon
-- [ ] M6 Memory search
+- [ ] M5 Index daemon — index, scan (P9 3.1 s), reconcile, snapshots, daemon,
+  inotify, hints, protocol, CLI, systemd unit done (P8 140 MB); open:
+  per-root filesystem handling (exFAT/HDD), extra roots, offline roots
+- [x] M6 Memory search — P7 p95 23 ms on 1.83M entries; golden set 47/47
+  in the top 3; overlay, `tudi q`
 - [ ] M7 fanotify helper
 - [ ] M8 Query power features
 - [ ] M9 Polish and v0.1 release
