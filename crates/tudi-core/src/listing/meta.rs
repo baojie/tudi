@@ -76,17 +76,31 @@ pub fn stat_entry(listing: &Listing, i: usize) -> Meta {
     }
 }
 
-/// Total size in bytes of everything below `dir` (apparent sizes, symlinks
-/// not followed, staying on `dir`'s filesystem), or `None` if it takes
-/// longer than until `deadline` or `cancel` is set. For the status bar.
-pub fn tree_size(
+/// What a size walk has found so far.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct SizeStats {
+    pub bytes: u64,
+    pub files: u64,
+    pub dirs: u64,
+    /// Entries that could not be read (permissions, vanished).
+    pub errors: u64,
+}
+
+/// Walk everything below `dir` (apparent sizes, symlinks not followed and
+/// counted as files, staying on `dir`'s filesystem), calling `progress`
+/// about every 100 ms. Returns `None` if `cancel` is set or `deadline`
+/// passes first.
+pub fn walk_size(
     dir: &std::path::Path,
-    deadline: std::time::Instant,
+    deadline: Option<std::time::Instant>,
     cancel: &AtomicBool,
-) -> Option<u64> {
+    mut progress: impl FnMut(&SizeStats),
+) -> Option<SizeStats> {
     use rustix::fs::{Mode, OFlags, RawDir};
     use std::mem::MaybeUninit;
+    use std::time::{Duration, Instant};
 
+    let stop = || cancel.load(Ordering::Relaxed) || deadline.is_some_and(|d| Instant::now() > d);
     let root = rustix::fs::open(
         dir,
         OFlags::RDONLY | OFlags::DIRECTORY | OFlags::CLOEXEC,
@@ -98,52 +112,81 @@ pub fn tree_size(
         .stx_mnt_id;
     let mut buf = vec![MaybeUninit::<u8>::uninit(); 64 * 1024];
     let mut stack = vec![root];
-    let mut total = 0u64;
+    let mut st = SizeStats::default();
+    let mut last_report = Instant::now();
     let mut seen = 0u32;
     while let Some(fd) = stack.pop() {
         let mut names: Vec<std::ffi::CString> = Vec::new();
         let mut raw = RawDir::new(&fd, &mut buf);
-        while let Some(Ok(e)) = raw.next() {
-            let n = e.file_name();
-            if n.to_bytes() != b"." && n.to_bytes() != b".." {
-                names.push(n.to_owned());
+        loop {
+            match raw.next() {
+                Some(Ok(e)) => {
+                    let n = e.file_name();
+                    if n.to_bytes() != b"." && n.to_bytes() != b".." {
+                        names.push(n.to_owned());
+                    }
+                }
+                Some(Err(_)) => {
+                    st.errors += 1;
+                    break;
+                }
+                None => break,
             }
         }
         for name in names {
             seen += 1;
-            if seen.is_multiple_of(256)
-                && (std::time::Instant::now() > deadline || cancel.load(Ordering::Relaxed))
-            {
-                return None;
+            if seen.is_multiple_of(256) {
+                if stop() {
+                    return None;
+                }
+                if last_report.elapsed() >= Duration::from_millis(100) {
+                    progress(&st);
+                    last_report = Instant::now();
+                }
             }
-            let Ok(st) = rustix::fs::statx(
+            let Ok(x) = rustix::fs::statx(
                 &fd,
                 name.as_c_str(),
                 AtFlags::SYMLINK_NOFOLLOW | AtFlags::STATX_DONT_SYNC,
                 StatxFlags::TYPE | StatxFlags::SIZE | StatxFlags::MNT_ID,
             ) else {
+                st.errors += 1;
                 continue;
             };
-            if u32::from(st.stx_mode) & 0o170000 == 0o040000 {
-                if st.stx_mnt_id == mnt
-                    && let Ok(sub) = rustix::fs::openat(
+            if u32::from(x.stx_mode) & 0o170000 == 0o040000 {
+                st.dirs += 1;
+                if x.stx_mnt_id == mnt {
+                    match rustix::fs::openat(
                         &fd,
                         name.as_c_str(),
                         OFlags::RDONLY | OFlags::DIRECTORY | OFlags::CLOEXEC | OFlags::NOFOLLOW,
                         Mode::empty(),
-                    )
-                {
-                    stack.push(sub);
+                    ) {
+                        Ok(sub) => stack.push(sub),
+                        Err(_) => st.errors += 1,
+                    }
                 }
             } else {
-                total += st.stx_size;
+                st.files += 1;
+                st.bytes += x.stx_size;
             }
         }
-        if std::time::Instant::now() > deadline || cancel.load(Ordering::Relaxed) {
+        if stop() {
             return None;
         }
     }
-    Some(total)
+    progress(&st);
+    Some(st)
+}
+
+/// Total size in bytes below `dir`, or `None` past `deadline` or on
+/// `cancel`. For the status bar (see [`walk_size`]).
+pub fn tree_size(
+    dir: &std::path::Path,
+    deadline: std::time::Instant,
+    cancel: &AtomicBool,
+) -> Option<u64> {
+    walk_size(dir, Some(deadline), cancel, |_| {}).map(|s| s.bytes)
 }
 
 /// Metadata for every entry of one listing, filled in from batches.
@@ -420,6 +463,12 @@ mod tests {
         );
         let cancel = AtomicBool::new(true);
         assert_eq!(tree_size(t.path(), far, &cancel), None);
+
+        // Full stats, with a final progress report.
+        let mut last = None;
+        let s = walk_size(t.path(), None, &none, |s| last = Some(*s)).unwrap();
+        assert_eq!((s.files, s.dirs, s.errors), (3, 2, 0)); // a, b, link; d, e
+        assert_eq!(last, Some(s));
     }
 
     #[test]
