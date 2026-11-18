@@ -6,8 +6,12 @@
 //! drawn. Otherwise this process execs `tudi-gui` (next to this binary)
 //! with the same arguments, which becomes the primary instance.
 //!
+//! `tudi q` and `tudi index` (see `cli.rs`) talk to the index daemon.
+//!
 //! The options must match those of `tudi-gui` (see its `main.rs`), since
 //! GApplication parses them locally before forwarding.
+
+mod cli;
 
 use std::os::unix::process::CommandExt;
 
@@ -16,6 +20,11 @@ use gio::prelude::*;
 const APP_ID: &str = "io.github.baojie.tudi";
 
 fn main() -> glib::ExitCode {
+    // `tudi q …` / `tudi index …`: talk to the index daemon, no GUI.
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    if let Some(code) = cli::run(&args) {
+        return glib::ExitCode::from(code);
+    }
     // Help is printed by tudi-gui, which has the translations.
     let wants_help = std::env::args_os().skip(1).any(|a| {
         a.to_str()

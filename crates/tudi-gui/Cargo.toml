@@ -16,7 +16,7 @@ path = "src/main.rs"
 # GIO-only launcher that forwards to a running instance (P2).
 [[bin]]
 name = "tudi"
-path = "src/bin/tudi.rs"
+path = "src/bin/tudi/main.rs"
 
 [lints]
 workspace = true
@@ -28,6 +28,7 @@ async-channel.workspace = true
 rustix.workspace = true
 gettext-rs.workspace = true
 gio.workspace = true
+tudi-proto = { path = "../tudi-proto" }
 glib.workspace = true
 gtk.workspace = true
 tracing.workspace = true
