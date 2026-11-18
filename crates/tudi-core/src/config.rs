@@ -39,6 +39,14 @@ exclude = [".cache", ".local/share/Trash", "node_modules", "target", "__pycache_
 # Minutes between checks for changes in folders that are not watched.
 reconcile_minutes = 10
 
+# More roots with their own settings, e.g. a data disk or an SD card.
+# Slow (rotational or USB) devices are checked once a day by default.
+# While a root is unmounted its entries are kept and hidden from results.
+# [[index.extra_roots]]
+# path = "/mnt/data"
+# reconcile_minutes = 1440
+# exclude = ["$RECYCLE.BIN", "System Volume Information"]
+
 [history]
 # Folders never recorded or shown in the history, as globs on absolute
 # paths, e.g. ["/tmp/**", "**/node_modules/**"]. Single folders can also be
@@ -116,6 +124,21 @@ pub struct IndexConfig {
     pub roots: Vec<String>,
     pub exclude: Vec<String>,
     pub reconcile_minutes: u32,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub extra_roots: Vec<ExtraRoot>,
+}
+
+/// An extra index root with its own settings (PLAN §8).
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ExtraRoot {
+    pub path: String,
+    /// Default: daily on slow (rotational / USB) devices, else the global
+    /// interval.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reconcile_minutes: Option<u32>,
+    /// In addition to `[index] exclude`.
+    pub exclude: Vec<String>,
 }
 
 impl Default for IndexConfig {
@@ -137,6 +160,7 @@ impl Default for IndexConfig {
             .map(String::from)
             .to_vec(),
             reconcile_minutes: 10,
+            extra_roots: Vec::new(),
         }
     }
 }
@@ -351,6 +375,14 @@ mod tests {
         let c = Config::parse("[history]\nexclude = [\"/tmp/**\"]\n", Path::new("x")).unwrap();
         assert_eq!(c.history.exclude, ["/tmp/**"]);
         assert_eq!(c.ui.language, Language::En);
+        let c = Config::parse(
+            "[[index.extra_roots]]\npath = \"/mnt/d\"\nexclude = [\"$RECYCLE.BIN\"]\n",
+            Path::new("x"),
+        )
+        .unwrap();
+        assert_eq!(c.index.extra_roots[0].path, "/mnt/d");
+        assert_eq!(c.index.extra_roots[0].reconcile_minutes, None);
+        assert_eq!(c.index.roots, ["~"], "defaults kept");
         let c = Config::parse("[ui]\nlanguage = \"system\"\n", Path::new("x")).unwrap();
         assert_eq!(c.ui.language, Language::System);
     }
