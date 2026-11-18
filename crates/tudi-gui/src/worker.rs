@@ -84,6 +84,8 @@ pub enum Reply {
     Meta(MetaBatch),
     /// Watched directories changed.
     Changed(Vec<WatchKey>),
+    /// The folder history (for the "Frequent" view).
+    History(crate::history::Snapshot),
 }
 
 /// What a directory watch belongs to.

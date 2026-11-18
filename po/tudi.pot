@@ -12,68 +12,108 @@ msgstr ""
 msgid "Cannot run {}: {}"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:245
+#: crates/tudi-gui/src/actions.rs:249
 msgid "Could not trash {}"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:262 crates/tudi-gui/src/actions.rs:262
+#: crates/tudi-gui/src/actions.rs:266 crates/tudi-gui/src/actions.rs:266
 msgid "Rename"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:279
+#: crates/tudi-gui/src/actions.rs:283
 msgid "Cannot rename: {}"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:287 crates/tudi-gui/src/actions.rs:287
+#: crates/tudi-gui/src/actions.rs:292 crates/tudi-gui/src/actions.rs:294
 msgid "New Folder"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:287
+#: crates/tudi-gui/src/actions.rs:293
 msgid "Create"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:302
+#: crates/tudi-gui/src/actions.rs:311
 msgid "Cannot create folder: {}"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:320
+#: crates/tudi-gui/src/actions.rs:329
 msgid "Cancel"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:157
+#: crates/tudi-gui/src/browser.rs:168
 msgid "Back (Alt+Left)"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:159
+#: crates/tudi-gui/src/browser.rs:170
 msgid "Forward (Alt+Right)"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:161
+#: crates/tudi-gui/src/browser.rs:172
 msgid "Parent folder (Alt+Up)"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:270
+#: crates/tudi-gui/src/browser.rs:218
+msgid "Excluded folders"
+msgstr ""
+
+#: crates/tudi-gui/src/browser.rs:269
+msgid "Most used folders"
+msgstr ""
+
+#: crates/tudi-gui/src/browser.rs:321 crates/tudi-gui/src/browser.rs:883 crates/tudi-gui/src/browser.rs:885
+msgid "Frequent"
+msgstr ""
+
+#: crates/tudi-gui/src/browser.rs:323
 msgid "Home"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:272
+#: crates/tudi-gui/src/browser.rs:325
 msgid "File System"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:815 crates/tudi-gui/src/pane.rs:403
+#: crates/tudi-gui/src/browser.rs:1000
+msgid "Allow in history again"
+msgstr ""
+
+#: crates/tudi-gui/src/browser.rs:1002
+msgid "Never show in history"
+msgstr ""
+
+#: crates/tudi-gui/src/browser.rs:1004
+msgid "Never show, including subfolders"
+msgstr ""
+
+#: crates/tudi-gui/src/browser.rs:1007
+msgid "Remove from history"
+msgstr ""
+
+#: crates/tudi-gui/src/browser.rs:1055 crates/tudi-gui/src/pane.rs:453
 msgid "Name"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:815 crates/tudi-gui/src/pane.rs:405
+#: crates/tudi-gui/src/browser.rs:1055 crates/tudi-gui/src/pane.rs:455
 msgid "Size"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:815 crates/tudi-gui/src/pane.rs:407
+#: crates/tudi-gui/src/browser.rs:1055 crates/tudi-gui/src/pane.rs:457
 msgid "Modified"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:889
+#: crates/tudi-gui/src/browser.rs:1129
 msgid "{} selected"
+msgstr ""
+
+#: crates/tudi-gui/src/history.rs:223
+msgid "just now"
+msgstr ""
+
+#: crates/tudi-gui/src/history.rs:328
+msgid "with subfolders"
+msgstr ""
+
+#: crates/tudi-gui/src/history.rs:330
+msgid "this folder only"
 msgstr ""
 
 #: crates/tudi-gui/src/actions.rs:152
@@ -94,8 +134,44 @@ msgid_plural "Moved {} items to the trash"
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/tudi-gui/src/browser.rs:885
+#: crates/tudi-gui/src/browser.rs:906
+msgid "{} excluded folder"
+msgid_plural "{} excluded folders"
+msgstr[0] ""
+msgstr[1] ""
+
+#: crates/tudi-gui/src/browser.rs:908
+msgid "{} folder"
+msgid_plural "{} folders"
+msgstr[0] ""
+msgstr[1] ""
+
+#: crates/tudi-gui/src/browser.rs:1125
 msgid "{} item"
 msgid_plural "{} items"
+msgstr[0] ""
+msgstr[1] ""
+
+#: crates/tudi-gui/src/history.rs:226
+msgid "{} minute ago"
+msgid_plural "{} minutes ago"
+msgstr[0] ""
+msgstr[1] ""
+
+#: crates/tudi-gui/src/history.rs:229
+msgid "{} hour ago"
+msgid_plural "{} hours ago"
+msgstr[0] ""
+msgstr[1] ""
+
+#: crates/tudi-gui/src/history.rs:232
+msgid "{} day ago"
+msgid_plural "{} days ago"
+msgstr[0] ""
+msgstr[1] ""
+
+#: crates/tudi-gui/src/history.rs:322
+msgid "{} open"
+msgid_plural "{} opens"
 msgstr[0] ""
 msgstr[1] ""

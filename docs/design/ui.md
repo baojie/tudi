@@ -88,3 +88,17 @@ See PLAN §5.7. Implemented in M3: history (`Alt+←/→`), up (`Alt+↑`,
 double-click, type-ahead, `Ctrl+C`, `Ctrl+Shift+C`, `Ctrl+Alt+T`, `Ctrl+E`,
 `F2`, `Delete`, `Ctrl+Shift+N`. List-only keys (`Ctrl+C`, `Delete`, `F2`)
 are bound on the list so they do not take keys from the path bar.
+
+## Folder history (ADR-016)
+
+- `history.rs`: one `tudi-history` thread per process owns the frecency
+  database (`tudi_core::frecency`); windows send visits and changes, and
+  receive snapshots (top 300 folders plus exclusions) as `Reply::History`.
+- Counted visits: list activation of a folder, the path bar, a history
+  row, `tudi PATH`, and tree selections still shown after 1 s. Not counted:
+  back/forward, up, startup restore, live reloads.
+- The "Frequent" special root in the tree switches the right pane (a
+  `GtkStack`) to the history list: name, parent path, open count, last
+  visit. Right-click: never show (folder / with subfolders), remove from
+  history; the "Excluded folders" toggle lists exclusions, where they can be
+  allowed again.

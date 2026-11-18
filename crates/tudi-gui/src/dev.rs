@@ -8,7 +8,9 @@
 //!   `wait MS`, `nav PATH`, `up`, `back`, `forward`, `select ROW`,
 //!   `type TEXT`, `hidden`, `sort name|size|mtime`, `rename NAME`,
 //!   `mkdir NAME`, `trash`, `expand ROW`, `collapse ROW`, `scroll FRACTION`,
-//!   `dump`,
+//!   `dump`, `open PATH` (counted visit), `treeselect ROW`, `frequent`,
+//!   `hselect ROW`, `hexclude`, `hexclude-tree`, `hforget`, `hunexclude`,
+//!   `hexcluded`. Prefix a command with `!` to run the next one after 50 ms.
 //!   `shot FILE`, `quit`.
 
 // Script results go to stdout on purpose: they are read by test tooling.
@@ -59,7 +61,13 @@ fn step(b: Rc<Browser>, queue: Queue, delay: Duration) {
             .map_or(0.0, |s| s.elapsed().as_secs_f64() * 1000.0);
         println!("> [{t:.0}] {cmd}");
         let (verb, arg) = cmd.split_once(' ').unwrap_or((&cmd, ""));
-        let mut next = STEP;
+        let next = STEP;
+        let (verb, arg, next) = match verb.strip_prefix('!') {
+            // `!cmd`: run the next command after 50 ms (keyboard-speed).
+            Some(v) => (v, arg, Duration::from_millis(50)),
+            None => (verb, arg, next),
+        };
+        let mut next = next;
         match verb {
             "wait" => next = Duration::from_millis(arg.parse().unwrap_or(500)),
             "nav" => b.navigate(&PathBuf::from(arg), true),
@@ -90,6 +98,19 @@ fn step(b: Rc<Browser>, queue: Queue, delay: Duration) {
             "trash" => b.trash_selected(),
             "expand" => b.expand_tree_row(arg.parse().unwrap_or(0)),
             "collapse" => b.collapse_tree_row(arg.parse().unwrap_or(0)),
+            "open" => {
+                let p = PathBuf::from(arg);
+                b.navigate(&p, true);
+                b.record_visit(&p);
+            }
+            "treeselect" => b.tree_sel.set_selected(arg.parse().unwrap_or(0)),
+            "frequent" => b.show_history(),
+            "hselect" => b.dev_history_select(arg.parse().unwrap_or(0)),
+            "hexclude" => b.dev_history_action("exclude"),
+            "hexclude-tree" => b.dev_history_action("exclude-tree"),
+            "hforget" => b.dev_history_action("forget"),
+            "hunexclude" => b.dev_history_action("unexclude"),
+            "hexcluded" => b.dev_history_toggle_excluded(),
             "scroll" => {
                 let f: f64 = arg.parse().unwrap_or(0.0);
                 let adj = b.pane_scroll.vadjustment();
@@ -145,6 +166,9 @@ fn dump(b: &Browser) {
             "tree selected: {}",
             t.path(t.rows()[sel as usize].node).display()
         );
+    }
+    for line in b.dev_history_rows() {
+        println!("history: {line}");
     }
     println!("status: {}", b.status.text());
     let f = crate::bench::frame_stats();

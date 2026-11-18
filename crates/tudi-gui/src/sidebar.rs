@@ -61,6 +61,9 @@ mod model_imp {
         /// Display names for roots, by node.
         pub root_labels: RefCell<HashMap<NodeId, String>>,
         pub bound: RefCell<HashMap<Key, glib::WeakRef<gtk::Box>>>,
+        /// Roots that are views, not folders (e.g. "Frequent"): an icon
+        /// name each; they never expand.
+        pub special: RefCell<HashMap<NodeId, &'static str>>,
     }
 
     #[glib::object_subclass]
@@ -119,6 +122,17 @@ impl TreeModel {
             self.refresh(node);
         }
         r
+    }
+
+    /// Add a root that is a view, not a folder.
+    pub fn add_special_root(&self, label: &str, icon: &'static str) -> NodeId {
+        let id = self.add_root("", label);
+        self.imp().special.borrow_mut().insert(id, icon);
+        id
+    }
+
+    pub fn is_special(&self, node: NodeId) -> bool {
+        self.imp().special.borrow().contains_key(&node)
     }
 
     pub fn add_root(&self, path: &str, label: &str) -> NodeId {
@@ -207,6 +221,12 @@ fn fill(b: &gtk::Box, model: &TreeModel, node: NodeId, error: bool) {
     }
     b.set_margin_start(i32::from(depth) * 16);
     p.label.remove_css_class("dim-label");
+    if let Some(icon) = model.imp().special.borrow().get(&node) {
+        p.expander.clear();
+        p.icon.set_icon_name(Some(icon));
+        p.label.set_text(&model.label(node));
+        return;
+    }
     let leaf = matches!(&children, Children::Loaded(k) if k.is_empty());
     if leaf {
         p.expander.clear();

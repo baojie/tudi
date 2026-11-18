@@ -16,6 +16,7 @@ mod bench;
 mod browser;
 mod dev;
 mod format;
+mod history;
 mod i18n;
 mod pane;
 mod sidebar;
@@ -54,6 +55,8 @@ struct App {
     /// Open windows, most recently opened last. Owning the browsers here
     /// keeps them alive while their windows are open.
     browsers: RefCell<Vec<Rc<Browser>>>,
+    /// The folder history thread, started with the first window.
+    history: RefCell<Option<history::History>>,
 }
 
 impl App {
@@ -82,7 +85,12 @@ impl App {
         let start = path
             .or_else(|| state.last_dir.as_ref().map(PathBuf::from))
             .unwrap_or_else(glib::home_dir);
-        let b = Browser::new(app, &start, config, &state);
+        let hist = self
+            .history
+            .borrow_mut()
+            .get_or_insert_with(|| history::History::start(config.history.exclude.clone()))
+            .clone();
+        let b = Browser::new(app, &start, config, &state, hist);
         let first = self.browsers.borrow().is_empty();
         self.browsers.borrow_mut().push(b.clone());
 
@@ -163,10 +171,17 @@ impl App {
             Some(b) if !opts.contains("new-window") => {
                 if let Some(p) = path {
                     b.navigate(&p, true);
+                    b.record_visit(&p);
                 }
                 b.window.present();
             }
-            _ => self.open_window(app, path),
+            _ => {
+                let visit = path.clone();
+                self.open_window(app, path);
+                if let (Some(p), Some(b)) = (visit, self.browsers.borrow().last()) {
+                    b.record_visit(&p);
+                }
+            }
         }
     }
 }
