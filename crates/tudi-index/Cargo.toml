@@ -10,3 +10,10 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
+crc32fast.workspace = true
+globset.workspace = true
+rayon.workspace = true
+rustix.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

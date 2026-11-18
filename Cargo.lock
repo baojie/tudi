@@ -282,6 +282,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "crc32fast"
+version = "1.5.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2b929dd2a135771f40afabd1073f85eed59c800b7c61901e5c254270497dad64"
+dependencies = [
+ "cfg-if",
+]
+
+[[package]]
 name = "criterion"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1682,6 +1691,13 @@ dependencies = [
 [[package]]
 name = "tudi-index"
 version = "0.1.0"
+dependencies = [
+ "crc32fast",
+ "globset",
+ "rayon",
+ "rustix",
+ "tempfile",
+]
 
 [[package]]
 name = "tudi-indexd"
