@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- First-run import of GTK bookmarks and autojump / zoxide history;
+  `tudi --reimport`.
+- Mounted volumes appear as roots in the folder tree.
+- Free space in the status bar.
 - Properties dialog (context menu, `Alt+Enter`): type, location, dates,
   permissions, owner, and the size of folders counted live with a spinner.
 - Finder-like look: light sidebar, blue selection in the list (grey when

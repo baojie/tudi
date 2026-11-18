@@ -66,6 +66,8 @@ pub struct Browser {
     volume_monitor: RefCell<Option<gio::VolumeMonitor>>,
     /// Total size below the shown folder, once computed (≤ 1 s).
     folder_size: Cell<Option<u64>>,
+    /// Free space on the shown folder's filesystem.
+    free_space: Cell<Option<u64>>,
     /// Cancels the running size computation.
     size_cancel: RefCell<Option<Arc<std::sync::atomic::AtomicBool>>>,
     /// Folder whose size is shown or being computed.
@@ -252,6 +254,7 @@ impl Browser {
                 tree_target: RefCell::default(),
                 volume_monitor: RefCell::default(),
                 folder_size: Cell::new(None),
+                free_space: Cell::new(None),
                 size_cancel: RefCell::default(),
                 size_for: RefCell::default(),
                 size_gen: Cell::new(0),
@@ -1176,6 +1179,10 @@ impl Browser {
             text.push_str(" · ");
             text.push_str(&crate::format::size(size));
         }
+        if let Some(free) = self.free_space.get() {
+            text.push_str(" · ");
+            text.push_str(&fill(&tr("{} free"), &[&crate::format::size(free)]));
+        }
         let selected = self.pane_sel.selection().size();
         if selected > 0 {
             text.push_str(" · ");
@@ -1254,9 +1261,14 @@ impl Browser {
                 self.after_order_change(Vec::new(), p.select);
                 self.start_folder_size(p.generation);
             }
-            Reply::FolderSize { generation, size } => {
+            Reply::FolderSize {
+                generation,
+                size,
+                available,
+            } => {
                 if generation == self.size_gen.get() {
                     self.folder_size.set(size);
+                    self.free_space.set(available);
                     self.update_status();
                 }
             }

@@ -86,6 +86,8 @@ pub enum Reply {
     FolderSize {
         generation: u64,
         size: Option<u64>,
+        /// Free space for unprivileged users on the folder's filesystem.
+        available: Option<u64>,
     },
     /// Watched directories changed.
     Changed(Vec<WatchKey>),
@@ -144,8 +146,20 @@ impl Worker {
         let tx = self.replies.clone();
         std::thread::spawn(move || {
             let deadline = std::time::Instant::now() + std::time::Duration::from_secs(1);
+            let available = rustix::fs::statvfs(&path)
+                .ok()
+                .map(|v| v.f_bavail.saturating_mul(v.f_frsize));
+            let _ = tx.send_blocking(Reply::FolderSize {
+                generation,
+                size: None,
+                available,
+            });
             let size = tudi_core::listing::meta::tree_size(&path, deadline, &cancel);
-            let _ = tx.send_blocking(Reply::FolderSize { generation, size });
+            let _ = tx.send_blocking(Reply::FolderSize {
+                generation,
+                size,
+                available,
+            });
         });
     }
 
