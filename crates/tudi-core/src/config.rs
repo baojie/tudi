@@ -22,6 +22,12 @@ sort = "name"          # name | size | mtime
 # folder if nothing is selected), as separate arguments.
 terminal = ["kitty", "--directory", "{dir}"]
 editor = ["zed", "{path}"]
+
+[history]
+# Folders never recorded or shown in the history, as globs on absolute
+# paths, e.g. ["/tmp/**", "**/node_modules/**"]. Single folders can also be
+# excluded from the context menu.
+exclude = []
 "#;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -70,9 +76,16 @@ impl Default for Commands {
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
+pub struct History {
+    pub exclude: Vec<String>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
 pub struct Config {
     pub browse: Browse,
     pub commands: Commands,
+    pub history: History,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -205,6 +218,8 @@ mod tests {
         assert!(c.browse.dirs_first);
         assert_eq!(c.browse.sort, SortBy::Name);
         assert_eq!(c.commands, Commands::default());
+        let c = Config::parse("[history]\nexclude = [\"/tmp/**\"]\n", Path::new("x")).unwrap();
+        assert_eq!(c.history.exclude, ["/tmp/**"]);
     }
 
     #[test]

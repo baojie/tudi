@@ -15,6 +15,8 @@ rayon.workspace = true
 thiserror.workspace = true
 serde.workspace = true
 toml.workspace = true
+rusqlite.workspace = true
+globset.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true

@@ -21,6 +21,8 @@ tempfile = "3.27.0"
 async-channel = "2.5.0"
 serde = { version = "1.0.229", features = ["derive"] }
 toml = "1.2.1"
+rusqlite = { version = "0.43.0", features = ["bundled"] }
+globset = "0.4.21"
 gettext-rs = { version = "0.8.0", features = ["gettext-system"] }
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 gtk = { package = "gtk4", version = "0.11.5", features = ["v4_14"] }
