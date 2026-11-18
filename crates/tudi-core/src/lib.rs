@@ -5,6 +5,7 @@
 
 pub mod bookmarks;
 pub mod config;
+pub mod fileops;
 pub mod frecency;
 pub mod listing;
 pub mod state;
