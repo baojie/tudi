@@ -16,7 +16,7 @@ msgstr ""
 msgid "Could not trash {}"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:266 crates/tudi-gui/src/actions.rs:266
+#: crates/tudi-gui/src/actions.rs:266 crates/tudi-gui/src/actions.rs:266 crates/tudi-gui/src/bar.rs:199
 msgid "Rename"
 msgstr ""
 
@@ -36,100 +36,268 @@ msgstr ""
 msgid "Cannot create folder: {}"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:329
+#: crates/tudi-gui/src/actions.rs:329 crates/tudi-gui/src/settings.rs:384
 msgid "Cancel"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:169
-msgid "Back (Alt+Left)"
+#: crates/tudi-gui/src/bar.rs:69
+msgid "All bookmarks and frequent folders"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:171
-msgid "Forward (Alt+Right)"
+#: crates/tudi-gui/src/bar.rs:165
+msgid "Bookmarked {}"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:173
-msgid "Parent folder (Alt+Up)"
+#: crates/tudi-gui/src/bar.rs:168
+msgid "Already bookmarked"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:220
-msgid "Excluded folders"
+#: crates/tudi-gui/src/bar.rs:199
+msgid "Rename Bookmark"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:272
-msgid "Most used folders"
+#: crates/tudi-gui/src/bar.rs:237
+msgid "Ctrl+D bookmarks the current folder"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:324 crates/tudi-gui/src/browser.rs:907 crates/tudi-gui/src/browser.rs:909
+#: crates/tudi-gui/src/bar.rs:282
+msgid "Bookmarks"
+msgstr ""
+
+#: crates/tudi-gui/src/bar.rs:283
 msgid "Frequent"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:326
-msgid "Home"
+#: crates/tudi-gui/src/bar.rs:319
+msgid "Rename…"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:328
-msgid "File System"
+#: crates/tudi-gui/src/bar.rs:321
+msgid "Move Left"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:852
-msgid "Zoom {}%"
+#: crates/tudi-gui/src/bar.rs:324
+msgid "Move Right"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:1042
-msgid "Allow in history again"
+#: crates/tudi-gui/src/bar.rs:326
+msgid "Remove Bookmark"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:1044
+#: crates/tudi-gui/src/bar.rs:337
+msgid "Pin as Bookmark"
+msgstr ""
+
+#: crates/tudi-gui/src/bar.rs:339
 msgid "Never show in history"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:1046
+#: crates/tudi-gui/src/bar.rs:341
 msgid "Never show, including subfolders"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:1049
+#: crates/tudi-gui/src/bar.rs:344
 msgid "Remove from history"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:1097 crates/tudi-gui/src/pane.rs:458
+#: crates/tudi-gui/src/browser.rs:171
+msgid "Back (Alt+Left)"
+msgstr ""
+
+#: crates/tudi-gui/src/browser.rs:173
+msgid "Forward (Alt+Right)"
+msgstr ""
+
+#: crates/tudi-gui/src/browser.rs:175
+msgid "Parent folder (Alt+Up)"
+msgstr ""
+
+#: crates/tudi-gui/src/browser.rs:184
+msgid "Settings (Ctrl+,)"
+msgstr ""
+
+#: crates/tudi-gui/src/browser.rs:310
+msgid "Home"
+msgstr ""
+
+#: crates/tudi-gui/src/browser.rs:312
+msgid "File System"
+msgstr ""
+
+#: crates/tudi-gui/src/browser.rs:832
+msgid "Zoom {}%"
+msgstr ""
+
+#: crates/tudi-gui/src/browser.rs:984 crates/tudi-gui/src/pane.rs:467 crates/tudi-gui/src/settings.rs:80
 msgid "Name"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:1097 crates/tudi-gui/src/pane.rs:460
+#: crates/tudi-gui/src/browser.rs:984 crates/tudi-gui/src/pane.rs:469 crates/tudi-gui/src/settings.rs:80
 msgid "Size"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:1097 crates/tudi-gui/src/pane.rs:461
+#: crates/tudi-gui/src/browser.rs:984 crates/tudi-gui/src/pane.rs:470 crates/tudi-gui/src/settings.rs:80
 msgid "Modified"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:1171
+#: crates/tudi-gui/src/browser.rs:1058
 msgid "{} selected"
 msgstr ""
 
-#: crates/tudi-gui/src/history.rs:223
+#: crates/tudi-gui/src/history.rs:140
 msgid "just now"
 msgstr ""
 
-#: crates/tudi-gui/src/history.rs:334
-msgid "with subfolders"
-msgstr ""
-
-#: crates/tudi-gui/src/history.rs:336
-msgid "this folder only"
-msgstr ""
-
-#: crates/tudi-gui/src/main.rs:218
+#: crates/tudi-gui/src/main.rs:252
 msgid "Open a new window"
 msgstr ""
 
-#: crates/tudi-gui/src/main.rs:222
+#: crates/tudi-gui/src/main.rs:256
 msgid "Start the resident instance without a window"
 msgstr ""
 
-#: crates/tudi-gui/src/main.rs:224
+#: crates/tudi-gui/src/main.rs:258
 msgid "Quit the resident instance"
+msgstr ""
+
+#: crates/tudi-gui/src/settings.rs:47
+msgid "Settings"
+msgstr ""
+
+#: crates/tudi-gui/src/settings.rs:53
+msgid "General"
+msgstr ""
+
+#: crates/tudi-gui/src/settings.rs:56
+msgid "Interface"
+msgstr ""
+
+#: crates/tudi-gui/src/settings.rs:58
+msgid "Language"
+msgstr ""
+
+#: crates/tudi-gui/src/settings.rs:59
+msgid "English"
+msgstr ""
+
+#: crates/tudi-gui/src/settings.rs:59
+msgid "System language"
+msgstr ""
+
+#: crates/tudi-gui/src/settings.rs:62
+msgid "Takes effect after restarting tudi"
+msgstr ""
+
+#: crates/tudi-gui/src/settings.rs:69
+msgid "Zoom (%)"
+msgstr ""
+
+#: crates/tudi-gui/src/settings.rs:75
+msgid "Browsing"
+msgstr ""
+
+#: crates/tudi-gui/src/settings.rs:76
+msgid "Show hidden files"
+msgstr ""
+
+#: crates/tudi-gui/src/settings.rs:77
+msgid "Folders before files"
+msgstr ""
+
+#: crates/tudi-gui/src/settings.rs:79
+msgid "Sort by"
+msgstr ""
+
+#: crates/tudi-gui/src/settings.rs:96
+msgid "Commands"
+msgstr ""
+
+#: crates/tudi-gui/src/settings.rs:100
+msgid "External programs"
+msgstr ""
+
+#: crates/tudi-gui/src/settings.rs:106
+msgid "Terminal (Ctrl+Alt+T)"
+msgstr ""
+
+#: crates/tudi-gui/src/settings.rs:111
+msgid "Editor (Ctrl+E)"
+msgstr ""
+
+#: crates/tudi-gui/src/settings.rs:123
+msgid "History"
+msgstr ""
+
+#: crates/tudi-gui/src/settings.rs:127
+msgid "Never record folders matching"
+msgstr ""
+
+#: crates/tudi-gui/src/settings.rs:128
+msgid "Glob patterns on absolute paths, e.g. /tmp/** or **/node_modules/**"
+msgstr ""
+
+#: crates/tudi-gui/src/settings.rs:131
+msgid "Add pattern"
+msgstr ""
+
+#: crates/tudi-gui/src/settings.rs:137
+msgid "Excluded folders"
+msgstr ""
+
+#: crates/tudi-gui/src/settings.rs:138
+msgid "Folders hidden from the bar with “Never show in history”"
+msgstr ""
+
+#: crates/tudi-gui/src/settings.rs:143
+msgid "Clear history"
+msgstr ""
+
+#: crates/tudi-gui/src/settings.rs:144
+msgid "Forget all folder visits; exclusions are kept"
+msgstr ""
+
+#: crates/tudi-gui/src/settings.rs:146
+msgid "Clear…"
+msgstr ""
+
+#: crates/tudi-gui/src/settings.rs:176
+msgid "Restart tudi to change the language (tudi --quit)"
+msgstr ""
+
+#: crates/tudi-gui/src/settings.rs:313
+msgid "Remove pattern"
+msgstr ""
+
+#: crates/tudi-gui/src/settings.rs:346
+msgid "None"
+msgstr ""
+
+#: crates/tudi-gui/src/settings.rs:356
+msgid "with subfolders"
+msgstr ""
+
+#: crates/tudi-gui/src/settings.rs:358
+msgid "this folder only"
+msgstr ""
+
+#: crates/tudi-gui/src/settings.rs:361
+msgid "Allow"
+msgstr ""
+
+#: crates/tudi-gui/src/settings.rs:363
+msgid "Allow in history again"
+msgstr ""
+
+#: crates/tudi-gui/src/settings.rs:379
+msgid "Clear history?"
+msgstr ""
+
+#: crates/tudi-gui/src/settings.rs:380
+msgid "All folder visit counts are forgotten. Exclusions and bookmarks are kept."
+msgstr ""
+
+#: crates/tudi-gui/src/settings.rs:384
+msgid "Clear"
 msgstr ""
 
 #: crates/tudi-gui/src/actions.rs:152
@@ -150,44 +318,38 @@ msgid_plural "Moved {} items to the trash"
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/tudi-gui/src/browser.rs:936
-msgid "{} excluded folder"
-msgid_plural "{} excluded folders"
+#: crates/tudi-gui/src/bar.rs:258
+msgid "opened {} time"
+msgid_plural "opened {} times"
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/tudi-gui/src/browser.rs:938
-msgid "{} folder"
-msgid_plural "{} folders"
+#: crates/tudi-gui/src/bar.rs:272
+msgid "{} open"
+msgid_plural "{} opens"
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/tudi-gui/src/browser.rs:1167
+#: crates/tudi-gui/src/browser.rs:1054
 msgid "{} item"
 msgid_plural "{} items"
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/tudi-gui/src/history.rs:226
+#: crates/tudi-gui/src/history.rs:143
 msgid "{} minute ago"
 msgid_plural "{} minutes ago"
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/tudi-gui/src/history.rs:229
+#: crates/tudi-gui/src/history.rs:146
 msgid "{} hour ago"
 msgid_plural "{} hours ago"
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/tudi-gui/src/history.rs:232
+#: crates/tudi-gui/src/history.rs:149
 msgid "{} day ago"
 msgid_plural "{} days ago"
-msgstr[0] ""
-msgstr[1] ""
-
-#: crates/tudi-gui/src/history.rs:328
-msgid "{} open"
-msgid_plural "{} opens"
 msgstr[0] ""
 msgstr[1] ""
