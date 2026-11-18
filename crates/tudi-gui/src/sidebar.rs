@@ -129,6 +129,15 @@ impl TreeModel {
         id
     }
 
+    /// Remove a root (an unmounted volume) and its rows.
+    pub fn remove_root(&self, id: NodeId) {
+        let s = self.imp().tree.borrow_mut().remove_root(id);
+        self.imp().root_labels.borrow_mut().remove(&id);
+        if let Some(s) = s {
+            self.items_changed(s.position, s.removed, s.added);
+        }
+    }
+
     fn refresh(&self, node: NodeId) {
         let row = self
             .imp()

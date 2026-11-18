@@ -63,6 +63,7 @@ pub struct Browser {
     settings_strong: RefCell<Option<Rc<crate::settings::Settings>>>,
     /// The folder the tree's context menu was opened on.
     pub(crate) tree_target: RefCell<Option<crate::tree_menu::Target>>,
+    volume_monitor: RefCell<Option<gio::VolumeMonitor>>,
     /// Total size below the shown folder, once computed (≤ 1 s).
     folder_size: Cell<Option<u64>>,
     /// Cancels the running size computation.
@@ -249,6 +250,7 @@ impl Browser {
                 settings: RefCell::default(),
                 settings_strong: RefCell::default(),
                 tree_target: RefCell::default(),
+                volume_monitor: RefCell::default(),
                 folder_size: Cell::new(None),
                 size_cancel: RefCell::default(),
                 size_for: RefCell::default(),
@@ -328,6 +330,14 @@ impl Browser {
         b.window.set_content(Some(&b.toasts));
 
         b.add_roots();
+        // Volumes after the first frame: GIO's volume monitor talks to
+        // udisks over D-Bus.
+        let w = Rc::downgrade(&b);
+        glib::idle_add_local_once(move || {
+            if let Some(b) = w.upgrade() {
+                b.watch_volumes();
+            }
+        });
         b.build_bar();
         b.connect_signals(&up);
         b.install_shortcuts();
@@ -354,6 +364,54 @@ impl Browser {
         roots.push((home, id));
         let id = self.tree.add_root("/", &tr("File System"));
         roots.push((PathBuf::from("/"), id));
+    }
+
+    /// Mounted volumes (USB disks, other partitions) as tree roots, kept up
+    /// to date as they are mounted and unmounted.
+    fn watch_volumes(self: &Rc<Self>) {
+        let monitor = gio::VolumeMonitor::get();
+        for m in monitor.mounts() {
+            self.add_volume(&m);
+        }
+        let w = Rc::downgrade(self);
+        monitor.connect_mount_added(move |_, m| {
+            if let Some(b) = w.upgrade() {
+                b.add_volume(m);
+            }
+        });
+        let w = Rc::downgrade(self);
+        monitor.connect_mount_removed(move |_, m| {
+            if let Some(b) = w.upgrade() {
+                b.remove_volume(m);
+            }
+        });
+        // Keep the monitor (and its signals) alive with the window.
+        self.volume_monitor.replace(Some(monitor));
+    }
+
+    fn add_volume(&self, m: &gio::Mount) {
+        if m.is_shadowed() {
+            return;
+        }
+        let Some(path) = m.root().path() else { return };
+        if path == Path::new("/") || self.roots.borrow().iter().any(|(p, _)| *p == path) {
+            return;
+        }
+        let id = self.tree.add_root(&path.to_string_lossy(), &m.name());
+        self.roots.borrow_mut().push((path, id));
+    }
+
+    fn remove_volume(&self, m: &gio::Mount) {
+        let Some(path) = m.root().path() else { return };
+        let id = {
+            let mut roots = self.roots.borrow_mut();
+            let Some(i) = roots.iter().position(|(p, _)| *p == path) else {
+                return;
+            };
+            roots.remove(i).1
+        };
+        self.unwatch_tree_node(id);
+        self.tree.remove_root(id);
     }
 
     // ------------------------------------------------------------ signals
