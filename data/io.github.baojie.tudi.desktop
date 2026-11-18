@@ -1,0 +1,20 @@
+[Desktop Entry]
+Type=Application
+Name=tudi
+GenericName=File Browser
+GenericName[zh_CN]=文件浏览器
+Comment=Fast tree-first file browser
+Comment[zh_CN]=快速的树形文件浏览器
+Exec=tudi %f
+Icon=io.github.baojie.tudi
+Terminal=false
+Categories=GTK;System;FileTools;FileManager;
+Keywords=files;folder;browser;tree;
+StartupNotify=true
+StartupWMClass=io.github.baojie.tudi
+Actions=new-window;
+
+[Desktop Action new-window]
+Name=New Window
+Name[zh_CN]=新建窗口
+Exec=tudi --new-window

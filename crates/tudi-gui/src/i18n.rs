@@ -7,11 +7,20 @@ use gettextrs::{bind_textdomain_codeset, bindtextdomain, gettext, ngettext, text
 
 pub const DOMAIN: &str = "tudi";
 
-/// Bind the text domain: the installed locale dir, or (for a build run
-/// from the source tree) the catalogs compiled by `build.rs`.
+/// Bind the text domain. Looks in `$TUDI_LOCALEDIR`, then
+/// `<prefix>/share/locale` for a binary in `<prefix>/bin` (e.g. a
+/// `~/.local` install), then the catalogs compiled by `build.rs` (a build
+/// run from the source tree), then `/usr/share/locale`.
 pub fn init() {
+    let installed = std::env::current_exe().ok().and_then(|exe| {
+        let dir = exe.parent()?.parent()?.join("share/locale");
+        dir.join("zh_CN/LC_MESSAGES/tudi.mo")
+            .is_file()
+            .then_some(dir)
+    });
     let dir = std::env::var_os("TUDI_LOCALEDIR")
         .map(std::path::PathBuf::from)
+        .or(installed)
         .or_else(|| {
             let built = std::path::PathBuf::from(env!("TUDI_BUILD_LOCALEDIR"));
             built.is_dir().then_some(built)

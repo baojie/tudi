@@ -208,21 +208,23 @@ fn main() -> glib::ExitCode {
         .application_id(APP_ID)
         .flags(gio::ApplicationFlags::HANDLES_COMMAND_LINE)
         .build();
+    // Users start `tudi` (the launcher); show that name in --help.
+    glib::set_prgname(Some("tudi"));
     for (name, short, help) in [
-        ("new-window", b'n', "Open a new window"),
+        ("new-window", b'n', i18n::tr("Open a new window")),
         (
             "background",
             0,
-            "Start the resident instance without a window",
+            i18n::tr("Start the resident instance without a window"),
         ),
-        ("quit", 0, "Quit the resident instance"),
+        ("quit", 0, i18n::tr("Quit the resident instance")),
     ] {
         app.add_main_option(
             name,
             glib::Char::from(short),
             glib::OptionFlags::NONE,
             glib::OptionArg::None,
-            help,
+            &help,
             None,
         );
     }

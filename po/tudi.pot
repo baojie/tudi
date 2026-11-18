@@ -72,35 +72,35 @@ msgstr ""
 msgid "File System"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:1000
+#: crates/tudi-gui/src/browser.rs:1018
 msgid "Allow in history again"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:1002
+#: crates/tudi-gui/src/browser.rs:1020
 msgid "Never show in history"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:1004
+#: crates/tudi-gui/src/browser.rs:1022
 msgid "Never show, including subfolders"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:1007
+#: crates/tudi-gui/src/browser.rs:1025
 msgid "Remove from history"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:1055 crates/tudi-gui/src/pane.rs:453
+#: crates/tudi-gui/src/browser.rs:1073 crates/tudi-gui/src/pane.rs:453
 msgid "Name"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:1055 crates/tudi-gui/src/pane.rs:455
+#: crates/tudi-gui/src/browser.rs:1073 crates/tudi-gui/src/pane.rs:455
 msgid "Size"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:1055 crates/tudi-gui/src/pane.rs:457
+#: crates/tudi-gui/src/browser.rs:1073 crates/tudi-gui/src/pane.rs:457
 msgid "Modified"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:1129
+#: crates/tudi-gui/src/browser.rs:1147
 msgid "{} selected"
 msgstr ""
 
@@ -108,12 +108,24 @@ msgstr ""
 msgid "just now"
 msgstr ""
 
-#: crates/tudi-gui/src/history.rs:328
+#: crates/tudi-gui/src/history.rs:334
 msgid "with subfolders"
 msgstr ""
 
-#: crates/tudi-gui/src/history.rs:330
+#: crates/tudi-gui/src/history.rs:336
 msgid "this folder only"
+msgstr ""
+
+#: crates/tudi-gui/src/main.rs:214
+msgid "Open a new window"
+msgstr ""
+
+#: crates/tudi-gui/src/main.rs:218
+msgid "Start the resident instance without a window"
+msgstr ""
+
+#: crates/tudi-gui/src/main.rs:220
+msgid "Quit the resident instance"
 msgstr ""
 
 #: crates/tudi-gui/src/actions.rs:152
@@ -134,19 +146,19 @@ msgid_plural "Moved {} items to the trash"
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/tudi-gui/src/browser.rs:906
+#: crates/tudi-gui/src/browser.rs:912
 msgid "{} excluded folder"
 msgid_plural "{} excluded folders"
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/tudi-gui/src/browser.rs:908
+#: crates/tudi-gui/src/browser.rs:914
 msgid "{} folder"
 msgid_plural "{} folders"
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/tudi-gui/src/browser.rs:1125
+#: crates/tudi-gui/src/browser.rs:1143
 msgid "{} item"
 msgid_plural "{} items"
 msgstr[0] ""
@@ -170,7 +182,7 @@ msgid_plural "{} days ago"
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/tudi-gui/src/history.rs:322
+#: crates/tudi-gui/src/history.rs:328
 msgid "{} open"
 msgid_plural "{} opens"
 msgstr[0] ""

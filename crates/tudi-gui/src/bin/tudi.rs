@@ -16,6 +16,14 @@ use gio::prelude::*;
 const APP_ID: &str = "io.github.baojie.tudi";
 
 fn main() -> glib::ExitCode {
+    // Help is printed by tudi-gui, which has the translations.
+    let wants_help = std::env::args_os().skip(1).any(|a| {
+        a.to_str()
+            .is_some_and(|a| a == "-h" || a.starts_with("--help"))
+    });
+    if wants_help {
+        return exec_gui();
+    }
     let app = gio::Application::new(Some(APP_ID), gio::ApplicationFlags::HANDLES_COMMAND_LINE);
     for (name, short, help) in [
         ("new-window", b'n', "Open a new window"),
@@ -42,6 +50,10 @@ fn main() -> glib::ExitCode {
     }
     // No instance: become one. Dropping our bus connection on exec releases
     // the name for tudi-gui.
+    exec_gui()
+}
+
+fn exec_gui() -> glib::ExitCode {
     let gui = std::env::current_exe()
         .map(|p| p.with_file_name("tudi-gui"))
         .unwrap_or_else(|_| "tudi-gui".into());

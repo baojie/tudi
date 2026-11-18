@@ -23,6 +23,26 @@ cargo build --workspace
 cargo run -p tudi-gui
 ```
 
+### Install for your user
+
+```sh
+scripts/install-user.sh --pin     # ~/.local/bin, menu entry, icon; --pin adds it to the GNOME dock
+scripts/install-user.sh --uninstall
+```
+
+### Usage
+
+```sh
+tudi                 # open a window (last folder), or raise the running one
+tudi ~/projects      # open a folder (in the running instance, if any)
+tudi --new-window    # another window
+tudi --background    # start the resident instance without a window (e.g. at login)
+tudi --quit          # stop the resident instance
+```
+
+tudi stays resident after its last window closes, so the next window opens
+in a few milliseconds.
+
 ## License
 
 Licensed under either of
