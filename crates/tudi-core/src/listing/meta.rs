@@ -76,6 +76,76 @@ pub fn stat_entry(listing: &Listing, i: usize) -> Meta {
     }
 }
 
+/// Total size in bytes of everything below `dir` (apparent sizes, symlinks
+/// not followed, staying on `dir`'s filesystem), or `None` if it takes
+/// longer than until `deadline` or `cancel` is set. For the status bar.
+pub fn tree_size(
+    dir: &std::path::Path,
+    deadline: std::time::Instant,
+    cancel: &AtomicBool,
+) -> Option<u64> {
+    use rustix::fs::{Mode, OFlags, RawDir};
+    use std::mem::MaybeUninit;
+
+    let root = rustix::fs::open(
+        dir,
+        OFlags::RDONLY | OFlags::DIRECTORY | OFlags::CLOEXEC,
+        Mode::empty(),
+    )
+    .ok()?;
+    let mnt = rustix::fs::statx(&root, c".", AtFlags::empty(), StatxFlags::MNT_ID)
+        .ok()?
+        .stx_mnt_id;
+    let mut buf = vec![MaybeUninit::<u8>::uninit(); 64 * 1024];
+    let mut stack = vec![root];
+    let mut total = 0u64;
+    let mut seen = 0u32;
+    while let Some(fd) = stack.pop() {
+        let mut names: Vec<std::ffi::CString> = Vec::new();
+        let mut raw = RawDir::new(&fd, &mut buf);
+        while let Some(Ok(e)) = raw.next() {
+            let n = e.file_name();
+            if n.to_bytes() != b"." && n.to_bytes() != b".." {
+                names.push(n.to_owned());
+            }
+        }
+        for name in names {
+            seen += 1;
+            if seen.is_multiple_of(256)
+                && (std::time::Instant::now() > deadline || cancel.load(Ordering::Relaxed))
+            {
+                return None;
+            }
+            let Ok(st) = rustix::fs::statx(
+                &fd,
+                name.as_c_str(),
+                AtFlags::SYMLINK_NOFOLLOW | AtFlags::STATX_DONT_SYNC,
+                StatxFlags::TYPE | StatxFlags::SIZE | StatxFlags::MNT_ID,
+            ) else {
+                continue;
+            };
+            if u32::from(st.stx_mode) & 0o170000 == 0o040000 {
+                if st.stx_mnt_id == mnt
+                    && let Ok(sub) = rustix::fs::openat(
+                        &fd,
+                        name.as_c_str(),
+                        OFlags::RDONLY | OFlags::DIRECTORY | OFlags::CLOEXEC | OFlags::NOFOLLOW,
+                        Mode::empty(),
+                    )
+                {
+                    stack.push(sub);
+                }
+            } else {
+                total += st.stx_size;
+            }
+        }
+        if std::time::Instant::now() > deadline || cancel.load(Ordering::Relaxed) {
+            return None;
+        }
+    }
+    Some(total)
+}
+
 /// Metadata for every entry of one listing, filled in from batches.
 #[derive(Clone, Debug, Default)]
 pub struct MetaTable {
@@ -325,6 +395,31 @@ mod tests {
                 n => panic!("unexpected {n:?}"),
             }
         }
+    }
+
+    #[test]
+    fn tree_size_sums_files_and_respects_deadline() {
+        use std::time::{Duration, Instant};
+        let t = tempfile::tempdir().unwrap();
+        touch(t.path(), b"a", 100);
+        std::fs::create_dir_all(t.path().join("d/e")).unwrap();
+        std::fs::write(t.path().join("d/e/b"), vec![0u8; 50]).unwrap();
+        symlink("/usr", t.path().join("link")).unwrap();
+        let none = AtomicBool::new(false);
+        let far = Instant::now() + Duration::from_secs(10);
+        // Files 100 + 50, plus the symlink itself (its target's length);
+        // the link is not followed into /usr.
+        assert_eq!(
+            tree_size(t.path(), far, &none),
+            Some(150 + "/usr".len() as u64)
+        );
+        // An expired deadline gives up.
+        assert_eq!(
+            tree_size(t.path(), Instant::now() - Duration::from_secs(1), &none),
+            None
+        );
+        let cancel = AtomicBool::new(true);
+        assert_eq!(tree_size(t.path(), far, &cancel), None);
     }
 
     #[test]
