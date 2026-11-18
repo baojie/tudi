@@ -23,6 +23,7 @@ mod icons;
 mod launch;
 mod pane;
 mod properties;
+mod search;
 mod settings;
 mod shared;
 mod sidebar;
@@ -62,6 +63,8 @@ const CSS: &str = "
 .tudi-details:not(:focus-within) > row:selected .dim-label { color: inherit; opacity: 0.55; }
 .tudi-bar { background-color: @headerbar_bg_color; }
 .tudi-bar { padding: 2px 6px; }
+.tudi-search { padding: 10px; box-shadow: 0 8px 28px alpha(black, 0.25); }
+.tudi-search-results > row { padding: 3px 6px; }
 .tudi-bar-button { font-weight: normal; padding: 2px 8px; min-height: 0; }
 .tudi-bar-items separator { margin: 5px 8px; min-width: 1px; background: alpha(currentColor, 0.25); }
 .tudi-bar-hint { padding: 0 8px; font-size: smaller; }

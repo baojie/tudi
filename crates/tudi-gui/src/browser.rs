@@ -53,6 +53,8 @@ struct Reveal {
 pub struct Browser {
     pub window: adw::ApplicationWindow,
     pub(crate) shared: Rc<Shared>,
+    pub(crate) search: crate::search::SearchUi,
+    pub(crate) search_client: crate::search::SearchClient,
     /// Bookmarks bar: buttons, and the "»" menu with everything.
     pub(crate) bar_box: gtk::Box,
     pub(crate) bar_more: gtk::MenuButton,
@@ -243,9 +245,12 @@ impl Browser {
                     }
                 },
             );
+            let search_client = crate::search::SearchClient::start(worker.reply_sender());
             Browser {
                 window: window.clone(),
                 shared,
+                search: crate::search::SearchUi::new(),
+                search_client,
                 bar_box: gtk::Box::new(gtk::Orientation::Horizontal, 2),
                 bar_more: gtk::MenuButton::new(),
                 hist: RefCell::default(),
@@ -326,7 +331,10 @@ impl Browser {
         content.append(&header);
         content.append(&b.bar_widget());
         content.append(&gtk::Separator::new(gtk::Orientation::Horizontal));
-        content.append(&paned);
+        // The search overlay floats above the panes.
+        let overlay = gtk::Overlay::builder().child(&paned).vexpand(true).build();
+        overlay.add_overlay(&b.search.container);
+        content.append(&overlay);
         content.append(&gtk::Separator::new(gtk::Orientation::Horizontal));
         content.append(&b.status);
         b.toasts.set_child(Some(&content));
@@ -342,6 +350,7 @@ impl Browser {
             }
         });
         b.build_bar();
+        b.connect_search();
         b.connect_signals(&up);
         b.install_shortcuts();
         b.install_drag_source();
@@ -551,6 +560,7 @@ impl Browser {
         add("<Control>h", Box::new(|b| b.toggle_hidden()));
         add("F6", Box::new(|b| b.switch_pane_focus()));
         add("<Control>d", Box::new(|b| b.bookmark_or_launcher()));
+        add("<Control>p", Box::new(|b| b.open_search()));
         add("<Control>comma", Box::new(|b| b.open_settings()));
         for n in 1..=9usize {
             add(
@@ -606,6 +616,10 @@ impl Browser {
             };
             if key == gdk::Key::BackSpace && mods.is_empty() {
                 b.go_up();
+                return glib::Propagation::Stop;
+            }
+            if key == gdk::Key::slash && mods.is_empty() {
+                b.open_search();
                 return glib::Propagation::Stop;
             }
             let plain = (mods - gdk::ModifierType::SHIFT_MASK).is_empty();
@@ -1312,6 +1326,12 @@ impl Browser {
                 }
                 self.continue_reveal();
             }
+            Reply::Search {
+                id,
+                items,
+                partial,
+                error,
+            } => self.search_results(id, items, partial, error),
             Reply::History(snap) => {
                 *self.hist.borrow_mut() = snap;
                 self.rebuild_bar();

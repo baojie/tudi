@@ -125,6 +125,10 @@ fn step(b: Rc<Browser>, queue: Queue, delay: Duration) {
                 }
             }
             "ctrld" => b.bookmark_or_launcher(),
+            "search" => {
+                b.open_search();
+                b.search.entry.set_text(arg);
+            }
             "props" => crate::properties::show(&b, vec![PathBuf::from(arg)]),
             "treemenupath" => {
                 // Dev only: find the visible row showing this path.
@@ -228,6 +232,15 @@ fn dump(b: &Browser) {
         );
     }
     println!("bar: {}", b.dev_bar_labels().join(" | "));
+    let n = b.search.model.n_items();
+    for i in 0..n.min(5) {
+        if let Some(r) = b.search.model.get(i) {
+            println!("result: {}", r.path().display());
+        }
+    }
+    if b.search.container.is_visible() {
+        println!("search status: {}", b.search.status.text());
+    }
     println!("status: {}", b.status.text());
     let f = crate::bench::frame_stats();
     println!(

@@ -91,6 +91,13 @@ pub enum Reply {
     },
     /// Watched directories changed.
     Changed(Vec<WatchKey>),
+    /// Results from the index daemon (search overlay).
+    Search {
+        id: u64,
+        items: Vec<tudi_proto::ResultItem>,
+        partial: bool,
+        error: Option<String>,
+    },
     /// The folder history (for the "Frequent" view).
     History(crate::history::Snapshot),
 }
