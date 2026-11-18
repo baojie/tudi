@@ -1303,6 +1303,18 @@ impl Browser {
                 if self.pane.apply_meta(&batch) {
                     self.request_sort();
                 }
+                if batch.complete {
+                    // Free accuracy for the search index: what the user
+                    // looks at is always current there.
+                    let d = self.pane.data();
+                    if d.generation == batch.generation
+                        && let Some(l) = d.listing.clone()
+                    {
+                        // MetaTable is a flat Vec: this clone is a memcpy.
+                        self.search_client
+                            .hint(self.current.borrow().clone(), l, d.metas.clone());
+                    }
+                }
                 if batch.complete || self.pane_sel.selection().size() > 0 {
                     self.update_status();
                 }

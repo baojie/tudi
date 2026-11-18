@@ -27,9 +27,50 @@ const LIMIT: u32 = 100;
 
 // --------------------------------------------------------------- client
 
-/// Handle to the search client thread (one per window).
+enum Msg {
+    Query(u64, String, bool),
+    /// A folder listing with complete metadata, for the index.
+    Hint(
+        PathBuf,
+        std::sync::Arc<tudi_core::listing::Listing>,
+        tudi_core::listing::meta::MetaTable,
+    ),
+}
+
+/// Handle to the search client thread (one per window). Also forwards
+/// folder listings to the daemon as hints (only if it is running).
 pub struct SearchClient {
-    tx: std::sync::mpsc::Sender<(u64, String, bool)>,
+    tx: std::sync::mpsc::Sender<Msg>,
+}
+
+/// Turn a listing into a hint for the daemon (on the client thread).
+fn hint_request(
+    dir: &std::path::Path,
+    l: &tudi_core::listing::Listing,
+    m: &tudi_core::listing::meta::MetaTable,
+) -> Request {
+    use std::os::unix::ffi::OsStrExt;
+    use tudi_core::listing::Kind;
+    let entries = (0..l.len())
+        .map(|i| {
+            let meta = m.get(i);
+            tudi_proto::HintEntry {
+                name: l.name(i).to_vec(),
+                kind: match m.kind(l, i) {
+                    Kind::Dir => 1,
+                    Kind::Symlink => 2,
+                    Kind::File | Kind::Unknown => 0,
+                    Kind::Other => 3,
+                },
+                size: meta.size,
+                mtime: meta.mtime,
+            }
+        })
+        .collect();
+    Request::ListingHint {
+        dir: dir.as_os_str().as_bytes().to_vec(),
+        entries,
+    }
 }
 
 fn start_daemon() {
@@ -60,17 +101,38 @@ fn connect() -> Option<Client> {
 
 impl SearchClient {
     pub fn start(replies: async_channel::Sender<Reply>) -> Self {
-        let (tx, rx) = std::sync::mpsc::channel::<(u64, String, bool)>();
+        let (tx, rx) = std::sync::mpsc::channel::<Msg>();
         std::thread::Builder::new()
             .name("tudi-search".into())
             .spawn(move || {
                 let mut client: Option<Client> = None;
-                while let Ok(mut q) = rx.recv() {
-                    // Only the latest query matters.
-                    while let Ok(newer) = rx.try_recv() {
-                        q = newer;
+                while let Ok(first) = rx.recv() {
+                    // Hints go out in order; of queries only the latest
+                    // pending one matters.
+                    let mut query = None;
+                    let mut pending = vec![first];
+                    while let Ok(m) = rx.try_recv() {
+                        pending.push(m);
                     }
-                    let (id, text, hidden) = q;
+                    for m in pending {
+                        match m {
+                            Msg::Query(id, text, hidden) => query = Some((id, text, hidden)),
+                            Msg::Hint(dir, l, meta) => {
+                                // Never start the daemon just for a hint.
+                                if client.is_none() {
+                                    client = Client::connect().ok();
+                                }
+                                if let Some(c) = client.as_mut()
+                                    && c.call(&hint_request(&dir, &l, &meta)).is_err()
+                                {
+                                    client = None;
+                                }
+                            }
+                        }
+                    }
+                    let Some((id, text, hidden)) = query else {
+                        continue;
+                    };
                     if client.is_none() {
                         client = connect();
                     }
@@ -117,7 +179,17 @@ impl SearchClient {
     }
 
     pub fn query(&self, id: u64, text: String, hidden: bool) {
-        let _ = self.tx.send((id, text, hidden));
+        let _ = self.tx.send(Msg::Query(id, text, hidden));
+    }
+
+    /// Send a folder listing (with complete metadata) to the daemon.
+    pub fn hint(
+        &self,
+        dir: PathBuf,
+        listing: std::sync::Arc<tudi_core::listing::Listing>,
+        metas: tudi_core::listing::meta::MetaTable,
+    ) {
+        let _ = self.tx.send(Msg::Hint(dir, listing, metas));
     }
 }
 
