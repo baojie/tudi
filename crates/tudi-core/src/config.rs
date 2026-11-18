@@ -12,6 +12,11 @@ use serde::{Deserialize, Serialize};
 /// (checked by a test).
 pub const DEFAULT_TOML: &str = r#"# tudi configuration. All keys are optional; these are the defaults.
 
+[ui]
+# "en": English. "system": follow the system language (LANG / LANGUAGE),
+# using the translations shipped with tudi (e.g. zh_CN).
+language = "en"
+
 [browse]
 show_hidden = false
 dirs_first = true
@@ -74,6 +79,22 @@ impl Default for Commands {
     }
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Language {
+    /// English regardless of the system locale.
+    #[default]
+    En,
+    /// Follow the system locale.
+    System,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Ui {
+    pub language: Language,
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct History {
@@ -83,6 +104,7 @@ pub struct History {
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Config {
+    pub ui: Ui,
     pub browse: Browse,
     pub commands: Commands,
     pub history: History,
@@ -220,6 +242,9 @@ mod tests {
         assert_eq!(c.commands, Commands::default());
         let c = Config::parse("[history]\nexclude = [\"/tmp/**\"]\n", Path::new("x")).unwrap();
         assert_eq!(c.history.exclude, ["/tmp/**"]);
+        assert_eq!(c.ui.language, Language::En);
+        let c = Config::parse("[ui]\nlanguage = \"system\"\n", Path::new("x")).unwrap();
+        assert_eq!(c.ui.language, Language::System);
     }
 
     #[test]

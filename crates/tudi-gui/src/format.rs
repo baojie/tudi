@@ -30,14 +30,25 @@ pub fn date(secs: i64, now: &glib::DateTime) -> String {
     let Ok(t) = glib::DateTime::from_unix_local(secs) else {
         return String::new();
     };
-    let fmt = if t.ymd() == now.ymd() {
-        "%H:%M"
+    if t.ymd() == now.ymd() {
+        t.format("%H:%M").map(|s| s.to_string()).unwrap_or_default()
     } else if t.year() == now.year() {
-        "%b %-d"
+        if crate::i18n::is_english() {
+            // %b follows the system locale; keep English UIs English.
+            const MONTHS: [&str; 12] = [
+                "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+            ];
+            format!("{} {}", MONTHS[(t.month() - 1) as usize], t.day_of_month())
+        } else {
+            t.format("%b %-d")
+                .map(|s| s.to_string())
+                .unwrap_or_default()
+        }
     } else {
-        "%Y-%m-%d"
-    };
-    t.format(fmt).map(|s| s.to_string()).unwrap_or_default()
+        t.format("%Y-%m-%d")
+            .map(|s| s.to_string())
+            .unwrap_or_default()
+    }
 }
 
 /// Lossy display form of a file name.

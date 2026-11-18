@@ -197,11 +197,13 @@ fn main() -> glib::ExitCode {
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .init();
 
-    i18n::init();
+    // The config is read first (a small file, before GTK starts): the UI
+    // language must be known before any string is translated.
+    let (config, err) = Config::load_user();
+    i18n::init(config.ui.language);
     let me = Rc::new(App::default());
-    // Read config and window state on a thread while GTK initializes.
-    *me.loading.borrow_mut() = Some(std::thread::spawn(|| {
-        let (config, err) = Config::load_user();
+    // Read the window state on a thread while GTK initializes.
+    *me.loading.borrow_mut() = Some(std::thread::spawn(move || {
         let state = WindowState::path()
             .map(|p| WindowState::load(&p))
             .unwrap_or_default();

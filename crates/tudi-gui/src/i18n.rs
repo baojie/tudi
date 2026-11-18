@@ -7,11 +7,45 @@ use gettextrs::{bind_textdomain_codeset, bindtextdomain, gettext, ngettext, text
 
 pub const DOMAIN: &str = "tudi";
 
+thread_local! {
+    static ENGLISH: std::cell::Cell<bool> = const { std::cell::Cell::new(true) };
+}
+
+/// Whether the UI is in English (the default, `[ui] language = "en"`).
+pub fn is_english() -> bool {
+    ENGLISH.with(|e| e.get())
+}
+
+/// GTK stack libraries whose own strings (dialogs, `--help`) would
+/// otherwise follow the system language.
+const STACK_DOMAINS: &[&str] = &["glib20", "gtk40", "libadwaita"];
+
+/// Set up translations for `language`. English: tudi's strings are used as
+/// written, and the GTK stack's catalogs are pointed at a directory without
+/// catalogs so they stay English too. System: bind tudi's catalogs (see
+/// [`bind`]) and let the locale decide.
+pub fn init(language: tudi_core::config::Language) {
+    use tudi_core::config::Language;
+    match language {
+        Language::En => {
+            ENGLISH.with(|e| e.set(true));
+            for d in STACK_DOMAINS {
+                let _ = bindtextdomain(*d, "/nonexistent/tudi-english");
+            }
+            let _ = textdomain(DOMAIN);
+        }
+        Language::System => {
+            ENGLISH.with(|e| e.set(false));
+            bind();
+        }
+    }
+}
+
 /// Bind the text domain. Looks in `$TUDI_LOCALEDIR`, then
 /// `<prefix>/share/locale` for a binary in `<prefix>/bin` (e.g. a
 /// `~/.local` install), then the catalogs compiled by `build.rs` (a build
 /// run from the source tree), then `/usr/share/locale`.
-pub fn init() {
+fn bind() {
     let installed = std::env::current_exe().ok().and_then(|exe| {
         let dir = exe.parent()?.parent()?.join("share/locale");
         dir.join("zh_CN/LC_MESSAGES/tudi.mo")
