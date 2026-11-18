@@ -213,6 +213,93 @@ pub fn scan_below(
     Some(stats)
 }
 
+/// Result of a reconcile pass.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct ReconcileStats {
+    pub dirs_checked: u64,
+    pub dirs_changed: u64,
+    pub changed: bool,
+}
+
+/// Bring the index up to date cheaply: `statx` every indexed folder and
+/// re-list only those whose mtime changed (a folder's mtime changes when
+/// entries are created, deleted or renamed in it); new folders are scanned
+/// fully. Returns `None` if cancelled.
+pub fn reconcile(
+    ix: &mut Index,
+    excludes: &Excludes,
+    cancel: &AtomicBool,
+) -> Option<ReconcileStats> {
+    use crate::{NONE, pack_mtime};
+    let mut stats = ReconcileStats::default();
+    // Mount id per root.
+    let root_mnt: std::collections::HashMap<u32, Option<u64>> =
+        ix.roots.iter().map(|(p, r)| (*r, mount_id(p))).collect();
+    let root_of = |ix: &Index, mut n: u32| {
+        while ix.nodes[n as usize].parent != NONE {
+            n = ix.nodes[n as usize].parent;
+        }
+        n
+    };
+    let dirs: Vec<(u32, PathBuf)> = (0..ix.nodes.len() as u32)
+        .filter(|&i| {
+            let n = &ix.nodes[i as usize];
+            n.is_dir() && !n.is_dead() && n.flags & flags::EXCLUDED == 0
+        })
+        .map(|i| (i, ix.path(i)))
+        .collect();
+    stats.dirs_checked = dirs.len() as u64;
+    let changed: Vec<(u32, PathBuf, i64)> = dirs
+        .into_par_iter()
+        .filter_map(|(i, p)| {
+            if cancel.load(Ordering::Relaxed) {
+                return None;
+            }
+            let st = rustix::fs::statx(
+                rustix::fs::CWD,
+                &p,
+                AtFlags::SYMLINK_NOFOLLOW | AtFlags::STATX_DONT_SYNC,
+                StatxFlags::MTIME,
+            )
+            .ok()?; // gone: its parent changed and will drop it
+            let m = st.stx_mtime.tv_sec;
+            (pack_mtime(m) != ix.nodes[i as usize].mtime).then_some((i, p, m))
+        })
+        .collect();
+    if cancel.load(Ordering::Relaxed) {
+        return None;
+    }
+    let mut buf = vec![MaybeUninit::<u8>::uninit(); 64 * 1024];
+    for (i, p, m) in changed {
+        if ix.nodes[i as usize].is_dead() {
+            continue; // removed by an earlier re-list in this pass
+        }
+        let mnt = root_mnt.get(&root_of(ix, i)).copied().flatten();
+        let Ok(items) = list_dir(&p, mnt, &mut buf) else {
+            continue;
+        };
+        stats.dirs_changed += 1;
+        let other: std::collections::HashSet<Vec<u8>> = items
+            .iter()
+            .filter(|l| l.other_fs)
+            .map(|l| l.entry.name.clone())
+            .collect();
+        let entries: Vec<Entry> = items.into_iter().map(|l| l.entry).collect();
+        let (new_dirs, ch) = ix.apply_listing(i, &entries);
+        stats.changed |= ch;
+        ix.nodes[i as usize].mtime = pack_mtime(m);
+        for d in new_dirs {
+            let cp = p.join(OsStr::from_bytes(ix.name(d)));
+            if other.contains(ix.name(d)) || excludes.matches(&cp) {
+                ix.nodes[d as usize].flags |= flags::EXCLUDED;
+                continue;
+            }
+            scan_below(ix, d, mnt, excludes, cancel, |_| {})?;
+        }
+    }
+    Some(stats)
+}
+
 /// Build a fresh index of `roots`.
 pub fn build(
     roots: &[PathBuf],
@@ -289,6 +376,29 @@ mod tests {
         assert!(ix.find(&r.join("a/b/old.txt")).is_none());
         assert!(ix.find(&r.join("a/b/new.txt")).is_some());
         assert!(ix.find(&r.join("a/c")).is_some());
+    }
+
+    #[test]
+    fn reconcile_relists_changed_folders_only() {
+        let t = tempfile::tempdir().unwrap();
+        let r = t.path();
+        fs::create_dir_all(r.join("a/b")).unwrap();
+        fs::write(r.join("a/b/old.txt"), "").unwrap();
+        let none = AtomicBool::new(false);
+        let ex = Excludes::defaults();
+        let mut ix = build(&[r.to_path_buf()], &ex, &none, |_| {}).unwrap();
+        // Nothing changed.
+        let s = reconcile(&mut ix, &ex, &none).unwrap();
+        assert_eq!(s.dirs_changed, 0);
+        // mtimes have 1 s resolution in the index; make the change visible.
+        std::thread::sleep(std::time::Duration::from_millis(1100));
+        fs::remove_file(r.join("a/b/old.txt")).unwrap();
+        fs::create_dir_all(r.join("a/b/new/deep")).unwrap();
+        fs::write(r.join("a/b/new/deep/x.md"), "").unwrap();
+        let s = reconcile(&mut ix, &ex, &none).unwrap();
+        assert!(s.changed && s.dirs_changed >= 1);
+        assert!(ix.find(&r.join("a/b/old.txt")).is_none());
+        assert!(ix.find(&r.join("a/b/new/deep/x.md")).is_some());
     }
 
     #[test]
