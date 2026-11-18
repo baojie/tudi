@@ -255,18 +255,20 @@ pub fn reconcile_root(
     reconcile_where(ix, excludes, cancel, Some(root))
 }
 
-fn reconcile_where(
-    ix: &mut Index,
-    excludes: &Excludes,
+/// A folder whose mtime changed: (node, path, new mtime).
+pub type Changed = Vec<(u32, PathBuf, i64)>;
+
+/// Phase 1 of a reconcile (read-only, so it can run under a read lock):
+/// `statx` every live, non-excluded folder (of `only_root`, or all) in
+/// parallel and return those whose mtime changed, plus how many were
+/// checked. `None` if cancelled.
+pub fn changed_dirs(
+    ix: &Index,
     cancel: &AtomicBool,
     only_root: Option<u32>,
-) -> Option<ReconcileStats> {
+) -> Option<(u64, Changed)> {
     use crate::{NONE, pack_mtime};
-    let mut stats = ReconcileStats::default();
-    // Mount id per root.
-    let root_mnt: std::collections::HashMap<u32, Option<u64>> =
-        ix.roots.iter().map(|(p, r)| (*r, mount_id(p))).collect();
-    let root_of = |ix: &Index, mut n: u32| {
+    let root_of = |mut n: u32| {
         while ix.nodes[n as usize].parent != NONE {
             n = ix.nodes[n as usize].parent;
         }
@@ -278,12 +280,12 @@ fn reconcile_where(
             n.is_dir()
                 && !n.is_dead()
                 && n.flags & flags::EXCLUDED == 0
-                && only_root.is_none_or(|r| root_of(ix, i) == r)
+                && only_root.is_none_or(|r| root_of(i) == r)
         })
         .map(|i| (i, ix.path(i)))
         .collect();
-    stats.dirs_checked = dirs.len() as u64;
-    let changed: Vec<(u32, PathBuf, i64)> = dirs
+    let checked = dirs.len() as u64;
+    let changed: Changed = dirs
         .into_par_iter()
         .filter_map(|(i, p)| {
             if cancel.load(Ordering::Relaxed) {
@@ -300,9 +302,26 @@ fn reconcile_where(
             (pack_mtime(m) != ix.nodes[i as usize].mtime).then_some((i, p, m))
         })
         .collect();
-    if cancel.load(Ordering::Relaxed) {
-        return None;
-    }
+    (!cancel.load(Ordering::Relaxed)).then_some((checked, changed))
+}
+
+/// Phase 2 of a reconcile: re-list the changed folders and scan new ones.
+pub fn apply_changed(
+    ix: &mut Index,
+    changed: Changed,
+    excludes: &Excludes,
+    cancel: &AtomicBool,
+) -> Option<ReconcileStats> {
+    use crate::{NONE, pack_mtime};
+    let mut stats = ReconcileStats::default();
+    let root_mnt: std::collections::HashMap<u32, Option<u64>> =
+        ix.roots.iter().map(|(p, r)| (*r, mount_id(p))).collect();
+    let root_of = |ix: &Index, mut n: u32| {
+        while ix.nodes[n as usize].parent != NONE {
+            n = ix.nodes[n as usize].parent;
+        }
+        n
+    };
     let mut buf = vec![MaybeUninit::<u8>::uninit(); 64 * 1024];
     for (i, p, m) in changed {
         if ix.nodes[i as usize].is_dead() {
@@ -331,6 +350,18 @@ fn reconcile_where(
             scan_below(ix, d, mnt, excludes, cancel, |_| {})?;
         }
     }
+    Some(stats)
+}
+
+fn reconcile_where(
+    ix: &mut Index,
+    excludes: &Excludes,
+    cancel: &AtomicBool,
+    only_root: Option<u32>,
+) -> Option<ReconcileStats> {
+    let (checked, changed) = changed_dirs(ix, cancel, only_root)?;
+    let mut stats = apply_changed(ix, changed, excludes, cancel)?;
+    stats.dirs_checked = checked;
     Some(stats)
 }
 

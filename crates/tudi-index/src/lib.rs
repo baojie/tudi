@@ -322,6 +322,45 @@ impl Index {
         (new_dirs, changed)
     }
 
+    /// Remove a root and everything below it.
+    pub fn remove_root(&mut self, root: u32) {
+        self.kill(root);
+        self.roots.retain(|(_, r)| *r != root);
+    }
+
+    /// Append the (single-root) index `other` as a new root of this one,
+    /// e.g. after scanning a slow volume separately. Returns the new root.
+    pub fn graft(&mut self, other: &Index) -> Option<u32> {
+        let (path, oroot) = other.roots.first()?.clone();
+        let mut remap = vec![NONE; other.nodes.len()];
+        let r = self.add_root(&path, unpack_mtime(other.nodes[oroot as usize].mtime));
+        remap[oroot as usize] = r;
+        for (i, n) in other.nodes.iter().enumerate() {
+            if n.is_dead() || i as u32 == oroot || n.parent == NONE {
+                continue;
+            }
+            let parent = remap[n.parent as usize];
+            if parent == NONE {
+                continue;
+            }
+            let e = Entry {
+                name: other.name(i as u32).to_vec(),
+                kind: n.kind(),
+                size: n.size,
+                mtime: unpack_mtime(n.mtime),
+            };
+            let id = self.push(parent, &e, 0);
+            self.nodes[id as usize].flags = n.flags;
+            remap[i] = id;
+        }
+        Some(r)
+    }
+
+    /// Live direct children of a node.
+    pub fn child_count(&self, node: u32) -> usize {
+        self.children(node).count()
+    }
+
     /// Whether compaction is due (> 20 % tombstones).
     pub fn needs_compaction(&self) -> bool {
         self.tombstones * 5 > self.nodes.len()
@@ -446,6 +485,27 @@ mod tests {
             ix.nodes[ix.find(Path::new("/w/f.txt")).unwrap() as usize].size,
             99
         );
+    }
+
+    #[test]
+    fn graft_and_remove_root() {
+        let mut ix = sample();
+        let mut card = Index::new();
+        let r = card.add_root(Path::new("/media/card"), 0);
+        let (d, _) = card.apply_listing(r, &[e("DCIM", Kind::Dir)]);
+        card.apply_listing(d[0], &[e("img1.jpg", Kind::File)]);
+        let root = ix.graft(&card).unwrap();
+        assert!(ix.find(Path::new("/media/card/DCIM/img1.jpg")).is_some());
+        assert!(
+            ix.find(Path::new("/w/a/b")).is_some(),
+            "existing roots kept"
+        );
+        for (i, n) in ix.nodes.iter().enumerate() {
+            assert!(n.parent == NONE || (n.parent as usize) < i);
+        }
+        ix.remove_root(root);
+        assert!(ix.find(Path::new("/media/card/DCIM")).is_none());
+        assert_eq!(ix.roots.len(), 1);
     }
 
     #[test]
