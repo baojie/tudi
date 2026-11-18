@@ -124,8 +124,13 @@ fn step(b: Rc<Browser>, queue: Queue, delay: Duration) {
                     s.show_page(arg);
                 }
             }
-            "bm" | "freq" | "pin" | "barexclude" | "barexclude-tree" | "forget" | "rmbm" => {
+            "ctrld" => b.bookmark_or_launcher(),
+            "bm" | "freq" | "pin" | "barexclude" | "barexclude-tree" | "forget" | "rmbm"
+            | "runl" | "lbg" | "lterm" => {
                 let action = match verb {
+                    "runl" => "run-launcher",
+                    "lbg" => "launcher-background",
+                    "lterm" => "launcher-terminal",
                     "bm" => "open-bookmark",
                     "freq" => "open-frequent",
                     "pin" => "pin",

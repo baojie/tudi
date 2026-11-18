@@ -4,6 +4,10 @@
 //! all bookmarks and the 30 most used folders, so buttons that do not fit
 //! stay reachable.
 //!
+//! Launchers (ADR-014) follow the bookmarks: clicking runs the script or
+//! app; dropping files on one runs it with them; right-click switches
+//! terminal / background, edits arguments, shows it in its folder.
+//!
 //! Bookmarks: `Ctrl+D` adds the current folder, `Alt+1..9` opens them,
 //! right-click renames / moves / removes, drag and drop reorders.
 //! Frequent folders: right-click pins as a bookmark, excludes from the
@@ -42,6 +46,22 @@ fn folder_button(label: &str, tooltip: &str) -> gtk::Button {
     let b = gtk::Button::builder().child(&content).build();
     b.add_css_class("flat");
     b.add_css_class("tudi-bar-button");
+    b.set_tooltip_text(Some(tooltip));
+    b
+}
+
+fn launcher_button(label: &str, tooltip: &str) -> gtk::Button {
+    let icon = crate::icons::FileIcon::new(crate::icons::Kind::Executable);
+    let l = gtk::Label::new(Some(label));
+    l.set_ellipsize(pango::EllipsizeMode::End);
+    l.set_max_width_chars(20);
+    let content = gtk::Box::new(gtk::Orientation::Horizontal, 5);
+    content.append(&icon);
+    content.append(&l);
+    let b = gtk::Button::builder().child(&content).build();
+    b.add_css_class("flat");
+    b.add_css_class("tudi-bar-button");
+    b.add_css_class("tudi-launcher");
     b.set_tooltip_text(Some(tooltip));
     b
 }
@@ -123,6 +143,44 @@ impl Browser {
             }),
         );
         add("pin", Box::new(|b, i| b.pin_frequent(i)));
+        add(
+            "run-launcher",
+            Box::new(|b, i| b.run_launcher(i, Vec::new())),
+        );
+        add(
+            "launcher-terminal",
+            Box::new(|b, i| b.set_launcher_mode(i, tudi_core::launchers::RunMode::Terminal)),
+        );
+        add(
+            "launcher-background",
+            Box::new(|b, i| b.set_launcher_mode(i, tudi_core::launchers::RunMode::Background)),
+        );
+        add("launcher-args", Box::new(|b, i| b.edit_launcher_args(i)));
+        add("launcher-rename", Box::new(|b, i| b.rename_launcher(i)));
+        add("launcher-show", Box::new(|b, i| b.show_launcher(i)));
+        add(
+            "launcher-left",
+            Box::new(|b, i| {
+                if i > 0 {
+                    b.shared.launchers.borrow_mut().move_to(i, i - 1);
+                    b.shared.launchers_changed();
+                }
+            }),
+        );
+        add(
+            "launcher-right",
+            Box::new(|b, i| {
+                b.shared.launchers.borrow_mut().move_to(i, i + 1);
+                b.shared.launchers_changed();
+            }),
+        );
+        add(
+            "launcher-remove",
+            Box::new(|b, i| {
+                b.shared.launchers.borrow_mut().remove(i);
+                b.shared.launchers_changed();
+            }),
+        );
         add("exclude", Box::new(|b, i| b.exclude_frequent(i, false)));
         add("exclude-tree", Box::new(|b, i| b.exclude_frequent(i, true)));
         add(
@@ -246,7 +304,37 @@ impl Browser {
             );
             bm_section.append_item(&item);
         }
-        if bookmarks.items.is_empty() {
+        // Launchers, right after the folder bookmarks.
+        let launchers = self.shared.launchers.borrow();
+        let ln_section = gio::Menu::new();
+        for (i, l) in launchers.items.iter().enumerate() {
+            let label = l.label();
+            let mode = if l.is_desktop_file() {
+                tr("application")
+            } else if l.mode == tudi_core::launchers::RunMode::Terminal {
+                tr("runs in a terminal")
+            } else {
+                tr("runs in the background")
+            };
+            let tip = format!(
+                "{}\n{mode}\n{}",
+                l.path,
+                tr("Click to run · drop files here to run with them")
+            );
+            let btn = launcher_button(&label, &tip);
+            btn.set_action_name(Some("bar.run-launcher"));
+            btn.set_action_target_value(Some(&(i as i32).to_variant()));
+            self.launcher_menu(&btn, i, launchers.items.len(), l);
+            self.launcher_drop(&btn, i);
+            self.bar_box.append(&btn);
+            let item = gio::MenuItem::new(Some(&format!("▶ {label}")), None);
+            item.set_action_and_target_value(
+                Some("bar.run-launcher"),
+                Some(&(i as i32).to_variant()),
+            );
+            ln_section.append_item(&item);
+        }
+        if bookmarks.items.is_empty() && launchers.items.is_empty() {
             let hint = gtk::Label::new(Some(&tr("Ctrl+D bookmarks the current folder")));
             hint.add_css_class("dim-label");
             hint.add_css_class("tudi-bar-hint");
@@ -296,6 +384,7 @@ impl Browser {
             freq_section.append_item(&item);
         }
         more.append_section(Some(&tr("Bookmarks")), &bm_section);
+        more.append_section(Some(&tr("Launchers")), &ln_section);
         more.append_section(Some(&tr("Frequent")), &freq_section);
         self.bar_more.set_menu_model(Some(&more));
     }
@@ -360,6 +449,154 @@ impl Browser {
         hide.append_item(&item(tr("Remove from history"), "bar.forget"));
         menu.append_section(None, &hide);
         Self::on_right_click(btn, menu);
+    }
+
+    fn launcher_menu(
+        &self,
+        btn: &gtk::Button,
+        i: usize,
+        n: usize,
+        l: &tudi_core::launchers::Launcher,
+    ) {
+        let item = |label: String, action: &str| {
+            let it = gio::MenuItem::new(Some(&label), None);
+            it.set_action_and_target_value(Some(action), Some(&(i as i32).to_variant()));
+            it
+        };
+        let menu = gio::Menu::new();
+        let run = gio::Menu::new();
+        run.append_item(&item(tr("Run"), "bar.run-launcher"));
+        if !l.is_desktop_file() {
+            let term = l.mode == tudi_core::launchers::RunMode::Terminal;
+            run.append_item(&item(
+                format!(
+                    "{}{}",
+                    if term { "✓ " } else { "    " },
+                    tr("Run in a Terminal")
+                ),
+                "bar.launcher-terminal",
+            ));
+            run.append_item(&item(
+                format!(
+                    "{}{}",
+                    if term { "    " } else { "✓ " },
+                    tr("Run in the Background")
+                ),
+                "bar.launcher-background",
+            ));
+            run.append_item(&item(tr("Arguments…"), "bar.launcher-args"));
+        }
+        menu.append_section(None, &run);
+        let manage = gio::Menu::new();
+        manage.append_item(&item(tr("Show in Folder"), "bar.launcher-show"));
+        manage.append_item(&item(tr("Rename…"), "bar.launcher-rename"));
+        if i > 0 {
+            manage.append_item(&item(tr("Move Left"), "bar.launcher-left"));
+        }
+        if i + 1 < n {
+            manage.append_item(&item(tr("Move Right"), "bar.launcher-right"));
+        }
+        manage.append_item(&item(tr("Remove Launcher"), "bar.launcher-remove"));
+        menu.append_section(None, &manage);
+        Self::on_right_click(btn, menu);
+    }
+
+    /// Dropping files on a launcher runs it with them as arguments.
+    fn launcher_drop(&self, btn: &gtk::Button, i: usize) {
+        let drop = gtk::DropTarget::new(gdk::FileList::static_type(), gdk::DragAction::COPY);
+        let w = self.window.downgrade();
+        let shared = Rc::downgrade(&self.shared);
+        drop.connect_drop(move |_, v, _, _| {
+            let Ok(list) = v.get::<gdk::FileList>() else {
+                return false;
+            };
+            let files: Vec<PathBuf> = list.files().iter().filter_map(|f| f.path()).collect();
+            let (Some(win), Some(sh)) = (w.upgrade(), shared.upgrade()) else {
+                return false;
+            };
+            // The browser owning this window (for its toasts).
+            if let Some(b) = sh.each().into_iter().find(|b| b.window == win) {
+                b.run_launcher(i, files);
+            }
+            true
+        });
+        btn.add_controller(drop);
+    }
+
+    fn set_launcher_mode(&self, i: usize, mode: tudi_core::launchers::RunMode) {
+        if let Some(l) = self.shared.launchers.borrow_mut().items.get_mut(i) {
+            l.mode = mode;
+        }
+        self.shared.launchers_changed();
+    }
+
+    fn edit_launcher_args(self: &Rc<Self>, i: usize) {
+        let Some(current) = self
+            .shared
+            .launchers
+            .borrow()
+            .items
+            .get(i)
+            .map(|l| l.args.join(" "))
+        else {
+            return;
+        };
+        let w = Rc::downgrade(self);
+        self.ask_text(&tr("Arguments"), &tr("Save"), &current, move |text| {
+            if let Some(b) = w.upgrade() {
+                if let Some(l) = b.shared.launchers.borrow_mut().items.get_mut(i) {
+                    l.args = text.split_whitespace().map(String::from).collect();
+                }
+                b.shared.launchers_changed();
+            }
+        });
+    }
+
+    fn rename_launcher(self: &Rc<Self>, i: usize) {
+        let Some(current) = self
+            .shared
+            .launchers
+            .borrow()
+            .items
+            .get(i)
+            .map(|l| l.label())
+        else {
+            return;
+        };
+        let w = Rc::downgrade(self);
+        self.ask_text(
+            &tr("Rename Launcher"),
+            &tr("Rename"),
+            &current,
+            move |name| {
+                if let Some(b) = w.upgrade() {
+                    if let Some(l) = b.shared.launchers.borrow_mut().items.get_mut(i) {
+                        let n = name.trim();
+                        l.name = (!n.is_empty()).then(|| n.to_string());
+                    }
+                    b.shared.launchers_changed();
+                }
+            },
+        );
+    }
+
+    /// Open the launcher's folder with the file selected.
+    fn show_launcher(self: &Rc<Self>, i: usize) {
+        let Some(p) = self
+            .shared
+            .launchers
+            .borrow()
+            .items
+            .get(i)
+            .map(|l| PathBuf::from(&l.path))
+        else {
+            return;
+        };
+        if let (Some(dir), Some(name)) = (p.parent(), p.file_name()) {
+            use std::os::unix::ffi::OsStrExt;
+            *self.select_after_load.borrow_mut() = Some(name.as_bytes().to_vec());
+            self.navigate(dir, true);
+        }
     }
 
     /// Drag a bookmark onto another to move it there.

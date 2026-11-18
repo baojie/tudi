@@ -234,3 +234,12 @@ Short ADR-style records: context / decision / consequences. Newest last.
 - **Consequences.** Packages are only built in CI (local builds embed local
   paths). The English UI is the default; translations follow the system
   locale only with `[ui] language = "system"`.
+
+### ADR-014 follow-up: launchers live on the bookmarks bar
+
+After the "Frequent" tree root was replaced by the bookmarks bar (ADR-016),
+the maintainer chose to show launchers on the bar too, right after the
+folder bookmarks, instead of a tree root with a list. `Ctrl+D` on a selected
+script, executable or `.desktop` file adds a launcher; on a folder (or with
+nothing selected) it adds a bookmark. Non-executable `.sh` / `.py` files run
+through `sh` / `python3`; `.desktop` files through `gio launch`.

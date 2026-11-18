@@ -20,6 +20,7 @@ mod format;
 mod history;
 mod i18n;
 mod icons;
+mod launch;
 mod pane;
 mod settings;
 mod shared;
@@ -63,6 +64,7 @@ type Loaded = (
     Option<ConfigError>,
     WindowState,
     tudi_core::bookmarks::Bookmarks,
+    tudi_core::launchers::Launchers,
 );
 
 /// Process-wide state of the GUI (main thread only).
@@ -93,6 +95,7 @@ impl App {
                         None,
                         WindowState::default(),
                         Default::default(),
+                        Default::default(),
                     )
                 });
             *self.loaded.borrow_mut() = Some(l);
@@ -101,13 +104,14 @@ impl App {
     }
 
     fn open_window(self: &Rc<Self>, app: &adw::Application, path: Option<PathBuf>) {
-        let (config, err, state, bookmarks) = {
+        let (config, err, state, bookmarks, launchers) = {
             let l = self.loaded();
             (
                 l.0.clone(),
                 l.1.as_ref().map(|e| e.to_string()),
                 l.2.clone(),
                 l.3.clone(),
+                l.4.clone(),
             )
         };
         let start = path
@@ -116,7 +120,7 @@ impl App {
         let shared = self
             .shared
             .borrow_mut()
-            .get_or_insert_with(|| shared::Shared::new(config, bookmarks))
+            .get_or_insert_with(|| shared::Shared::new(config, bookmarks, launchers))
             .clone();
         if self.browsers.borrow().is_empty() {
             zoom::set(state.zoom);
@@ -245,7 +249,10 @@ fn main() -> glib::ExitCode {
         let bookmarks = tudi_core::bookmarks::Bookmarks::path()
             .map(|p| tudi_core::bookmarks::Bookmarks::load(&p))
             .unwrap_or_default();
-        (config, err, state, bookmarks)
+        let launchers = tudi_core::launchers::Launchers::path()
+            .map(|p| tudi_core::launchers::Launchers::load(&p))
+            .unwrap_or_default();
+        (config, err, state, bookmarks, launchers)
     }));
 
     let app = adw::Application::builder()

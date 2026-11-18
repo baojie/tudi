@@ -6,6 +6,7 @@ use std::rc::{Rc, Weak};
 
 use tudi_core::bookmarks::Bookmarks;
 use tudi_core::config::Config;
+use tudi_core::launchers::Launchers;
 
 use crate::browser::Browser;
 use crate::history::History;
@@ -13,16 +14,18 @@ use crate::history::History;
 pub struct Shared {
     pub config: RefCell<Config>,
     pub bookmarks: RefCell<Bookmarks>,
+    pub launchers: RefCell<Launchers>,
     pub history: History,
     pub browsers: RefCell<Vec<Weak<Browser>>>,
 }
 
 impl Shared {
-    pub fn new(config: Config, bookmarks: Bookmarks) -> Rc<Self> {
+    pub fn new(config: Config, bookmarks: Bookmarks, launchers: Launchers) -> Rc<Self> {
         let history = History::start(config.history.exclude.clone());
         Rc::new(Self {
             config: RefCell::new(config),
             bookmarks: RefCell::new(bookmarks),
+            launchers: RefCell::new(launchers),
             history,
             browsers: RefCell::default(),
         })
@@ -55,6 +58,21 @@ impl Shared {
                 && let Err(e) = b.save(&p)
             {
                 tracing::warn!("cannot save bookmarks: {e}");
+            }
+        });
+        for w in self.each() {
+            w.rebuild_bar();
+        }
+    }
+
+    /// Write `launchers.toml` on a thread and refresh every window's bar.
+    pub fn launchers_changed(&self) {
+        let l = self.launchers.borrow().clone();
+        std::thread::spawn(move || {
+            if let Some(p) = Launchers::path()
+                && let Err(e) = l.save(&p)
+            {
+                tracing::warn!("cannot save launchers: {e}");
             }
         });
         for w in self.each() {

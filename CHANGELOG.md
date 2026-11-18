@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Launchers: `Ctrl+D` on a script, executable or `.desktop` file pins it to
+  the bookmarks bar; click to run (in a terminal, or in the background with
+  a log), drop files on it to run it with them.
+- tudi's own drawn file icons: blue folders, pages with a colour band per
+  file type.
 - Cut / copy / paste files (`Ctrl+X`, `Ctrl+C`, `Ctrl+V`), also with other file
   managers; `Ctrl+A` selects all.
 - Context menu on files and on empty space in the list.

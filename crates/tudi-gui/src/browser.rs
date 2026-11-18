@@ -451,7 +451,7 @@ impl Browser {
         add("<Control>l", Box::new(|b| b.focus_path()));
         add("<Control>h", Box::new(|b| b.toggle_hidden()));
         add("F6", Box::new(|b| b.switch_pane_focus()));
-        add("<Control>d", Box::new(|b| b.bookmark_current()));
+        add("<Control>d", Box::new(|b| b.bookmark_or_launcher()));
         add("<Control>comma", Box::new(|b| b.open_settings()));
         for n in 1..=9usize {
             add(

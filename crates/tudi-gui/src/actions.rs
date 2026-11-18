@@ -387,6 +387,36 @@ impl Browser {
         initial: &str,
         done: impl Fn(String) + 'static,
     ) {
+        let stem = match initial.rfind('.') {
+            Some(p) if p > 0 => initial[..p].chars().count() as i32,
+            _ => -1,
+        };
+        self.ask(heading, verb, initial, stem, move |name| {
+            if !name.is_empty() && !name.contains('/') && name != "." && name != ".." {
+                done(name);
+            }
+        });
+    }
+
+    /// A dialog asking for any text (e.g. arguments); all is preselected.
+    pub(crate) fn ask_text(
+        &self,
+        heading: &str,
+        verb: &str,
+        initial: &str,
+        done: impl Fn(String) + 'static,
+    ) {
+        self.ask(heading, verb, initial, -1, done);
+    }
+
+    fn ask(
+        &self,
+        heading: &str,
+        verb: &str,
+        initial: &str,
+        select_to: i32,
+        done: impl Fn(String) + 'static,
+    ) {
         let entry = gtk::Entry::builder()
             .text(initial)
             .activates_default(true)
@@ -399,25 +429,15 @@ impl Browser {
             .build();
         dialog.add_responses(&[("cancel", &tr("Cancel")), ("ok", verb)]);
         dialog.set_response_appearance("ok", adw::ResponseAppearance::Suggested);
-        let stem = match initial.rfind('.') {
-            Some(p) if p > 0 => initial[..p].chars().count() as i32,
-            _ => -1,
-        };
         let e = entry.clone();
         dialog.connect_response(None, move |_, resp| {
-            let name = e.text().to_string();
-            if resp == "ok"
-                && !name.is_empty()
-                && !name.contains('/')
-                && name != "."
-                && name != ".."
-            {
-                done(name);
+            if resp == "ok" {
+                done(e.text().to_string());
             }
         });
         dialog.present(Some(&self.window));
         entry.grab_focus();
-        entry.select_region(0, stem);
+        entry.select_region(0, select_to);
     }
 
     // --------------------------------------------------------- context menu
@@ -448,6 +468,11 @@ impl Browser {
         add("select-all", |b| b.select_all());
         add("hidden", |b| b.toggle_hidden());
         add("bookmark", |b| b.bookmark_selected_folder());
+        add("launcher", |b| {
+            if let Some(f) = b.selected_launchable() {
+                b.add_launcher(&f);
+            }
+        });
         self.window.insert_action_group("file", Some(&group));
     }
 
@@ -479,7 +504,7 @@ impl Browser {
     }
 
     /// Bookmark the selected folder, or the current folder.
-    fn bookmark_selected_folder(&self) {
+    pub(crate) fn bookmark_selected_folder(&self) {
         let target = {
             let d = self.pane.data();
             self.selected_entries()
@@ -548,7 +573,10 @@ impl Browser {
             let manage = gio::Menu::new();
             manage.append_item(&item(tr("Rename…"), "file.rename", "F2"));
             if one_folder {
-                manage.append_item(&item(tr("Add to Bookmarks"), "file.bookmark", ""));
+                manage.append_item(&item(tr("Add to Bookmarks"), "file.bookmark", "<Control>d"));
+            }
+            if self.selected_launchable().is_some() {
+                manage.append_item(&item(tr("Add to Launchers"), "file.launcher", "<Control>d"));
             }
             manage.append_item(&item(tr("Move to Trash"), "file.trash", "Delete"));
             menu.append_section(None, &manage);
