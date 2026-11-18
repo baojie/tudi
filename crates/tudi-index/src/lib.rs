@@ -15,6 +15,7 @@
 
 pub mod fsinfo;
 pub mod matcher;
+pub mod query;
 pub mod scan;
 pub mod snapshot;
 

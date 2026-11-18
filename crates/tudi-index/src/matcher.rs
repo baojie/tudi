@@ -25,6 +25,7 @@ use nucleo_matcher::{Config, Matcher, Utf32Str};
 use pinyin::ToPinyin;
 use rayon::prelude::*;
 
+use crate::query::{KindFilter, Query, extension, parse};
 use crate::{Index, NONE, flags};
 
 /// Below this many own-name matches a token also gets typo matches.
@@ -340,7 +341,52 @@ fn starts_with_ci(name: &str, lower_prefix: &str) -> bool {
     lower_prefix.chars().all(|c| it.next() == Some(c))
 }
 
-/// Search `ix`. Returns at most `limit` hits, best first.
+/// `.bashrc`, `.secret`: a hidden name starting with the dot and `ext`.
+fn dotfile_prefix(name: &[u8], ext: &str) -> bool {
+    name.len() > ext.len()
+        && name[0] == b'.'
+        && name[1..=ext.len()].eq_ignore_ascii_case(ext.as_bytes())
+}
+
+/// Whether a node passes the non-text filters of `q`.
+fn passes_filters(ix: &Index, i: u32, q: &Query) -> bool {
+    let node = &ix.nodes[i as usize];
+    match q.kind {
+        Some(KindFilter::Dirs) if !node.is_dir() => return false,
+        Some(KindFilter::Files) if node.is_dir() => return false,
+        _ => {}
+    }
+    if !q.exts.is_empty() {
+        let name = ix.name(i);
+        let ext = extension(name);
+        let ok = q.exts.iter().any(|e| {
+            ext.is_some_and(|x| x.eq_ignore_ascii_case(e.as_bytes())) || dotfile_prefix(name, e)
+        });
+        if !ok {
+            return false;
+        }
+    }
+    if q.mtime_from.is_some() || q.mtime_to.is_some() {
+        let m = crate::unpack_mtime(node.mtime);
+        if q.mtime_from.is_some_and(|f| m < f) || q.mtime_to.is_some_and(|t| m >= t) {
+            return false;
+        }
+    }
+    if q.size_min.is_some() || q.size_max.is_some() {
+        // Folder sizes are not known: size filters mean files.
+        if node.is_dir()
+            || q.size_min.is_some_and(|m| node.size < m)
+            || q.size_max.is_some_and(|m| node.size > m)
+        {
+            return false;
+        }
+    }
+    true
+}
+
+/// Search `ix` with a query in the syntax of [`crate::query`], parsed at
+/// `ctx.now` (or the current time) in the local time zone. Returns at most
+/// `limit` hits, best first.
 pub fn search(
     ix: &Index,
     sd: &SearchData,
@@ -349,14 +395,35 @@ pub fn search(
     w: &Weights,
     ctx: &Context,
 ) -> Vec<Hit> {
-    let tokens: Vec<String> = query
-        .split_whitespace()
-        .take(15)
-        .map(|t| t.to_lowercase())
-        .collect();
-    if tokens.is_empty() || ix.nodes.is_empty() {
+    let now = jiff::Timestamp::from_second(ctx.now)
+        .ok()
+        .filter(|_| ctx.now > 0)
+        .unwrap_or_else(jiff::Timestamp::now)
+        .to_zoned_datetime(jiff::tz::TimeZone::system());
+    search_query(ix, sd, &parse(query, &now), limit, w, ctx)
+}
+
+/// Search `ix` with a parsed query.
+pub fn search_query(
+    ix: &Index,
+    sd: &SearchData,
+    q: &Query,
+    limit: usize,
+    w: &Weights,
+    ctx: &Context,
+) -> Vec<Hit> {
+    let terms = &q.terms[..q.terms.len().min(15)];
+    let tokens: Vec<String> = terms.iter().map(|t| t.text.clone()).collect();
+    if (tokens.is_empty() && !q.has_filters()) || ix.nodes.is_empty() {
         return Vec::new();
     }
+    // Bits of tokens matched by the item's own name (vs. `in:` tokens,
+    // matched by a folder above it only).
+    let own_mask: u16 = terms
+        .iter()
+        .enumerate()
+        .filter(|(_, t)| !t.ancestor_only)
+        .fold(0, |m, (k, _)| m | 1 << k);
     let all: u64 = (1u64 << tokens.len()) - 1;
     let token_lens: Vec<f32> = tokens.iter().map(|t| t.chars().count() as f32).collect();
     let atoms: Vec<Atom> = tokens
@@ -373,6 +440,7 @@ pub fn search(
         .collect();
     let token_bags: Vec<u64> = tokens.iter().map(|t| bag(t.as_bytes())).collect();
     let want_hidden = ctx.show_hidden || tokens.iter().any(|t| t.starts_with('.'));
+    let has_filters = q.has_filters();
 
     // Phase 1 (parallel): own-name matches into dense arrays (zeroed
     // allocations are lazily mapped, so untouched pages cost nothing).
@@ -474,16 +542,27 @@ pub fn search(
     let mut hits: Vec<Hit> = (0..n)
         .into_par_iter()
         .filter_map(|i| {
-            let own = masks[i];
-            if own == 0 {
-                return None;
-            }
+            let own = masks[i] & own_mask;
             let node = &ix.nodes[i];
-            if !want_hidden && node.flags & flags::HIDDEN != 0 {
+            if own_mask != 0 {
+                if own == 0 {
+                    return None;
+                }
+            } else if node.is_dead() || node.parent == NONE {
                 return None;
             }
             if ctx.dirs_only && !node.is_dir() {
                 return None;
+            }
+            if has_filters && !passes_filters(ix, i as u32, q) {
+                return None;
+            }
+            if !want_hidden && node.flags & flags::HIDDEN != 0 {
+                // A dotfile asked for by its name (`.bashrc`).
+                let asked = q.exts.iter().any(|e| dotfile_prefix(ix.name(i as u32), e));
+                if !asked {
+                    return None;
+                }
             }
             let mut cum = own;
             let mut anc = 0f32;
@@ -512,7 +591,8 @@ pub fn search(
             if cum != all || ctx.offline_roots.contains(&root) {
                 return None;
             }
-            let mut score = scores[i] + anc * w.ancestor - depth as f32 * w.depth;
+            let own_score = if own == 0 { 0.0 } else { scores[i] };
+            let mut score = own_score + anc * w.ancestor - depth as f32 * w.depth;
             if node.is_dir() {
                 score += w.dir;
             }
@@ -539,7 +619,10 @@ pub fn search(
     let mut buf = Vec::new();
     for h in &mut hits {
         let name = String::from_utf8_lossy(ix.name(h.node));
-        for atom in &atoms {
+        for (k, atom) in atoms.iter().enumerate() {
+            if own_mask & 1 << k == 0 {
+                continue;
+            }
             let mut idx = Vec::new();
             if atom
                 .indices(Utf32Str::new(&name, &mut buf), &mut m, &mut idx)
@@ -666,6 +749,118 @@ mod tests {
         let online = search(&ix, &sd, "report", 10, &w, &ctx);
         assert_eq!(online.len(), 1);
         assert_eq!(ix.path(online[0].node), Path::new("/r/a/report.pdf"));
+    }
+
+    /// A tree with mtimes and sizes, and a query parsed on Wednesday
+    /// 2026-11-18 (UTC+8).
+    fn filtered(paths: &[(&str, &str, u64)], query: &str) -> Vec<String> {
+        let tz = jiff::tz::TimeZone::fixed(jiff::tz::offset(8));
+        let day = |d: &str| {
+            let d: jiff::civil::Date = d.parse().unwrap();
+            d.at(12, 0, 0, 0)
+                .to_zoned_datetime(tz.clone())
+                .unwrap()
+                .timestamp()
+                .as_second()
+        };
+        let mut ix = Index::new();
+        let root = ix.add_root(Path::new("/r"), 0);
+        for (p, date, size) in paths {
+            let comps: Vec<&str> = p.split('/').collect();
+            let mut cur = root;
+            for (k, c) in comps.iter().enumerate() {
+                let last = k + 1 == comps.len();
+                let found = ix.children(cur).find(|&x| ix.name(x) == c.as_bytes());
+                cur = match found {
+                    Some(x) => x,
+                    None => ix.push(
+                        cur,
+                        &Entry {
+                            name: c.as_bytes().to_vec(),
+                            kind: if last && !p.ends_with('/') {
+                                Kind::File
+                            } else {
+                                Kind::Dir
+                            },
+                            size: if last { *size } else { 0 },
+                            mtime: day(date),
+                        },
+                        0,
+                    ),
+                };
+            }
+        }
+        let sd = SearchData::build(&ix);
+        let now = jiff::civil::date(2026, 11, 18)
+            .at(15, 30, 0, 0)
+            .to_zoned_datetime(tz.clone())
+            .unwrap();
+        let q = parse(query, &now);
+        let mut out: Vec<String> =
+            search_query(&ix, &sd, &q, 50, &Weights::default(), &Context::default())
+                .iter()
+                .map(|h| ix.path(h.node).display().to_string())
+                .collect();
+        out.sort();
+        out
+    }
+
+    const FILES: &[(&str, &str, u64)] = &[
+        ("work/合同/合同-终版.pdf", "2026-10-12", 300_000),
+        ("work/合同/合同-草稿.docx", "2026-10-03", 20_000),
+        ("work/合同/旧合同.pdf", "2026-09-28", 250_000),
+        ("work/合同扫描.pdf", "2026-11-02", 9_000_000),
+        ("work/报价.pdf", "2026-10-20", 50_000),
+        ("acme/reports/q3.pdf", "2026-11-17", 1_000),
+        ("acme/reports/q3.xlsx", "2026-11-18", 30_000_000),
+        ("photos/big.mov", "2025-06-10", 4_000_000_000),
+        (".bashrc", "2025-01-01", 100),
+    ];
+
+    #[test]
+    fn acceptance_contract_pdf_last_month() {
+        // PLAN M8: only PDFs modified last calendar month whose path
+        // matches 合同 (the folder or the name).
+        assert_eq!(
+            filtered(FILES, "合同 .pdf 上月"),
+            ["/r/work/合同/合同-终版.pdf"]
+        );
+    }
+
+    #[test]
+    fn filters() {
+        assert_eq!(filtered(FILES, ".pdf in:acme"), ["/r/acme/reports/q3.pdf"]);
+        assert_eq!(
+            filtered(FILES, "q3 /reports/ yesterday"),
+            ["/r/acme/reports/q3.pdf"]
+        );
+        assert_eq!(filtered(FILES, "today"), ["/r/acme/reports/q3.xlsx"]);
+        assert_eq!(
+            filtered(FILES, "size>5M"),
+            [
+                "/r/acme/reports/q3.xlsx",
+                "/r/photos/big.mov",
+                "/r/work/合同扫描.pdf"
+            ]
+        );
+        assert_eq!(
+            filtered(FILES, "size>5M <1y .pdf"),
+            ["/r/work/合同扫描.pdf"]
+        );
+        // The folder took the date of its first file.
+        assert_eq!(
+            filtered(FILES, "date:2025-06"),
+            ["/r/photos", "/r/photos/big.mov"]
+        );
+        assert_eq!(filtered(FILES, "dir: 合同"), ["/r/work/合同"]);
+        assert_eq!(filtered(FILES, ".bashrc"), ["/r/.bashrc"]);
+        // `in:` matches folders above the item only.
+        assert_eq!(
+            filtered(FILES, "in:合同 .pdf"),
+            ["/r/work/合同/合同-终版.pdf", "/r/work/合同/旧合同.pdf"]
+        );
+        // An invalid filter is ignored; the rest still works.
+        assert_eq!(filtered(FILES, "报价 <7x"), ["/r/work/报价.pdf"]);
     }
 
     #[test]

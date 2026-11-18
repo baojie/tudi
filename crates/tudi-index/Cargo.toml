@@ -12,6 +12,7 @@ workspace = true
 [dependencies]
 crc32fast.workspace = true
 libc.workspace = true
+jiff.workspace = true
 globset.workspace = true
 rayon.workspace = true
 rustix.workspace = true
