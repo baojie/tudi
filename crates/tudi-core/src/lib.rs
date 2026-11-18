@@ -7,6 +7,7 @@ pub mod bookmarks;
 pub mod config;
 pub mod fileops;
 pub mod frecency;
+pub mod import;
 pub mod launchers;
 pub mod listing;
 pub mod state;

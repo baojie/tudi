@@ -289,6 +289,24 @@ impl Frecency {
         Ok(v)
     }
 
+    /// Import folders from another tool as `visits` each, unless already
+    /// recorded or excluded. They count as last visited a day before
+    /// `now`. Returns how many were added.
+    pub fn import(&mut self, items: &[(PathBuf, u32)], now: i64) -> Result<usize, FrecencyError> {
+        let mut added = 0;
+        for (p, visits) in items {
+            if self.is_excluded(p)? {
+                continue;
+            }
+            added += self.db.execute(
+                "INSERT INTO dirs (path, rank, count, last) VALUES (?1, ?2, ?2, ?3)
+                 ON CONFLICT(path) DO NOTHING",
+                params![bytes(p), i64::from(*visits), now - 86_400],
+            )?;
+        }
+        Ok(added)
+    }
+
     /// Forget all visits (exclusions are kept).
     pub fn clear(&mut self) -> Result<(), FrecencyError> {
         self.db.execute("DELETE FROM dirs", [])?;
@@ -380,6 +398,29 @@ mod tests {
         f.exclude(Path::new("/w/a"), false).unwrap();
         assert!(!f.visit(Path::new("/w/a"), NOW).unwrap());
         assert!(f.visit(Path::new("/w/a/b"), NOW).unwrap());
+    }
+
+    #[test]
+    fn import_adds_only_new_folders() {
+        let mut f = store();
+        f.visit(Path::new("/w/a"), NOW).unwrap();
+        f.exclude(Path::new("/tmp"), true).unwrap();
+        let n = f
+            .import(
+                &[
+                    (PathBuf::from("/w/a"), 50),
+                    (PathBuf::from("/w/b"), 7),
+                    (PathBuf::from("/tmp/x"), 9),
+                ],
+                NOW,
+            )
+            .unwrap();
+        assert_eq!(n, 1);
+        let top = f.top(10, NOW).unwrap();
+        let b = top.iter().find(|e| e.path == Path::new("/w/b")).unwrap();
+        assert_eq!(b.count, 7);
+        let a = top.iter().find(|e| e.path == Path::new("/w/a")).unwrap();
+        assert_eq!(a.count, 1, "existing records are not changed");
     }
 
     #[test]
