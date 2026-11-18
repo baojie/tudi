@@ -130,3 +130,18 @@ widgets are reused (`docs/design/ui.md`).
 
 Single-character queries are the slowest (~23 ms): almost every name
 passes the character-bag prefilter.
+
+### M8 — query filters (2026-11-18)
+
+Home index (1.85M entries), release build, **load average 7–9** (busy
+machine; the default set measured p95 38–43 ms both before and after M8, so
+the filters add no cost to plain queries; P7 to be re-measured when idle).
+
+| Query | Time |
+|---|---|
+| `.pdf 上月` (filters only) | 4.2 ms |
+| `size>1G` / `today` / `<7d .md` | 3.2 / 4.6 / 5.5 ms |
+| `合同 .pdf` / `in:projects main` / `dir: tudi` | 20.2 / 21.5 / 12.7 ms |
+
+Pinyin collation (optional, worker thread), `flat-100k` (12 % CJK names):
+name ranking 10.6 ms → 14.3 ms (`cargo bench -p tudi-core -- name-rank`).

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Search filters (`docs/query-syntax.md`): `.pdf`, `ext:`, `in:acme`,
+  `dir:` / `file:`, `<7d`, `>2025-06`, `date:2025-06`, `today` … `lastyear`
+  and `今天 昨天 本周 上周 本月 上月 今年 去年`, `size>10M`. Unreadable filters
+  show a hint instead of failing.
+- `Ctrl+Shift+F` searches below the selected folder; `tudi q --in DIR`.
+- Shell integration: `tudi init bash|zsh|fish` adds `tj` to jump to
+  folders; `--hook` records each `cd` in the folder history.
+- Optional pinyin sorting of Chinese names (settings → Browsing).
 - Extra index roots (`[[index.extra_roots]]`), e.g. a data disk or SD card:
   slow devices are checked daily, unmounted ones are hidden from results
   and re-checked when they come back.

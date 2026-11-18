@@ -961,5 +961,7 @@ unplugged while browsing, 100k-file directory on a slow USB stick.
 - [x] M6 Memory search — P7 p95 23 ms on 1.83M entries; golden set 47/47
   in the top 3; overlay, `tudi q`
 - [ ] M7 fanotify helper
-- [ ] M8 Query power features
+- [x] M8 Query power features — parser tests for every form incl. hints;
+  `合同 .pdf 上月` acceptance test; scoped search; pinyin collation
+  (optional); `tudi init bash|zsh|fish` (fish untested: not installed)
 - [ ] M9 Polish and v0.1 release

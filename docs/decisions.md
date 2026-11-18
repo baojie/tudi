@@ -244,6 +244,32 @@ script, executable or `.desktop` file adds a launcher; on a folder (or with
 nothing selected) it adds a bookmark. Non-executable `.sh` / `.py` files run
 through `sh` / `python3`; `.desktop` files through `gio launch`.
 
+## ADR-019: Query syntax: forgiving parser, jiff, scope over the protocol
+
+- **Context.** M8 adds filters (extension, kind, dates, size), scoped
+  search and shell integration. `chrono` is flagged unmaintained by
+  RustSec (RUSTSEC-2026-0543), so `cargo deny` rejects it.
+- **Decision.**
+  - The parser (`tudi-index::query`) never fails: unreadable filters are
+    dropped and reported as structured `Hint`s. The daemon returns them in
+    English (`Results.hints`, for `tudi q`); the GUI parses the text itself
+    to show translated hints immediately. Calendar math uses `jiff`
+    (local time zone, DST-aware).
+  - `.xxx` is both an extension filter and a dotfile-name prefix, so
+    `.pdf` and `.bashrc` both do what one expects. `size…` is a filter only
+    when followed by `:`, `<`, `>` or `=`.
+  - Scoped search sends the folder path in `Request::Query.scope`
+    (resolved by the daemon) instead of encoding it in the text, so paths
+    need no quoting; a folder outside the index is an error.
+  - `tudi init` prints shell code; the `cd` hook is opt-in (`--hook`) and
+    does not count the folder a shell starts in, matching ADR-016's
+    "deliberate opens only". `tudi visit` records with the same exclusions.
+  - Pinyin collation is opt-in (`[browse] pinyin_sort`) and implemented as
+    a transliteration before the natural sort key.
+- **Consequences.** The GUI binary links `tudi-index` (parser only; the
+  launcher does not). Adding `scope` changed the wire format: a running
+  daemon from an older build must be restarted (the install script does).
+
 ## ADR-018: Matcher in `tudi-index`; daemon memory and priority
 
 - **Context.** PLAN placed the matcher in `tudi-core::matcher`, but the

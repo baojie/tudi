@@ -126,3 +126,15 @@ the latest pending query, and also forwards folder listings with complete
 metadata as `ListingHint`s. `Enter` reveals (navigates to the folder and
 selects the item), `Ctrl+Enter` opens, `Alt+Enter` opens a terminal there,
 `Esc` closes.
+
+The query syntax (`docs/query-syntax.md`) is parsed once more in the GUI
+(`tudi_index::query::parse_local`, microseconds) only to show translated
+hints for unreadable filters at once, under the field. `Ctrl+Shift+F`
+scopes the search to the selected folder (or the shown one): a chip above
+the field shows its name (full path in the tooltip); `×` or `Backspace`
+in the empty field clears it. The folder kind comes from the row data, not
+a `stat`.
+
+Optional pinyin collation (`[browse] pinyin_sort`, settings switch):
+names are ranked by `natural::pinyin_key` on the worker thread; switching
+it lists the folder again.

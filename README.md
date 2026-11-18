@@ -52,7 +52,12 @@ tudi ~/projects      # open a folder (in the running instance, if any)
 tudi --new-window    # another window
 tudi --background    # start the resident instance without a window (e.g. at login)
 tudi --quit          # stop the resident instance
+tudi q 合同 .pdf 上月  # search the index from the shell (docs/query-syntax.md)
 ```
+
+Shell integration: `eval "$(tudi init bash)"` (or `zsh`, or
+`tudi init fish | source`) adds `tj FRAGMENTS…` to jump to the best
+matching folder; add `--hook` to count every `cd` in the folder history.
 
 Settings live in `~/.config/tudi/config.toml` (written with all defaults
 on first run): UI language (`[ui] language = "en"` or `"system"`), sorting,

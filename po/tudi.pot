@@ -44,7 +44,7 @@ msgstr ""
 msgid "Cannot create folder: {}"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:459 crates/tudi-gui/src/settings.rs:436
+#: crates/tudi-gui/src/actions.rs:459 crates/tudi-gui/src/settings.rs:449
 msgid "Cancel"
 msgstr ""
 
@@ -228,51 +228,51 @@ msgstr ""
 msgid "Rename Launcher"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:200
+#: crates/tudi-gui/src/browser.rs:204
 msgid "Back (Alt+Left)"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:202
+#: crates/tudi-gui/src/browser.rs:206
 msgid "Forward (Alt+Right)"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:204
+#: crates/tudi-gui/src/browser.rs:208
 msgid "Parent folder (Alt+Up)"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:213
+#: crates/tudi-gui/src/browser.rs:217
 msgid "Settings (Ctrl+,)"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:375
+#: crates/tudi-gui/src/browser.rs:379
 msgid "Home"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:377
+#: crates/tudi-gui/src/browser.rs:381
 msgid "File System"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:965
+#: crates/tudi-gui/src/browser.rs:970
 msgid "Zoom {}%"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:1117 crates/tudi-gui/src/pane.rs:508 crates/tudi-gui/src/settings.rs:87
+#: crates/tudi-gui/src/browser.rs:1128 crates/tudi-gui/src/pane.rs:508 crates/tudi-gui/src/settings.rs:92
 msgid "Name"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:1117 crates/tudi-gui/src/pane.rs:510 crates/tudi-gui/src/properties.rs:229 crates/tudi-gui/src/settings.rs:87
+#: crates/tudi-gui/src/browser.rs:1128 crates/tudi-gui/src/pane.rs:510 crates/tudi-gui/src/properties.rs:229 crates/tudi-gui/src/settings.rs:92
 msgid "Size"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:1117 crates/tudi-gui/src/pane.rs:511 crates/tudi-gui/src/properties.rs:242 crates/tudi-gui/src/settings.rs:87
+#: crates/tudi-gui/src/browser.rs:1128 crates/tudi-gui/src/pane.rs:511 crates/tudi-gui/src/properties.rs:242 crates/tudi-gui/src/settings.rs:92
 msgid "Modified"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:1198
+#: crates/tudi-gui/src/browser.rs:1209
 msgid "{} free"
 msgstr ""
 
-#: crates/tudi-gui/src/browser.rs:1203
+#: crates/tudi-gui/src/browser.rs:1214
 msgid "{} selected"
 msgstr ""
 
@@ -308,19 +308,19 @@ msgstr ""
 msgid "Already a launcher"
 msgstr ""
 
-#: crates/tudi-gui/src/main.rs:293
+#: crates/tudi-gui/src/main.rs:294
 msgid "Open a new window"
 msgstr ""
 
-#: crates/tudi-gui/src/main.rs:297
+#: crates/tudi-gui/src/main.rs:298
 msgid "Start the resident instance without a window"
 msgstr ""
 
-#: crates/tudi-gui/src/main.rs:299
+#: crates/tudi-gui/src/main.rs:300
 msgid "Quit the resident instance"
 msgstr ""
 
-#: crates/tudi-gui/src/main.rs:303
+#: crates/tudi-gui/src/main.rs:304
 msgid "Import bookmarks and folder history from GTK, autojump and zoxide again"
 msgstr ""
 
@@ -420,31 +420,71 @@ msgstr ""
 msgid "Counting…"
 msgstr ""
 
-#: crates/tudi-gui/src/search.rs:162
+#: crates/tudi-gui/src/search.rs:167
+msgid "This folder is not in the search index"
+msgstr ""
+
+#: crates/tudi-gui/src/search.rs:175
 msgid "The search index is not available"
 msgstr ""
 
-#: crates/tudi-gui/src/search.rs:169
+#: crates/tudi-gui/src/search.rs:182
 msgid "Cannot start the search index (tudi-indexd)"
 msgstr ""
 
-#: crates/tudi-gui/src/search.rs:546
+#: crates/tudi-gui/src/search.rs:332
+msgid "“in:” needs a folder name, e.g. in:acme"
+msgstr ""
+
+#: crates/tudi-gui/src/search.rs:333
+msgid "“ext:” needs an extension, e.g. ext:pdf"
+msgstr ""
+
+#: crates/tudi-gui/src/search.rs:335
+msgid "“{}”: dates look like 2025, 2025-06 or 2025-06-15"
+msgstr ""
+
+#: crates/tudi-gui/src/search.rs:339
+msgid "“{}”: months are “mo” (<3mo); for sizes use size>10M"
+msgstr ""
+
+#: crates/tudi-gui/src/search.rs:342
+msgid "“{}”: add a unit: h, d, w, mo or y"
+msgstr ""
+
+#: crates/tudi-gui/src/search.rs:343
+msgid "“{}”: write <7d, >2w or >2025-06"
+msgstr ""
+
+#: crates/tudi-gui/src/search.rs:344
+msgid "“{}”: write size>10M or size<500k"
+msgstr ""
+
+#: crates/tudi-gui/src/search.rs:445
+msgid "Search everywhere"
+msgstr ""
+
+#: crates/tudi-gui/src/search.rs:525
+msgid "In {}"
+msgstr ""
+
+#: crates/tudi-gui/src/search.rs:691
 msgid "No matches"
 msgstr ""
 
-#: crates/tudi-gui/src/search.rs:554
+#: crates/tudi-gui/src/search.rs:699
 msgid "still indexing, results may be incomplete"
 msgstr ""
 
-#: crates/tudi-gui/src/search.rs:557
+#: crates/tudi-gui/src/search.rs:702
 msgid "reveal"
 msgstr ""
 
-#: crates/tudi-gui/src/search.rs:559
+#: crates/tudi-gui/src/search.rs:704
 msgid "open"
 msgstr ""
 
-#: crates/tudi-gui/src/search.rs:561
+#: crates/tudi-gui/src/search.rs:706
 msgid "terminal"
 msgstr ""
 
@@ -493,98 +533,106 @@ msgid "Folders before files"
 msgstr ""
 
 #: crates/tudi-gui/src/settings.rs:86
+msgid "Sort Chinese names by pinyin"
+msgstr ""
+
+#: crates/tudi-gui/src/settings.rs:87
+msgid "合同 sorts near “hetong”, among the h’s"
+msgstr ""
+
+#: crates/tudi-gui/src/settings.rs:91
 msgid "Sort by"
 msgstr ""
 
-#: crates/tudi-gui/src/settings.rs:99
+#: crates/tudi-gui/src/settings.rs:105
 msgid "Search index"
 msgstr ""
 
-#: crates/tudi-gui/src/settings.rs:102
+#: crates/tudi-gui/src/settings.rs:108
 msgid "Start the search index at login"
 msgstr ""
 
-#: crates/tudi-gui/src/settings.rs:103
+#: crates/tudi-gui/src/settings.rs:109
 msgid "Otherwise it starts the first time you search (Ctrl+P)"
 msgstr ""
 
-#: crates/tudi-gui/src/settings.rs:140
+#: crates/tudi-gui/src/settings.rs:146
 msgid "Commands"
 msgstr ""
 
-#: crates/tudi-gui/src/settings.rs:144
+#: crates/tudi-gui/src/settings.rs:150
 msgid "External programs"
 msgstr ""
 
-#: crates/tudi-gui/src/settings.rs:150
+#: crates/tudi-gui/src/settings.rs:156
 msgid "Terminal (Ctrl+Alt+T)"
 msgstr ""
 
-#: crates/tudi-gui/src/settings.rs:155
+#: crates/tudi-gui/src/settings.rs:161
 msgid "Editor (Ctrl+E)"
 msgstr ""
 
-#: crates/tudi-gui/src/settings.rs:167
+#: crates/tudi-gui/src/settings.rs:173
 msgid "History"
 msgstr ""
 
-#: crates/tudi-gui/src/settings.rs:171
+#: crates/tudi-gui/src/settings.rs:177
 msgid "Never record folders matching"
 msgstr ""
 
-#: crates/tudi-gui/src/settings.rs:177
+#: crates/tudi-gui/src/settings.rs:183
 msgid "Add pattern"
 msgstr ""
 
-#: crates/tudi-gui/src/settings.rs:183
+#: crates/tudi-gui/src/settings.rs:189
 msgid "Excluded folders"
 msgstr ""
 
-#: crates/tudi-gui/src/settings.rs:191
+#: crates/tudi-gui/src/settings.rs:197
 msgid "Clear history"
 msgstr ""
 
-#: crates/tudi-gui/src/settings.rs:192
+#: crates/tudi-gui/src/settings.rs:198
 msgid "Forget all folder visits; exclusions are kept"
 msgstr ""
 
-#: crates/tudi-gui/src/settings.rs:194
+#: crates/tudi-gui/src/settings.rs:200
 msgid "Clear…"
 msgstr ""
 
-#: crates/tudi-gui/src/settings.rs:224
+#: crates/tudi-gui/src/settings.rs:230
 msgid "Restart tudi to change the language (tudi --quit)"
 msgstr ""
 
-#: crates/tudi-gui/src/settings.rs:363
+#: crates/tudi-gui/src/settings.rs:376
 msgid "Remove pattern"
 msgstr ""
 
-#: crates/tudi-gui/src/settings.rs:396
+#: crates/tudi-gui/src/settings.rs:409
 msgid "None"
 msgstr ""
 
-#: crates/tudi-gui/src/settings.rs:406
+#: crates/tudi-gui/src/settings.rs:419
 msgid "with subfolders"
 msgstr ""
 
-#: crates/tudi-gui/src/settings.rs:408
+#: crates/tudi-gui/src/settings.rs:421
 msgid "this folder only"
 msgstr ""
 
-#: crates/tudi-gui/src/settings.rs:411
+#: crates/tudi-gui/src/settings.rs:424
 msgid "Allow"
 msgstr ""
 
-#: crates/tudi-gui/src/settings.rs:413
+#: crates/tudi-gui/src/settings.rs:426
 msgid "Allow in history again"
 msgstr ""
 
-#: crates/tudi-gui/src/settings.rs:429
+#: crates/tudi-gui/src/settings.rs:442
 msgid "Clear history?"
 msgstr ""
 
-#: crates/tudi-gui/src/settings.rs:436
+#: crates/tudi-gui/src/settings.rs:449
 msgid "Clear"
 msgstr ""
 
@@ -652,13 +700,13 @@ msgid_plural "{} opens"
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/tudi-gui/src/browser.rs:1186 crates/tudi-gui/src/properties.rs:167
+#: crates/tudi-gui/src/browser.rs:1197 crates/tudi-gui/src/properties.rs:167
 msgid "{} file"
 msgid_plural "{} files"
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/tudi-gui/src/browser.rs:1189 crates/tudi-gui/src/properties.rs:172
+#: crates/tudi-gui/src/browser.rs:1200 crates/tudi-gui/src/properties.rs:172
 msgid "{} folder"
 msgid_plural "{} folders"
 msgstr[0] ""
@@ -694,7 +742,7 @@ msgid_plural "{} items"
 msgstr[0] ""
 msgstr[1] ""
 
-#: crates/tudi-gui/src/search.rs:548
+#: crates/tudi-gui/src/search.rs:693
 msgid "{} result"
 msgid_plural "{} results"
 msgstr[0] ""

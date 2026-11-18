@@ -5,10 +5,19 @@ Code: `crates/tudi-index/src/matcher.rs`; golden set:
 
 ## Query
 
-Whitespace-separated tokens (≤ 15), lowercased, order-free. A node is a
-hit when every token matched its own name or an ancestor's, and at least
-one token matched its own name. Hidden entries only when a token starts
-with a dot (or `show_hidden`).
+`query::parse` turns the text into fragments and filters
+(`docs/query-syntax.md`); unreadable filters become `Hint`s instead of
+errors. Fragments (≤ 15) are lowercased and order-free. A node is a hit
+when every fragment matched its own name or an ancestor's, and at least
+one plain fragment matched its own name; `in:` fragments count only on
+ancestors. Hidden entries only when a fragment starts with a dot, an
+extension filter names the dotfile, or `show_hidden`.
+
+Filters (extension, kind, mtime range, size) are checked per node before
+the ancestor walk, so they cost almost nothing. A filter-only query visits
+every live node (≈ 4 ms on 1.85M entries). `Context::scope` keeps only
+descendants of a folder (checked during the same walk), `offline_roots`
+drops entries of unmounted roots.
 
 ## Per query
 
