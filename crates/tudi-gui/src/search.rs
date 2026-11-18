@@ -19,7 +19,7 @@ use gtk::{gdk, gio, glib, pango};
 use tudi_proto::{Client, Request, Response, ResultItem};
 
 use crate::browser::Browser;
-use crate::i18n::tr;
+use crate::i18n::{fill, tr};
 use crate::worker::Reply;
 
 /// Results requested per query.
@@ -28,7 +28,8 @@ const LIMIT: u32 = 100;
 // --------------------------------------------------------------- client
 
 enum Msg {
-    Query(u64, String, bool),
+    /// id, text, show hidden, scope folder.
+    Query(u64, String, bool, Option<PathBuf>),
     /// A folder listing with complete metadata, for the index.
     Hint(
         PathBuf,
@@ -116,7 +117,9 @@ impl SearchClient {
                     }
                     for m in pending {
                         match m {
-                            Msg::Query(id, text, hidden) => query = Some((id, text, hidden)),
+                            Msg::Query(id, text, hidden, scope) => {
+                                query = Some((id, text, hidden, scope));
+                            }
                             Msg::Hint(dir, l, meta) => {
                                 // Never start the daemon just for a hint.
                                 if client.is_none() {
@@ -130,7 +133,7 @@ impl SearchClient {
                             }
                         }
                     }
-                    let Some((id, text, hidden)) = query else {
+                    let Some((id, text, hidden, scope)) = query else {
                         continue;
                     };
                     if client.is_none() {
@@ -142,6 +145,9 @@ impl SearchClient {
                         limit: LIMIT,
                         show_hidden: hidden,
                         dirs_only: false,
+                        scope: scope
+                            .as_ref()
+                            .map(|p| p.as_os_str().as_encoded_bytes().to_vec()),
                     };
                     let resp = client.as_mut().map(|c| c.call(&req));
                     let reply = match resp {
@@ -152,6 +158,13 @@ impl SearchClient {
                             items,
                             partial,
                             error: None,
+                        },
+                        // Only a scope outside the index is refused.
+                        Some(Ok(Response::Error(_))) if scope.is_some() => Reply::Search {
+                            id,
+                            items: Vec::new(),
+                            partial: false,
+                            error: Some(tr("This folder is not in the search index")),
                         },
                         Some(Ok(_)) | Some(Err(_)) => {
                             client = None; // reconnect next time
@@ -178,8 +191,8 @@ impl SearchClient {
         Self { tx }
     }
 
-    pub fn query(&self, id: u64, text: String, hidden: bool) {
-        let _ = self.tx.send(Msg::Query(id, text, hidden));
+    pub fn query(&self, id: u64, text: String, hidden: bool, scope: Option<PathBuf>) {
+        let _ = self.tx.send(Msg::Query(id, text, hidden, scope));
     }
 
     /// Send a folder listing (with complete metadata) to the daemon.
@@ -302,7 +315,34 @@ pub struct SearchUi {
     pub sel: gtk::SingleSelection,
     pub model: SearchModel,
     pub status: gtk::Label,
+    /// Problems with the query, e.g. a bad date filter.
+    pub hint: gtk::Label,
+    /// Scoped search (`Ctrl+Shift+F`): the folder and its chip.
+    pub scope: RefCell<Option<PathBuf>>,
+    pub scope_bar: gtk::Box,
+    pub scope_label: gtk::Label,
+    pub scope_clear: gtk::Button,
     pub serial: Cell<u64>,
+}
+
+/// A query problem in the UI language.
+fn hint_text(h: &tudi_index::query::Hint) -> String {
+    use tudi_index::query::Hint;
+    match h {
+        Hint::InNeedsName => tr("“in:” needs a folder name, e.g. in:acme"),
+        Hint::ExtNeedsValue => tr("“ext:” needs an extension, e.g. ext:pdf"),
+        Hint::BadDate(t) => fill(
+            &tr("“{}”: dates look like 2025, 2025-06 or 2025-06-15"),
+            &[t],
+        ),
+        Hint::MonthIsMo(t) => fill(
+            &tr("“{}”: months are “mo” (<3mo); for sizes use size>10M"),
+            &[t],
+        ),
+        Hint::AgeNeedsUnit(t) => fill(&tr("“{}”: add a unit: h, d, w, mo or y"), &[t]),
+        Hint::BadAge(t) => fill(&tr("“{}”: write <7d, >2w or >2025-06"), &[t]),
+        Hint::BadSize(t) => fill(&tr("“{}”: write size>10M or size<500k"), &[t]),
+    }
 }
 
 impl SearchUi {
@@ -390,6 +430,26 @@ impl SearchUi {
         status.set_xalign(0.0);
         status.add_css_class("dim-label");
         status.add_css_class("caption");
+        let hint = gtk::Label::new(None);
+        hint.set_xalign(0.0);
+        hint.set_wrap(true);
+        hint.add_css_class("warning");
+        hint.add_css_class("caption");
+        hint.set_visible(false);
+        let scope_label = gtk::Label::new(None);
+        scope_label.set_ellipsize(pango::EllipsizeMode::Middle);
+        scope_label.set_max_width_chars(60);
+        let scope_clear = gtk::Button::from_icon_name("window-close-symbolic");
+        scope_clear.add_css_class("flat");
+        scope_clear.add_css_class("circular");
+        scope_clear.set_tooltip_text(Some(&tr("Search everywhere")));
+        let scope_bar = gtk::Box::new(gtk::Orientation::Horizontal, 4);
+        scope_bar.add_css_class("tudi-search-scope");
+        scope_bar.set_halign(gtk::Align::Start);
+        scope_bar.append(&gtk::Image::from_icon_name("folder-symbolic"));
+        scope_bar.append(&scope_label);
+        scope_bar.append(&scope_clear);
+        scope_bar.set_visible(false);
         let scroll = gtk::ScrolledWindow::builder()
             .hscrollbar_policy(gtk::PolicyType::Never)
             .min_content_height(80)
@@ -404,7 +464,9 @@ impl SearchUi {
         container.set_valign(gtk::Align::Start);
         container.set_margin_top(12);
         container.set_size_request(680, -1);
+        container.append(&scope_bar);
         container.append(&entry);
+        container.append(&hint);
         container.append(&scroll);
         container.append(&status);
         container.set_visible(false);
@@ -415,14 +477,66 @@ impl SearchUi {
             sel,
             model,
             status,
+            hint,
+            scope: RefCell::new(None),
+            scope_bar,
+            scope_label,
+            scope_clear,
             serial: Cell::new(0),
         }
     }
 }
 
 impl Browser {
-    /// `Ctrl+P` / `/`.
+    /// `Ctrl+P` / `/`: search everywhere.
     pub(crate) fn open_search(self: &Rc<Self>) {
+        self.set_search_scope(None);
+        self.show_search();
+    }
+
+    /// `Ctrl+Shift+F`: search below the selected folder, or the current
+    /// one.
+    pub(crate) fn open_search_here(self: &Rc<Self>) {
+        let d = self.pane.data();
+        let dir = self
+            .selected_entries()
+            .first()
+            .filter(|&&e| d.is_dir(e))
+            .map(|&e| {
+                use std::os::unix::ffi::OsStrExt;
+                self.current_dir()
+                    .join(std::ffi::OsStr::from_bytes(d.name(e)))
+            })
+            .unwrap_or_else(|| self.current_dir());
+        drop(d);
+        self.set_search_scope(Some(dir));
+        self.show_search();
+    }
+
+    /// Set or clear the search scope and re-run the query.
+    pub(crate) fn set_search_scope(self: &Rc<Self>, dir: Option<PathBuf>) {
+        let ui = &self.search;
+        match &dir {
+            Some(d) => {
+                let name = d.file_name().map_or_else(
+                    || d.display().to_string(),
+                    |n| n.to_string_lossy().into_owned(),
+                );
+                ui.scope_label.set_text(&fill(&tr("In {}"), &[&name]));
+                ui.scope_bar
+                    .set_tooltip_text(Some(&d.display().to_string()));
+                ui.scope_bar.set_visible(true);
+            }
+            None => ui.scope_bar.set_visible(false),
+        }
+        let changed = *ui.scope.borrow() != dir;
+        *ui.scope.borrow_mut() = dir;
+        if changed && !ui.entry.text().is_empty() {
+            self.run_search();
+        }
+    }
+
+    fn show_search(self: &Rc<Self>) {
         let ui = &self.search;
         ui.container.set_visible(true);
         ui.entry.grab_focus();
@@ -437,17 +551,17 @@ impl Browser {
     pub(crate) fn connect_search(self: &Rc<Self>) {
         let ui = &self.search;
         let w = Rc::downgrade(self);
-        ui.entry.connect_search_changed(move |e| {
-            let Some(b) = w.upgrade() else { return };
-            let text = e.text().trim().to_string();
-            let id = b.search.serial.get() + 1;
-            b.search.serial.set(id);
-            if text.is_empty() {
-                b.search.model.set(Vec::new());
-                b.search.status.set_text("");
-                return;
+        ui.entry.connect_search_changed(move |_| {
+            if let Some(b) = w.upgrade() {
+                b.run_search();
             }
-            b.search_client.query(id, text, b.show_hidden.get());
+        });
+        let w = Rc::downgrade(self);
+        ui.scope_clear.connect_clicked(move |_| {
+            if let Some(b) = w.upgrade() {
+                b.set_search_scope(None);
+                b.search.entry.grab_focus();
+            }
         });
         let w = Rc::downgrade(self);
         ui.entry.connect_stop_search(move |_| {
@@ -508,6 +622,13 @@ impl Browser {
                     b.close_search();
                     glib::Propagation::Stop
                 }
+                // Backspace in an empty entry leaves the scope.
+                gdk::Key::BackSpace
+                    if ui.entry.text().is_empty() && ui.scope.borrow().is_some() =>
+                {
+                    b.set_search_scope(None);
+                    glib::Propagation::Stop
+                }
                 _ => glib::Propagation::Proceed,
             }
         });
@@ -520,6 +641,30 @@ impl Browser {
                 b.reveal_result(&item);
             }
         });
+    }
+
+    /// Send the entry's query (with the scope) to the search thread.
+    pub(crate) fn run_search(self: &Rc<Self>) {
+        let ui = &self.search;
+        let text = ui.entry.text().trim().to_string();
+        let id = ui.serial.get() + 1;
+        ui.serial.set(id);
+        // Problems with filters show at once, before results arrive.
+        let hints: Vec<String> = tudi_index::query::parse_local(&text)
+            .hints
+            .iter()
+            .map(hint_text)
+            .collect();
+        ui.hint.set_text(&hints.join("\n"));
+        ui.hint.set_visible(!hints.is_empty());
+        if text.is_empty() {
+            ui.model.set(Vec::new());
+            ui.status.set_text("");
+            return;
+        }
+        let scope = ui.scope.borrow().clone();
+        self.search_client
+            .query(id, text, self.show_hidden.get(), scope);
     }
 
     /// A reply from the search thread.

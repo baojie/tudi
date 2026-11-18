@@ -65,6 +65,7 @@ const CSS: &str = "
 .tudi-bar { padding: 2px 6px; }
 .tudi-search { padding: 10px; box-shadow: 0 8px 28px alpha(black, 0.25); }
 .tudi-search-results > row { padding: 3px 6px; }
+.tudi-search-scope { padding: 0 2px 0 8px; border-radius: 999px; background: alpha(@accent_bg_color, 0.15); }
 .tudi-bar-button { font-weight: normal; padding: 2px 8px; min-height: 0; }
 .tudi-bar-items separator { margin: 5px 8px; min-width: 1px; background: alpha(currentColor, 0.25); }
 .tudi-bar-hint { padding: 0 8px; font-size: smaller; }

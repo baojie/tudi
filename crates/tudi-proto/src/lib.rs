@@ -20,6 +20,8 @@ pub enum Request {
         show_hidden: bool,
         /// Only folders (for `tudi q --dir` / jumping).
         dirs_only: bool,
+        /// Only items below this folder (absolute path bytes).
+        scope: Option<Vec<u8>>,
     },
     Status,
     /// Rescan everything from scratch.
@@ -86,6 +88,8 @@ pub enum Response {
         elapsed_us: u32,
         /// The index is still being built: results may be incomplete.
         partial: bool,
+        /// Problems with the query (English), e.g. a bad date filter.
+        hints: Vec<String>,
     },
     Status(Status),
     Ok,
@@ -166,6 +170,7 @@ mod tests {
             limit: 50,
             show_hidden: false,
             dirs_only: false,
+            scope: Some("/home/u/文档".as_bytes().to_vec()),
         };
         let mut buf = Vec::new();
         write_frame(&mut buf, &req).unwrap();

@@ -28,7 +28,7 @@ use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};
 
 use tudi_index::fsinfo::{RootInfo, detect, looks_offline};
-use tudi_index::matcher::{Context, SearchData, Weights, search};
+use tudi_index::matcher::{Context, SearchData, Weights, search_query};
 use tudi_index::scan::{Excludes, apply_changed, changed_dirs, reconcile_root, scan_below};
 use tudi_index::{Entry, Index, Kind, snapshot};
 use tudi_proto::{Request, Response, ResultItem, Status, read_frame, write_frame};
@@ -457,9 +457,23 @@ fn handle(sh: &Shared, req: Request, snap: &Path) -> Response {
             limit,
             show_hidden,
             dirs_only,
+            scope,
         } => {
             let t = Instant::now();
+            let q = tudi_index::query::parse_local(&text);
             let e = sh.engine.read().unwrap();
+            let scope = match scope {
+                None => None,
+                Some(p) => match e.ix.find(Path::new(std::ffi::OsStr::from_bytes(&p))) {
+                    Some(n) => Some(n),
+                    None => {
+                        return Response::Error(format!(
+                            "{} is not in the index",
+                            String::from_utf8_lossy(&p)
+                        ));
+                    }
+                },
+            };
             let offline: Vec<u32> = sh
                 .offline
                 .lock()
@@ -473,11 +487,12 @@ fn handle(sh: &Shared, req: Request, snap: &Path) -> Response {
                 show_hidden,
                 dirs_only,
                 offline_roots: &offline,
+                scope,
             };
-            let hits = search(
+            let hits = search_query(
                 &e.ix,
                 &e.sd,
-                &text,
+                &q,
                 limit.min(1000) as usize,
                 &Weights::default(),
                 &ctx,
@@ -502,6 +517,7 @@ fn handle(sh: &Shared, req: Request, snap: &Path) -> Response {
                 items,
                 elapsed_us: t.elapsed().as_micros().min(u128::from(u32::MAX)) as u32,
                 partial: state == "scanning",
+                hints: q.hints.iter().map(ToString::to_string).collect(),
             }
         }
         Request::Status => {

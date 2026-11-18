@@ -34,6 +34,7 @@ gtk.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 tudi-core = { path = "../tudi-core" }
+tudi-index = { path = "../tudi-index" }
 
 # `.deb` package (scripts/package.sh passes --maintainer).
 [package.metadata.deb]

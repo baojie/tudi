@@ -129,6 +129,10 @@ fn step(b: Rc<Browser>, queue: Queue, delay: Duration) {
                 b.open_search();
                 b.search.entry.set_text(arg);
             }
+            "searchhere" => {
+                b.open_search_here();
+                b.search.entry.set_text(arg);
+            }
             "props" => crate::properties::show(&b, vec![PathBuf::from(arg)]),
             "treemenupath" => {
                 // Dev only: find the visible row showing this path.

@@ -37,6 +37,42 @@ pub enum KindFilter {
     Files,
 }
 
+/// A problem with one token of a query, shown next to the results; the
+/// token is ignored. Variants carry the token as typed.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Hint {
+    /// `in:` without a folder name.
+    InNeedsName,
+    /// `ext:` without an extension.
+    ExtNeedsValue,
+    /// `date:…` that is not a date.
+    BadDate(String),
+    /// `<7m`: months are `mo`.
+    MonthIsMo(String),
+    /// `<7`: no unit.
+    AgeNeedsUnit(String),
+    /// `<7x`, `<abc`.
+    BadAge(String),
+    /// `size>abc`, `size>5Q`, `size=5`.
+    BadSize(String),
+}
+
+impl std::fmt::Display for Hint {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Hint::InNeedsName => write!(f, "“in:” needs a folder name, e.g. in:acme"),
+            Hint::ExtNeedsValue => write!(f, "“ext:” needs an extension, e.g. ext:pdf"),
+            Hint::BadDate(t) => write!(f, "“{t}”: dates look like 2025, 2025-06 or 2025-06-15"),
+            Hint::MonthIsMo(t) => {
+                write!(f, "“{t}”: months are “mo” (<3mo); for sizes use size>10M")
+            }
+            Hint::AgeNeedsUnit(t) => write!(f, "“{t}”: add a unit: h, d, w, mo or y"),
+            Hint::BadAge(t) => write!(f, "“{t}”: write <7d, >2w or >2025-06"),
+            Hint::BadSize(t) => write!(f, "“{t}”: write size>10M or size<500k"),
+        }
+    }
+}
+
 /// A parsed query.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Query {
@@ -50,7 +86,7 @@ pub struct Query {
     pub size_min: Option<u64>,
     pub size_max: Option<u64>,
     /// Problems with filters, for an inline hint.
-    pub hints: Vec<String>,
+    pub hints: Vec<Hint>,
 }
 
 impl Query {
@@ -200,52 +236,52 @@ fn parse_date(s: &str) -> Option<(Date, Date)> {
     }
 }
 
-/// `7d`, `12h`, `2w`, `3mo`, `1y` → seconds.
-fn parse_age(s: &str) -> Result<i64, String> {
+/// `7d`, `12h`, `2w`, `3mo`, `1y` → seconds; `tok` is the whole token.
+fn parse_age(s: &str, tok: &str) -> Result<i64, Hint> {
     let split = s.find(|c: char| !c.is_ascii_digit()).unwrap_or(s.len());
     let (num, unit) = s.split_at(split);
-    let n: i64 = num
-        .parse()
-        .map_err(|_| format!("“{s}”: expected a number"))?;
+    let n: i64 = num.parse().map_err(|_| Hint::BadAge(tok.into()))?;
     let secs = match unit {
         "h" => 3_600,
         "d" => 86_400,
         "w" => 7 * 86_400,
         "mo" => 30 * 86_400,
         "y" => 365 * 86_400,
-        "m" => {
-            return Err(format!(
-                "“{s}”: use “mo” for months (<3mo); sizes need “size”, e.g. size>{num}M"
-            ));
-        }
-        "" => return Err(format!("“{s}”: add a unit: h, d, w, mo or y")),
-        u => return Err(format!("“{s}”: unknown unit “{u}” (h, d, w, mo, y)")),
+        "m" => return Err(Hint::MonthIsMo(tok.into())),
+        "" => return Err(Hint::AgeNeedsUnit(tok.into())),
+        _ => return Err(Hint::BadAge(tok.into())),
     };
     Ok(n.saturating_mul(secs))
 }
 
 /// `10M`, `1.5G`, `500k`, `200` → bytes (decimal units).
-fn parse_size(s: &str) -> Result<u64, String> {
+fn parse_size(s: &str) -> Option<u64> {
     let split = s
         .find(|c: char| !(c.is_ascii_digit() || c == '.'))
         .unwrap_or(s.len());
     let (num, unit) = s.split_at(split);
-    let n: f64 = num
-        .parse()
-        .map_err(|_| format!("“{s}”: expected a size like 10M"))?;
+    let n: f64 = num.parse().ok()?;
     let mult = match unit.to_ascii_lowercase().as_str() {
         "" | "b" => 1.0,
         "k" | "kb" => 1e3,
         "m" | "mb" => 1e6,
         "g" | "gb" => 1e9,
         "t" | "tb" => 1e12,
-        u => return Err(format!("“{s}”: unknown size unit “{u}” (K, M, G, T)")),
+        _ => return None,
     };
-    Ok((n * mult) as u64)
+    Some((n * mult) as u64)
 }
 
 fn is_ext(s: &str) -> bool {
     (1..=8).contains(&s.len()) && s.bytes().all(|b| b.is_ascii_alphanumeric())
+}
+
+/// Parse `text` now, in the system time zone.
+pub fn parse_local(text: &str) -> Query {
+    parse(
+        text,
+        &jiff::Timestamp::now().to_zoned_datetime(jiff::tz::TimeZone::system()),
+    )
 }
 
 /// Parse `text` at time `now` (local offset).
@@ -292,8 +328,7 @@ pub fn parse(text: &str, now: &ZonedDateTime) -> Query {
         }
         if let Some(rest) = t.strip_prefix("in:") {
             if rest.is_empty() {
-                q.hints
-                    .push("“in:” needs a folder name, e.g. in:acme".into());
+                q.hints.push(Hint::InNeedsName);
             } else {
                 q.terms.push(Term {
                     text: rest.to_string(),
@@ -316,8 +351,7 @@ pub fn parse(text: &str, now: &ZonedDateTime) -> Query {
                 .filter(|e| !e.is_empty())
                 .collect();
             if exts.is_empty() {
-                q.hints
-                    .push("“ext:” needs an extension, e.g. ext:pdf".into());
+                q.hints.push(Hint::ExtNeedsValue);
             }
             q.exts.extend(exts);
             continue;
@@ -334,28 +368,29 @@ pub fn parse(text: &str, now: &ZonedDateTime) -> Query {
                     q.from(midnight(now, a));
                     q.to(midnight(now, b));
                 }
-                None => q.hints.push(format!(
-                    "“{tok}”: dates look like 2025, 2025-06 or 2025-06-15"
-                )),
+                None => q.hints.push(Hint::BadDate(tok.clone())),
             }
             continue;
         }
-        if let Some(rest) = t.strip_prefix("size") {
+        // `size>10M`, `size:<5k`; a word like `sizes` is a fragment.
+        if let Some(rest) = t
+            .strip_prefix("size")
+            .filter(|r| r.starts_with([':', '<', '>', '=']))
+        {
             let rest = rest.strip_prefix(':').unwrap_or(rest);
             let (op, val) = match rest.chars().next() {
                 Some('>') => ('>', &rest[1..]),
                 Some('<') => ('<', &rest[1..]),
                 _ => {
-                    q.hints
-                        .push(format!("“{tok}”: write size>10M or size<500k"));
+                    q.hints.push(Hint::BadSize(tok.clone()));
                     continue;
                 }
             };
             let val = val.strip_prefix('=').unwrap_or(val);
             match parse_size(val) {
-                Ok(b) if op == '>' => q.size_min = Some(b),
-                Ok(b) => q.size_max = Some(b),
-                Err(e) => q.hints.push(e),
+                Some(b) if op == '>' => q.size_min = Some(b),
+                Some(b) => q.size_max = Some(b),
+                None => q.hints.push(Hint::BadSize(tok.clone())),
             }
             continue;
         }
@@ -367,7 +402,7 @@ pub fn parse(text: &str, now: &ZonedDateTime) -> Query {
                 let at = midnight(now, a);
                 if op == '>' { q.from(at) } else { q.to(at) }
             } else {
-                match parse_age(val) {
+                match parse_age(val, &tok) {
                     Ok(secs) => {
                         let at = now.timestamp().as_second() - secs;
                         // <7d: newer than 7 days; >7d: older.
@@ -553,7 +588,12 @@ mod tests {
             assert_eq!(q.hints.len(), 1, "{bad}: one hint");
             assert!(!q.has_filters() || bad.starts_with("ext"), "{bad}");
         }
-        assert!(parse("<7m", &now()).hints[0].contains("mo"));
+        assert_eq!(parse("<7m", &now()).hints, [Hint::MonthIsMo("<7m".into())]);
+        assert!(parse("<7m", &now()).hints[0].to_string().contains("mo"));
+        // Words that only start like a filter are fragments.
+        let q = parse("sizes sizeof.h", &now());
+        assert_eq!(terms(&q), [("sizes", false), ("sizeof.h", false)]);
+        assert!(q.hints.is_empty());
     }
 
     #[test]

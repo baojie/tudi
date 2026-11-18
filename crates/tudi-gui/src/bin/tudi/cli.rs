@@ -1,9 +1,13 @@
 //! Command-line access to the index daemon, without GTK (PLAN §5.8):
 //!
 //! ```text
-//! tudi q [--json] [-n N] [--dir] [--hidden] TERMS...
+//! tudi q [--json] [-n N] [--dir] [--hidden] [--in DIR] [--] QUERY...
 //! tudi index status|rescan|stop
+//! tudi visit DIR                # record a visit in the folder history
+//! tudi init bash|zsh|fish [--cmd NAME] [--hook]
 //! ```
+//!
+//! QUERY uses the search syntax (`docs/query-syntax.md`): `合同 .pdf 上月`.
 //!
 //! The daemon is started (next to this binary) if it is not running.
 
@@ -21,6 +25,8 @@ pub fn run(args: &[String]) -> Option<u8> {
     match args.first().map(String::as_str) {
         Some("q") => Some(query(&args[1..])),
         Some("index") => Some(index(&args[1..])),
+        Some("visit") => Some(visit(&args[1..])),
+        Some("init") => Some(init(&args[1..])),
         _ => None,
     }
 }
@@ -73,16 +79,25 @@ fn json_str(s: &str) -> String {
 }
 
 fn usage() -> u8 {
-    eprintln!("usage: tudi q [--json] [-n N] [--dir] [--hidden] TERMS...");
+    eprintln!("usage: tudi q [--json] [-n N] [--dir] [--hidden] [--in DIR] [--] QUERY...");
     2
 }
 
 fn query(args: &[String]) -> u8 {
     let (mut json, mut dirs, mut hidden, mut limit) = (false, false, false, 20u32);
+    let mut scope = None;
     let mut terms = Vec::new();
     let mut it = args.iter();
     while let Some(a) = it.next() {
         match a.as_str() {
+            "--" => {
+                terms.extend(it.by_ref().cloned());
+                break;
+            }
+            "--in" => match it.next() {
+                Some(d) => scope = Some(absolute(d)),
+                None => return usage(),
+            },
             "--json" => json = true,
             "--dir" | "-d" => dirs = true,
             "--hidden" => hidden = true,
@@ -106,11 +121,27 @@ fn query(args: &[String]) -> u8 {
         limit,
         show_hidden: hidden,
         dirs_only: dirs,
+        scope: scope.map(|p| p.into_os_string().into_encoded_bytes()),
     };
-    let Ok(Response::Results { items, partial, .. }) = c.call(&req) else {
-        eprintln!("tudi: query failed");
-        return 1;
+    let (items, partial, hints) = match c.call(&req) {
+        Ok(Response::Results {
+            items,
+            partial,
+            hints,
+            ..
+        }) => (items, partial, hints),
+        Ok(Response::Error(e)) => {
+            eprintln!("tudi: {e}");
+            return 1;
+        }
+        _ => {
+            eprintln!("tudi: query failed");
+            return 1;
+        }
     };
+    for h in hints {
+        eprintln!("tudi: {h} (ignored)");
+    }
     if partial {
         eprintln!("tudi: the index is still being built; results may be incomplete");
     }
@@ -175,5 +206,162 @@ fn index(args: &[String]) -> u8 {
             eprintln!("tudi: {e}");
             1
         }
+    }
+}
+
+/// `p` made absolute against the current folder (not resolving links).
+fn absolute(p: &str) -> std::path::PathBuf {
+    let p = std::path::Path::new(p);
+    if p.is_absolute() {
+        return p.to_path_buf();
+    }
+    std::env::current_dir().map_or_else(|_| p.to_path_buf(), |c| c.join(p))
+}
+
+/// `tudi visit DIR`: count a visit, like opening the folder in tudi
+/// (history exclusions apply). Used by the shell hook.
+fn visit(args: &[String]) -> u8 {
+    let dir = match args {
+        [d] => d,
+        [dd, d] if dd == "--" => d,
+        _ => {
+            eprintln!("usage: tudi visit DIR");
+            return 2;
+        }
+    };
+    let dir = absolute(dir);
+    if !dir.is_dir() {
+        return 1;
+    }
+    let (config, _) = tudi_core::config::Config::load_user();
+    let rules = tudi_core::frecency::ExcludeRules::new(&config.history.exclude).unwrap_or_default();
+    let Some(db) = tudi_core::frecency::default_path() else {
+        return 1;
+    };
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs() as i64);
+    let recorded = tudi_core::frecency::Frecency::open(&db, rules)
+        .and_then(|mut f| f.visit(&dir, now))
+        .unwrap_or_else(|e| {
+            eprintln!("tudi: {e}");
+            false
+        });
+    if recorded && let Some(mut c) = connect(false) {
+        let _ = c.call(&Request::FrecencyChanged);
+    }
+    0
+}
+
+const INIT_POSIX: &str = r#"# tudi shell integration: eval "$(tudi init SHELL)"
+__CMD__() {
+    if [ $# -eq 0 ]; then cd ~ || return; return; fi
+    __tudi_d="$(command tudi q --dir -n 1 -- "$@")" && [ -n "$__tudi_d" ] && cd -- "$__tudi_d"
+}
+"#;
+
+const HOOK_BASH: &str = r#"__tudi_pwd="$PWD"
+__tudi_hook() {
+    if [ "$__tudi_pwd" != "$PWD" ]; then
+        __tudi_pwd="$PWD"
+        (command tudi visit -- "$PWD" >/dev/null 2>&1 &)
+    fi
+}
+case ";${PROMPT_COMMAND:-};" in
+    *";__tudi_hook;"*) ;;
+    *) PROMPT_COMMAND="__tudi_hook${PROMPT_COMMAND:+;$PROMPT_COMMAND}" ;;
+esac
+"#;
+
+const HOOK_ZSH: &str = r#"__tudi_hook() { command tudi visit -- "$PWD" >/dev/null 2>&1 &! }
+autoload -Uz add-zsh-hook
+add-zsh-hook chpwd __tudi_hook
+"#;
+
+const INIT_FISH: &str = r#"# tudi shell integration: tudi init fish | source
+function __CMD__
+    if test (count $argv) -eq 0
+        cd ~
+        return
+    end
+    set -l d (command tudi q --dir -n 1 -- $argv)
+    and test -n "$d"
+    and cd -- $d
+end
+"#;
+
+const HOOK_FISH: &str = r#"function __tudi_hook --on-variable PWD
+    status --is-command-substitution; and return
+    command tudi visit -- $PWD >/dev/null 2>&1 &
+    disown 2>/dev/null
+end
+"#;
+
+/// The shell code for `tudi init`.
+fn init_script(shell: &str, cmd: &str, hook: bool) -> Option<String> {
+    let (base, hook_code) = match shell {
+        "bash" => (INIT_POSIX, HOOK_BASH),
+        "zsh" => (INIT_POSIX, HOOK_ZSH),
+        "fish" => (INIT_FISH, HOOK_FISH),
+        _ => return None,
+    };
+    let mut out = base.replace("__CMD__", cmd);
+    if hook {
+        out.push_str(hook_code);
+    }
+    Some(out)
+}
+
+/// `tudi init bash|zsh|fish [--cmd NAME] [--hook]`: print shell code
+/// defining a jump function (`tj acme` → cd to the best folder match) and,
+/// with `--hook`, recording each `cd` in the folder history.
+fn init(args: &[String]) -> u8 {
+    let mut shell = None;
+    let (mut cmd, mut hook) = ("tj".to_string(), false);
+    let mut it = args.iter();
+    while let Some(a) = it.next() {
+        match a.as_str() {
+            "--hook" => hook = true,
+            "--cmd" => match it.next() {
+                Some(c)
+                    if !c.is_empty()
+                        && c.chars()
+                            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-') =>
+                {
+                    cmd = c.clone();
+                }
+                _ => shell = Some(String::new()),
+            },
+            s => shell = Some(s.to_string()),
+        }
+    }
+    match shell.as_deref().and_then(|s| init_script(s, &cmd, hook)) {
+        Some(code) => {
+            print!("{code}");
+            0
+        }
+        None => {
+            eprintln!("usage: tudi init bash|zsh|fish [--cmd NAME] [--hook]");
+            2
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn init_scripts() {
+        let z = init_script("zsh", "j", true).unwrap();
+        assert!(z.contains("j() {") && z.contains("add-zsh-hook chpwd"));
+        let b = init_script("bash", "tj", false).unwrap();
+        assert!(b.contains("tj() {") && !b.contains("PROMPT_COMMAND"));
+        assert!(
+            init_script("fish", "tj", true)
+                .unwrap()
+                .contains("--on-variable PWD")
+        );
+        assert!(init_script("tcsh", "tj", false).is_none());
     }
 }

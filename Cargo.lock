@@ -1772,6 +1772,7 @@ version = "0.1.0"
 dependencies = [
  "criterion",
  "globset",
+ "pinyin",
  "proptest",
  "rayon",
  "rusqlite",
@@ -1802,6 +1803,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "tudi-core",
+ "tudi-index",
  "tudi-proto",
 ]
 

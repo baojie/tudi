@@ -333,6 +333,8 @@ pub struct Context<'a> {
     pub dirs_only: bool,
     /// Roots whose entries are hidden (unmounted volumes).
     pub offline_roots: &'a [u32],
+    /// Only items below this folder (scoped search, `Ctrl+Shift+F`).
+    pub scope: Option<u32>,
 }
 
 /// Case-insensitive "starts with" without allocating.
@@ -574,8 +576,10 @@ pub fn search_query(
             let mut decay = 1.0f32;
             let mut p = node.parent;
             let mut root = i as u32;
+            let mut in_scope = ctx.scope.is_none();
             while p != NONE {
                 root = p;
+                in_scope |= ctx.scope == Some(p);
                 let pm = masks[p as usize];
                 if pm != 0 {
                     cum |= pm;
@@ -588,7 +592,7 @@ pub fn search_query(
                 depth += 1;
                 p = ix.nodes[p as usize].parent;
             }
-            if cum != all || ctx.offline_roots.contains(&root) {
+            if cum != all || !in_scope || ctx.offline_roots.contains(&root) {
                 return None;
             }
             let own_score = if own == 0 { 0.0 } else { scores[i] };
@@ -861,6 +865,32 @@ mod tests {
         );
         // An invalid filter is ignored; the rest still works.
         assert_eq!(filtered(FILES, "报价 <7x"), ["/r/work/报价.pdf"]);
+    }
+
+    #[test]
+    fn scoped() {
+        let ix = build(&["a/report.pdf", "b/report.pdf", "b/c/report-2.pdf"]);
+        let sd = SearchData::build(&ix);
+        let b = ix.find(Path::new("/r/b")).unwrap();
+        let ctx = Context {
+            scope: Some(b),
+            ..Default::default()
+        };
+        let mut got: Vec<_> = search(&ix, &sd, "report", 10, &Weights::default(), &ctx)
+            .iter()
+            .map(|h| ix.path(h.node))
+            .collect();
+        got.sort();
+        assert_eq!(
+            got,
+            [
+                Path::new("/r/b/c/report-2.pdf"),
+                Path::new("/r/b/report.pdf")
+            ]
+        );
+        // Filters only, inside the scope.
+        let n = search(&ix, &sd, ".pdf", 10, &Weights::default(), &ctx).len();
+        assert_eq!(n, 2);
     }
 
     #[test]

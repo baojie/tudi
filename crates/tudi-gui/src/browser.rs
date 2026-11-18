@@ -561,6 +561,7 @@ impl Browser {
         add("F6", Box::new(|b| b.switch_pane_focus()));
         add("<Control>d", Box::new(|b| b.bookmark_or_launcher()));
         add("<Control>p", Box::new(|b| b.open_search()));
+        add("<Control><Shift>f", Box::new(|b| b.open_search_here()));
         add("<Control>comma", Box::new(|b| b.open_settings()));
         for n in 1..=9usize {
             add(
