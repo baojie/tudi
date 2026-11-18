@@ -1,8 +1,8 @@
 //! The bookmarks bar under the header (PLAN §5.7, ADR-016): the user's
 //! bookmarks first, then — after a separator — the most used folders by
-//! frecency, like a browser's bookmarks bar. A "»" menu at the end lists
-//! all bookmarks and the 30 most used folders, so buttons that do not fit
-//! stay reachable.
+//! frecency, like a browser's bookmarks bar. At most [`BAR_BUTTONS`]
+//! buttons (bookmarks, then launchers, then frequent folders); the rest
+//! are in a drop-down list at the right end ("N more").
 //!
 //! Launchers (ADR-014) follow the bookmarks: clicking runs the script or
 //! app; dropping files on one runs it with them; right-click switches
@@ -22,8 +22,8 @@ use gtk::{gdk, gio, glib, pango};
 use crate::browser::Browser;
 use crate::i18n::{fill, ntr, tr};
 
-/// Most frequent folders shown as buttons (the rest are in "»").
-const FREQUENT_BUTTONS: usize = 12;
+/// Most buttons on the bar; the rest go to the drop-down list.
+const BAR_BUTTONS: usize = 10;
 
 /// A bar action taking a bookmark or frequent-folder index.
 type IndexAction = Box<dyn Fn(&Rc<Browser>, usize)>;
@@ -85,10 +85,11 @@ impl Browser {
             .hexpand(true)
             .child(&self.bar_box)
             .build();
-        self.bar_more.set_icon_name("go-next-symbolic");
         self.bar_more.add_css_class("flat");
+        self.bar_more.set_always_show_arrow(true);
         self.bar_more
-            .set_tooltip_text(Some(&tr("All bookmarks and frequent folders")));
+            .set_tooltip_text(Some(&tr("More bookmarks and frequent folders")));
+        self.bar_more.set_visible(false);
         let row = gtk::Box::new(gtk::Orientation::Horizontal, 0);
         row.add_css_class("tudi-bar");
         row.append(&clip);
@@ -285,18 +286,26 @@ impl Browser {
         let hist = self.hist.borrow();
         let more = gio::Menu::new();
         let bm_section = gio::Menu::new();
+        // Buttons so far; later items only go to the drop-down list.
+        let mut shown = 0usize;
+        let mut hidden = 0u64;
         for (i, bm) in bookmarks.items.iter().enumerate() {
             let label = bm.label();
             let mut tip = bm.path.clone();
             if i < 9 {
                 tip.push_str(&format!("  (Alt+{})", i + 1));
             }
-            let btn = folder_button(&label, &tip);
-            btn.set_action_name(Some("bar.open-bookmark"));
-            btn.set_action_target_value(Some(&(i as i32).to_variant()));
-            self.bookmark_menu(&btn, i, bookmarks.items.len());
-            self.bookmark_drag(&btn, i);
-            self.bar_box.append(&btn);
+            if shown < BAR_BUTTONS {
+                shown += 1;
+                let btn = folder_button(&label, &tip);
+                btn.set_action_name(Some("bar.open-bookmark"));
+                btn.set_action_target_value(Some(&(i as i32).to_variant()));
+                self.bookmark_menu(&btn, i, bookmarks.items.len());
+                self.bookmark_drag(&btn, i);
+                self.bar_box.append(&btn);
+                continue;
+            }
+            hidden += 1;
             let item = gio::MenuItem::new(Some(&label), None);
             item.set_action_and_target_value(
                 Some("bar.open-bookmark"),
@@ -321,12 +330,17 @@ impl Browser {
                 l.path,
                 tr("Click to run · drop files here to run with them")
             );
-            let btn = launcher_button(&label, &tip);
-            btn.set_action_name(Some("bar.run-launcher"));
-            btn.set_action_target_value(Some(&(i as i32).to_variant()));
-            self.launcher_menu(&btn, i, launchers.items.len(), l);
-            self.launcher_drop(&btn, i);
-            self.bar_box.append(&btn);
+            if shown < BAR_BUTTONS {
+                shown += 1;
+                let btn = launcher_button(&label, &tip);
+                btn.set_action_name(Some("bar.run-launcher"));
+                btn.set_action_target_value(Some(&(i as i32).to_variant()));
+                self.launcher_menu(&btn, i, launchers.items.len(), l);
+                self.launcher_drop(&btn, i);
+                self.bar_box.append(&btn);
+                continue;
+            }
+            hidden += 1;
             let item = gio::MenuItem::new(Some(&format!("▶ {label}")), None);
             item.set_action_and_target_value(
                 Some("bar.run-launcher"),
@@ -346,12 +360,12 @@ impl Browser {
             .enumerate()
             .filter(|(_, e)| !bookmarks.contains(&e.path))
             .collect();
-        if !freq.is_empty() {
+        if !freq.is_empty() && shown < BAR_BUTTONS {
             self.bar_box
                 .append(&gtk::Separator::new(gtk::Orientation::Vertical));
         }
         let freq_section = gio::Menu::new();
-        for (n, &(i, e)) in freq.iter().enumerate() {
+        for &(i, e) in &freq {
             let label = path_label(&e.path);
             let tip = format!(
                 "{}\n{} · {}",
@@ -362,14 +376,17 @@ impl Browser {
                 ),
                 crate::history::when(e.last)
             );
-            if n < FREQUENT_BUTTONS {
+            if shown < BAR_BUTTONS {
+                shown += 1;
                 let btn = folder_button(&label, &tip);
                 btn.add_css_class("tudi-frequent");
                 btn.set_action_name(Some("bar.open-frequent"));
                 btn.set_action_target_value(Some(&(i as i32).to_variant()));
                 self.frequent_menu(&btn, i);
                 self.bar_box.append(&btn);
+                continue;
             }
+            hidden += 1;
             let item = gio::MenuItem::new(
                 Some(&format!(
                     "{label}  ({})",
@@ -383,10 +400,19 @@ impl Browser {
             );
             freq_section.append_item(&item);
         }
-        more.append_section(Some(&tr("Bookmarks")), &bm_section);
-        more.append_section(Some(&tr("Launchers")), &ln_section);
-        more.append_section(Some(&tr("Frequent")), &freq_section);
+        for (title, section) in [
+            (tr("Bookmarks"), &bm_section),
+            (tr("Launchers"), &ln_section),
+            (tr("Frequent"), &freq_section),
+        ] {
+            if section.n_items() > 0 {
+                more.append_section(Some(&title), section);
+            }
+        }
         self.bar_more.set_menu_model(Some(&more));
+        self.bar_more
+            .set_label(&fill(&ntr("{} more", "{} more", hidden), &[&hidden]));
+        self.bar_more.set_visible(hidden > 0);
     }
 
     fn popup_menu(widget: &gtk::Button, menu: &gio::Menu, x: f64, y: f64) {

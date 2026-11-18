@@ -91,6 +91,10 @@ are bound on the list so they do not take keys from the path bar.
 
 ## Bookmarks bar and folder history (ADR-016)
 
+At most 10 buttons (bookmarks, then launchers, then frequent folders);
+the rest are in a drop-down at the right end, labelled "N more" and
+hidden when nothing overflows.
+
 - `bar.rs`: a bar under the header, like a browser's bookmarks bar: the
   user's bookmarks (`bookmarks.toml`, `Ctrl+D`, `Alt+1..9`, right-click to
   rename / move / remove, drag to reorder), a separator, then up to 12 most
