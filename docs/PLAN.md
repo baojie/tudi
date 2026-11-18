@@ -396,9 +396,22 @@ e.g. max 8 variants).
 **Frecency (`tudi-core::frecency`):** zoxide-style. Store in
 `$XDG_DATA_HOME/tudi/frecency.sqlite` (rusqlite, bundled). Each visit adds
 weight; score multiplied by 4 (last hour), 2 (last day), 0.5 (last week),
-0.25 (older); aging when total exceeds a cap. Visits come from: opening a
-directory or file in the GUI, revealing a search result, and optionally a
-shell hook (M8).
+0.25 (older); aging when total exceeds a cap. Each folder also keeps its
+raw open count (never aged) and last visit time, shown in the history
+list. Visits come from the GUI and optionally a shell hook (M8).
+
+What counts as a visit (ADR-016): deliberately entering a folder —
+double-click / `Enter` in the list, choosing it in the tree, a bookmark,
+the path bar, a search result, `tudi PATH`. Not counted: restoring the last
+folder at startup, back/forward, going up, live reloads, and folders the
+tree selection only passes over (selected for less than 1 s while moving
+with the keyboard).
+
+Exclusions (ADR-016): a folder can be excluded from history forever,
+optionally with all its subfolders ("Never show in history" in the context
+menu), or by glob rules in `config.toml` (`[history] exclude`). Excluded
+folders are not recorded at all, and existing records are deleted when the
+exclusion is added. Exclusions can be removed again.
 
 Ownership: the store is a library in `tudi-core`, opened in SQLite WAL mode.
 Writers (the GUI, `tudi` shell hook) write visits directly, so frecency works
@@ -697,6 +710,9 @@ before investing. (P1 was split into P1a/P1b by ADR-012.)
 - Bookmarks bar (§5.7), `Alt+1..9`, `Ctrl+D`, reorder, rename, remove,
   overflow menu; `bookmarks.toml`.
 - Frecency store (§5.5) with visits from the GUI; "Frequent ▾" menu.
+- History view (ADR-016): a "Frequent" root in the folder tree listing
+  visited folders by frecency, with open count and last visit; exclusions
+  from the context menu and `[history] exclude`.
 - First-run import from autojump, zoxide, GTK bookmarks (each optional,
   silent if absent); a `--reimport` flag.
 - Mounted volumes as folder-tree roots from `gio::VolumeMonitor`.
@@ -844,6 +860,10 @@ use_fanotify = "auto"     # auto | never
 path = "/mnt/data"
 reconcile_minutes = 1440  # default for rotational devices
 exclude = ["$RECYCLE.BIN", "System Volume Information"]
+
+[history]
+# Folders never recorded or shown in history (globs on absolute paths).
+exclude = []              # e.g. ["/tmp/**", "**/node_modules/**"]
 
 [search]
 max_results = 200

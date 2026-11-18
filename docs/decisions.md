@@ -201,3 +201,20 @@ Short ADR-style records: context / decision / consequences. Newest last.
 - **Consequences.** P2 drops to 10–11 ms. A cold start pays one extra
   `exec` of a small binary (~2 ms). The CLI (`tudi q`, M6) goes into the
   launcher, which keeps it free of GTK as §5.8 requires.
+
+## ADR-016: Folder history counts deliberate opens and supports exclusions
+
+- **Context.** The maintainer wants the number of times each folder was
+  opened by hand recorded, the most used folders first in the history, and
+  some folders never to appear there.
+- **Decision.** Keep the zoxide-style frecency ranking (count weighted by
+  recency, ADR-006) and also store and show the raw open count and last
+  visit. Only deliberate entries count (list activation, tree choice,
+  bookmark, path bar, search result, `tudi PATH`); restores, back/forward,
+  going up, live reloads and keyboard pass-overs in the tree (< 1 s) do
+  not. Exclusions come from the context menu (one folder, or with its
+  subfolders) and from glob rules in `[history] exclude`; an excluded folder
+  is not recorded, and its existing records are deleted.
+- **Consequences.** The store has an exclusion table next to the visits.
+  Database access runs on a dedicated thread in the GUI. A "Frequent" root
+  in the tree shows the history.
