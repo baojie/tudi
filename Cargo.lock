@@ -1757,6 +1757,7 @@ name = "tudi-indexd"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "libc",
  "tracing",
  "tracing-subscriber",
  "tudi-core",

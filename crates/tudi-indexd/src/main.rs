@@ -371,7 +371,35 @@ fn serve(sh: Arc<Shared>, stream: UnixStream, snap: PathBuf) {
     }
 }
 
+/// Run in the background: lower CPU priority (nice 10) and idle I/O
+/// scheduling. Linux applies both per thread and new threads inherit them,
+/// so this runs before any thread is started.
+fn lower_priority() {
+    // SAFETY: setpriority only changes this process's scheduling priority;
+    // the arguments are plain integers.
+    let r = unsafe { libc::setpriority(libc::PRIO_PROCESS, 0, 10) };
+    if r != 0 {
+        tracing::debug!("setpriority failed");
+    }
+    const IOPRIO_WHO_PROCESS: libc::c_long = 1;
+    const IOPRIO_CLASS_IDLE: libc::c_long = 3;
+    const IOPRIO_CLASS_SHIFT: libc::c_long = 13;
+    // SAFETY: ioprio_set(2) takes integers only and affects this process.
+    let r = unsafe {
+        libc::syscall(
+            libc::SYS_ioprio_set,
+            IOPRIO_WHO_PROCESS,
+            0 as libc::c_long,
+            IOPRIO_CLASS_IDLE << IOPRIO_CLASS_SHIFT,
+        )
+    };
+    if r != 0 {
+        tracing::debug!("ioprio_set failed");
+    }
+}
+
 fn main() -> anyhow::Result<()> {
+    lower_priority();
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
