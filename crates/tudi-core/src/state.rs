@@ -18,6 +18,8 @@ pub struct WindowState {
     pub maximized: bool,
     pub last_dir: Option<String>,
     pub expanded: Vec<String>,
+    /// Interface zoom in percent.
+    pub zoom: u32,
 }
 
 impl Default for WindowState {
@@ -28,6 +30,7 @@ impl Default for WindowState {
             maximized: false,
             last_dir: None,
             expanded: Vec::new(),
+            zoom: 100,
         }
     }
 }

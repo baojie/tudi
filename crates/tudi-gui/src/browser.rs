@@ -59,6 +59,7 @@ pub struct Browser {
     hist_toggle: gtk::ToggleButton,
     hist_state: crate::history::ViewStateRc,
     in_history: Cell<bool>,
+    zoom_toast: RefCell<Option<adw::Toast>>,
     pub(crate) config: Config,
     pub(crate) toasts: adw::ToastOverlay,
     pub(crate) typeahead: crate::actions::TypeAheadState,
@@ -191,6 +192,7 @@ impl Browser {
             .default_height(state.height)
             .maximized(state.maximized)
             .build();
+        window.add_css_class("tudi-window");
 
         let b = Rc::new_cyclic(|weak: &std::rc::Weak<Browser>| {
             let w = weak.clone();
@@ -218,6 +220,7 @@ impl Browser {
                 hist_toggle: gtk::ToggleButton::with_label(&tr("Excluded folders")),
                 hist_state: Rc::default(),
                 in_history: Cell::new(false),
+                zoom_toast: RefCell::default(),
                 config,
                 toasts: adw::ToastOverlay::new(),
                 typeahead: Rc::default(),
@@ -454,6 +457,15 @@ impl Browser {
         add("<Control>l", Box::new(|b| b.focus_path()));
         add("<Control>h", Box::new(|b| b.toggle_hidden()));
         add("F6", Box::new(|b| b.switch_pane_focus()));
+        for accel in ["<Control>equal", "<Control>plus", "<Control>KP_Add"] {
+            add(accel, Box::new(|b| b.show_zoom(crate::zoom::zoom_in())));
+        }
+        for accel in ["<Control>minus", "<Control>KP_Subtract"] {
+            add(accel, Box::new(|b| b.show_zoom(crate::zoom::zoom_out())));
+        }
+        for accel in ["<Control>0", "<Control>KP_0"] {
+            add(accel, Box::new(|b| b.show_zoom(crate::zoom::reset())));
+        }
         add("<Control><Alt>t", Box::new(|b| b.open_terminal()));
         add("<Control>e", Box::new(|b| b.open_editor()));
         add("<Control><Shift>n", Box::new(|b| b.new_folder()));
@@ -832,9 +844,21 @@ impl Browser {
         d.generation == self.generation.get() && d.listing.is_some()
     }
 
+    pub(crate) fn show_zoom(&self, level: u32) {
+        // Replace the previous zoom toast instead of stacking them.
+        if let Some(t) = self.zoom_toast.take() {
+            t.dismiss();
+        }
+        let t = adw::Toast::new(&fill(&tr("Zoom {}%"), &[&level]));
+        t.set_timeout(1);
+        self.toasts.add_toast(t.clone());
+        self.zoom_toast.replace(Some(t));
+    }
+
     /// Window state to remember: size, current folder, expanded folders.
     pub fn snapshot_state(&self) -> WindowState {
         let mut st = WindowState {
+            zoom: crate::zoom::level(),
             width: self.window.default_width(),
             height: self.window.default_height(),
             maximized: self.window.is_maximized(),

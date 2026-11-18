@@ -21,6 +21,7 @@ mod i18n;
 mod pane;
 mod sidebar;
 mod worker;
+mod zoom;
 
 use std::cell::RefCell;
 use std::path::PathBuf;
@@ -36,8 +37,8 @@ use browser::Browser;
 const APP_ID: &str = "io.github.baojie.tudi";
 
 const CSS: &str = "
-.tudi-column-header { padding: 0 12px 0 6px; }
-.tudi-column-header button { padding: 2px 6px; min-height: 0; font-weight: normal; }
+.tudi-column-header { padding: 0 12px; }
+.tudi-column-header button { padding: 2px 0; min-height: 0; font-weight: normal; }
 .tudi-details row { padding: 3px 12px; }
 .tudi-status { padding: 3px 12px; font-size: smaller; }
 .tudi-expander { opacity: 0.7; }
@@ -90,6 +91,9 @@ impl App {
             .borrow_mut()
             .get_or_insert_with(|| history::History::start(config.history.exclude.clone()))
             .clone();
+        if self.browsers.borrow().is_empty() {
+            zoom::set(state.zoom);
+        }
         let b = Browser::new(app, &start, config, &state, hist);
         let first = self.browsers.borrow().is_empty();
         self.browsers.borrow_mut().push(b.clone());

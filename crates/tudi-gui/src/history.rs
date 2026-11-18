@@ -273,7 +273,7 @@ pub fn build_view(
         });
         row.add_controller(click);
         let icon = gtk::Image::from_icon_name("folder-symbolic");
-        icon.set_pixel_size(16);
+        icon.add_css_class("tudi-icon");
         let name = label(0.0, false);
         let parent = label(0.0, true);
         parent.set_hexpand(true);

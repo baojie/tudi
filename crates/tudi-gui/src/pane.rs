@@ -291,7 +291,7 @@ fn fixed_label(chars: i32) -> gtk::Label {
 fn row_widget() -> gtk::Box {
     let row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
     let icon = gtk::Image::new();
-    icon.set_pixel_size(16);
+    icon.add_css_class("tudi-icon");
     let name = gtk::Label::new(None);
     name.set_xalign(0.0);
     name.set_hexpand(true);
@@ -443,19 +443,22 @@ pub fn build_view(
 pub fn build_header() -> (gtk::Box, [gtk::Button; 3]) {
     let header = gtk::Box::new(gtk::Orientation::Horizontal, 8);
     header.add_css_class("tudi-column-header");
-    let mk = |label: &str, xalign: f32| {
+    // Widths in characters, like the row labels, so the columns stay
+    // aligned at any zoom level.
+    let mk = |label: &str, xalign: f32, chars: i32| {
         let l = gtk::Label::new(Some(label));
         l.set_xalign(xalign);
+        if chars > 0 {
+            l.set_width_chars(chars);
+        }
         let b = gtk::Button::builder().child(&l).build();
         b.add_css_class("flat");
         b
     };
-    let name = mk(&tr("Name"), 0.0);
+    let name = mk(&tr("Name"), 0.0, 0);
     name.set_hexpand(true);
-    let size = mk(&tr("Size"), 1.0);
-    size.set_width_request(COL_SIZE_CHARS * 9 + 12);
-    let date = mk(&tr("Modified"), 1.0);
-    date.set_width_request(COL_DATE_CHARS * 9 + 12);
+    let size = mk(&tr("Size"), 1.0, COL_SIZE_CHARS);
+    let date = mk(&tr("Modified"), 1.0, COL_DATE_CHARS);
     header.append(&name);
     header.append(&size);
     header.append(&date);

@@ -172,10 +172,10 @@ struct Parts {
 fn row_widget() -> gtk::Box {
     let b = gtk::Box::new(gtk::Orientation::Horizontal, 4);
     let expander = gtk::Image::new();
-    expander.set_pixel_size(16);
+    expander.add_css_class("tudi-icon");
     expander.add_css_class("tudi-expander");
     let icon = gtk::Image::new();
-    icon.set_pixel_size(16);
+    icon.add_css_class("tudi-icon");
     let label = gtk::Label::new(None);
     label.set_xalign(0.0);
     label.set_hexpand(true);

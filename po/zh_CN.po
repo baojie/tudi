@@ -42,68 +42,72 @@ msgstr "无法创建文件夹：{}"
 msgid "Cancel"
 msgstr "取消"
 
-#: crates/tudi-gui/src/browser.rs:168
+#: crates/tudi-gui/src/browser.rs:169
 msgid "Back (Alt+Left)"
 msgstr "后退 (Alt+←)"
 
-#: crates/tudi-gui/src/browser.rs:170
+#: crates/tudi-gui/src/browser.rs:171
 msgid "Forward (Alt+Right)"
 msgstr "前进 (Alt+→)"
 
-#: crates/tudi-gui/src/browser.rs:172
+#: crates/tudi-gui/src/browser.rs:173
 msgid "Parent folder (Alt+Up)"
 msgstr "上一级 (Alt+↑)"
 
-#: crates/tudi-gui/src/browser.rs:218
+#: crates/tudi-gui/src/browser.rs:220
 msgid "Excluded folders"
 msgstr "已排除的文件夹"
 
-#: crates/tudi-gui/src/browser.rs:269
+#: crates/tudi-gui/src/browser.rs:272
 msgid "Most used folders"
 msgstr "最常用的文件夹"
 
-#: crates/tudi-gui/src/browser.rs:321 crates/tudi-gui/src/browser.rs:883
-#: crates/tudi-gui/src/browser.rs:885
+#: crates/tudi-gui/src/browser.rs:324 crates/tudi-gui/src/browser.rs:907
+#: crates/tudi-gui/src/browser.rs:909
 msgid "Frequent"
 msgstr "常用"
 
-#: crates/tudi-gui/src/browser.rs:323
+#: crates/tudi-gui/src/browser.rs:326
 msgid "Home"
 msgstr "主目录"
 
-#: crates/tudi-gui/src/browser.rs:325
+#: crates/tudi-gui/src/browser.rs:328
 msgid "File System"
 msgstr "文件系统"
 
-#: crates/tudi-gui/src/browser.rs:1018
+#: crates/tudi-gui/src/browser.rs:852
+msgid "Zoom {}%"
+msgstr "缩放 {}%"
+
+#: crates/tudi-gui/src/browser.rs:1042
 msgid "Allow in history again"
 msgstr "重新允许出现在历史中"
 
-#: crates/tudi-gui/src/browser.rs:1020
+#: crates/tudi-gui/src/browser.rs:1044
 msgid "Never show in history"
 msgstr "永不在历史中显示"
 
-#: crates/tudi-gui/src/browser.rs:1022
+#: crates/tudi-gui/src/browser.rs:1046
 msgid "Never show, including subfolders"
 msgstr "连同子文件夹永不显示"
 
-#: crates/tudi-gui/src/browser.rs:1025
+#: crates/tudi-gui/src/browser.rs:1049
 msgid "Remove from history"
 msgstr "从历史中移除"
 
-#: crates/tudi-gui/src/browser.rs:1073 crates/tudi-gui/src/pane.rs:453
+#: crates/tudi-gui/src/browser.rs:1097 crates/tudi-gui/src/pane.rs:458
 msgid "Name"
 msgstr "名称"
 
-#: crates/tudi-gui/src/browser.rs:1073 crates/tudi-gui/src/pane.rs:455
+#: crates/tudi-gui/src/browser.rs:1097 crates/tudi-gui/src/pane.rs:460
 msgid "Size"
 msgstr "大小"
 
-#: crates/tudi-gui/src/browser.rs:1073 crates/tudi-gui/src/pane.rs:457
+#: crates/tudi-gui/src/browser.rs:1097 crates/tudi-gui/src/pane.rs:461
 msgid "Modified"
 msgstr "修改时间"
 
-#: crates/tudi-gui/src/browser.rs:1147
+#: crates/tudi-gui/src/browser.rs:1171
 msgid "{} selected"
 msgstr "已选 {} 项"
 
@@ -119,15 +123,15 @@ msgstr "含子文件夹"
 msgid "this folder only"
 msgstr "仅此文件夹"
 
-#: crates/tudi-gui/src/main.rs:214
+#: crates/tudi-gui/src/main.rs:218
 msgid "Open a new window"
 msgstr "打开新窗口"
 
-#: crates/tudi-gui/src/main.rs:218
+#: crates/tudi-gui/src/main.rs:222
 msgid "Start the resident instance without a window"
 msgstr "在后台启动常驻实例，不打开窗口"
 
-#: crates/tudi-gui/src/main.rs:220
+#: crates/tudi-gui/src/main.rs:224
 msgid "Quit the resident instance"
 msgstr "退出常驻实例"
 
@@ -146,17 +150,17 @@ msgid "Moved {} item to the trash"
 msgid_plural "Moved {} items to the trash"
 msgstr[0] "已将 {} 项移到回收站"
 
-#: crates/tudi-gui/src/browser.rs:912
+#: crates/tudi-gui/src/browser.rs:936
 msgid "{} excluded folder"
 msgid_plural "{} excluded folders"
 msgstr[0] "{} 个已排除的文件夹"
 
-#: crates/tudi-gui/src/browser.rs:914
+#: crates/tudi-gui/src/browser.rs:938
 msgid "{} folder"
 msgid_plural "{} folders"
 msgstr[0] "{} 个文件夹"
 
-#: crates/tudi-gui/src/browser.rs:1143
+#: crates/tudi-gui/src/browser.rs:1167
 msgid "{} item"
 msgid_plural "{} items"
 msgstr[0] "{} 项"
