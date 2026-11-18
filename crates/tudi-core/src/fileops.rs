@@ -175,13 +175,25 @@ mod tests {
         let d = transfer(&src, &dest_dir, Mode::Copy).unwrap();
         assert_eq!(d, dest_dir.join("src"));
         assert_eq!(fs::read_to_string(d.join("sub/f.txt")).unwrap(), "hello");
-        assert_eq!(fs::read_link(d.join("link")).unwrap(), Path::new("sub/f.txt"));
-        assert_eq!(fs::read_link(d.join("dangling")).unwrap(), Path::new("/nonexistent"));
-        let mode = fs::metadata(d.join("sub/f.txt")).unwrap().permissions().mode();
+        assert_eq!(
+            fs::read_link(d.join("link")).unwrap(),
+            Path::new("sub/f.txt")
+        );
+        assert_eq!(
+            fs::read_link(d.join("dangling")).unwrap(),
+            Path::new("/nonexistent")
+        );
+        let mode = fs::metadata(d.join("sub/f.txt"))
+            .unwrap()
+            .permissions()
+            .mode();
         assert_eq!(mode & 0o777, 0o750);
         assert!(src.exists(), "copy keeps the source");
         // Pasting again gets a new name.
-        assert_eq!(transfer(&src, &dest_dir, Mode::Copy).unwrap(), dest_dir.join("src (2)"));
+        assert_eq!(
+            transfer(&src, &dest_dir, Mode::Copy).unwrap(),
+            dest_dir.join("src (2)")
+        );
     }
 
     #[test]
@@ -191,7 +203,11 @@ mod tests {
         write(&a, "x");
         let out = t.path().join("out");
         fs::create_dir(&out).unwrap();
-        assert_eq!(transfer(&a, t.path(), Mode::Move).unwrap(), a, "same folder");
+        assert_eq!(
+            transfer(&a, t.path(), Mode::Move).unwrap(),
+            a,
+            "same folder"
+        );
         let moved = transfer(&a, &out, Mode::Move).unwrap();
         assert_eq!(moved, out.join("a.txt"));
         assert!(!a.exists());
@@ -208,7 +224,10 @@ mod tests {
             assert_eq!(e.kind(), io::ErrorKind::InvalidInput);
         }
         // Copying a folder next to itself is fine.
-        assert_eq!(transfer(&d, t.path(), Mode::Copy).unwrap(), t.path().join("d (2)"));
+        assert_eq!(
+            transfer(&d, t.path(), Mode::Copy).unwrap(),
+            t.path().join("d (2)")
+        );
     }
 
     #[test]
