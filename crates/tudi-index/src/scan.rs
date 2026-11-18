@@ -230,6 +230,37 @@ pub fn reconcile(
     excludes: &Excludes,
     cancel: &AtomicBool,
 ) -> Option<ReconcileStats> {
+    reconcile_where(ix, excludes, cancel, None)
+}
+
+/// Reconcile one root. With `full`, every folder below it is listed again
+/// (for filesystems whose folder mtimes cannot be trusted).
+pub fn reconcile_root(
+    ix: &mut Index,
+    root: u32,
+    excludes: &Excludes,
+    cancel: &AtomicBool,
+    full: bool,
+) -> Option<ReconcileStats> {
+    if full {
+        let path = ix.path(root);
+        let (before, dead) = (ix.len(), ix.tombstones());
+        let s = scan_below(ix, root, mount_id(&path), excludes, cancel, |_| {})?;
+        return Some(ReconcileStats {
+            dirs_checked: s.dirs,
+            dirs_changed: s.dirs,
+            changed: ix.len() != before || ix.tombstones() != dead,
+        });
+    }
+    reconcile_where(ix, excludes, cancel, Some(root))
+}
+
+fn reconcile_where(
+    ix: &mut Index,
+    excludes: &Excludes,
+    cancel: &AtomicBool,
+    only_root: Option<u32>,
+) -> Option<ReconcileStats> {
     use crate::{NONE, pack_mtime};
     let mut stats = ReconcileStats::default();
     // Mount id per root.
@@ -244,7 +275,10 @@ pub fn reconcile(
     let dirs: Vec<(u32, PathBuf)> = (0..ix.nodes.len() as u32)
         .filter(|&i| {
             let n = &ix.nodes[i as usize];
-            n.is_dir() && !n.is_dead() && n.flags & flags::EXCLUDED == 0
+            n.is_dir()
+                && !n.is_dead()
+                && n.flags & flags::EXCLUDED == 0
+                && only_root.is_none_or(|r| root_of(ix, i) == r)
         })
         .map(|i| (i, ix.path(i)))
         .collect();
@@ -399,6 +433,28 @@ mod tests {
         assert!(s.changed && s.dirs_changed >= 1);
         assert!(ix.find(&r.join("a/b/old.txt")).is_none());
         assert!(ix.find(&r.join("a/b/new/deep/x.md")).is_some());
+    }
+
+    #[test]
+    fn reconcile_root_touches_only_its_root() {
+        let t = tempfile::tempdir().unwrap();
+        let (a, b) = (t.path().join("a"), t.path().join("b"));
+        fs::create_dir_all(&a).unwrap();
+        fs::create_dir_all(&b).unwrap();
+        let none = AtomicBool::new(false);
+        let ex = Excludes::defaults();
+        let mut ix = build(&[a.clone(), b.clone()], &ex, &none, |_| {}).unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(1100));
+        fs::write(a.join("new-a"), "").unwrap();
+        fs::write(b.join("new-b"), "").unwrap();
+        let rb = ix.roots[1].1;
+        reconcile_root(&mut ix, rb, &ex, &none, false).unwrap();
+        assert!(ix.find(&b.join("new-b")).is_some());
+        assert!(ix.find(&a.join("new-a")).is_none(), "root a untouched");
+        // A full pass finds changes without relying on mtimes.
+        let ra = ix.roots[0].1;
+        reconcile_root(&mut ix, ra, &ex, &none, true).unwrap();
+        assert!(ix.find(&a.join("new-a")).is_some());
     }
 
     #[test]

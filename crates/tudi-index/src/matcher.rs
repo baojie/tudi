@@ -330,6 +330,8 @@ pub struct Context<'a> {
     pub show_hidden: bool,
     /// Only folders.
     pub dirs_only: bool,
+    /// Roots whose entries are hidden (unmounted volumes).
+    pub offline_roots: &'a [u32],
 }
 
 /// Case-insensitive "starts with" without allocating.
@@ -492,7 +494,9 @@ pub fn search(
                 .unwrap_or(0.0);
             let mut decay = 1.0f32;
             let mut p = node.parent;
+            let mut root = i as u32;
             while p != NONE {
+                root = p;
                 let pm = masks[p as usize];
                 if pm != 0 {
                     cum |= pm;
@@ -505,7 +509,7 @@ pub fn search(
                 depth += 1;
                 p = ix.nodes[p as usize].parent;
             }
-            if cum != all {
+            if cum != all || ctx.offline_roots.contains(&root) {
                 return None;
             }
             let mut score = scores[i] + anc * w.ancestor - depth as f32 * w.depth;
@@ -635,6 +639,33 @@ mod tests {
         assert_eq!(r[0], "/r/b/invocie-old.pdf");
         // Path fragments.
         assert_eq!(top(&ix, "tudi plan")[0], "/r/tudi/plan");
+    }
+
+    #[test]
+    fn offline_roots_are_hidden() {
+        let mut ix = build(&["a/report.pdf"]);
+        let card = ix.add_root(Path::new("/media/card"), 0);
+        ix.push(
+            card,
+            &Entry {
+                name: b"report-card.pdf".to_vec(),
+                kind: Kind::File,
+                size: 1,
+                mtime: 0,
+            },
+            0,
+        );
+        let sd = SearchData::build(&ix);
+        let w = Weights::default();
+        let all = search(&ix, &sd, "report", 10, &w, &Context::default());
+        assert_eq!(all.len(), 2);
+        let ctx = Context {
+            offline_roots: &[card],
+            ..Default::default()
+        };
+        let online = search(&ix, &sd, "report", 10, &w, &ctx);
+        assert_eq!(online.len(), 1);
+        assert_eq!(ix.path(online[0].node), Path::new("/r/a/report.pdf"));
     }
 
     #[test]

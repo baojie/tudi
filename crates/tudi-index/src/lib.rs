@@ -13,6 +13,7 @@
 //! This crate does no GTK; scanning lives in [`scan`], snapshots in
 //! [`snapshot`].
 
+pub mod fsinfo;
 pub mod matcher;
 pub mod scan;
 pub mod snapshot;
