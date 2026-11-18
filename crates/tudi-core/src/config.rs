@@ -30,6 +30,15 @@ terminal = ["kitty", "--directory", "{dir}"]
 terminal_exec = ["kitty", "--directory", "{dir}", "--hold", "{cmd}"]
 editor = ["zed", "{path}"]
 
+[index]
+# Folders the search index covers ("~" is your home folder).
+roots = ["~"]
+# Folders indexed themselves but not their contents. A pattern starting
+# with "/" is an absolute glob; otherwise it matches anywhere.
+exclude = [".cache", ".local/share/Trash", "node_modules", "target", "__pycache__", ".venv", ".git/objects", "snap", ".npm", ".cargo/registry"]
+# Minutes between checks for changes in folders that are not watched.
+reconcile_minutes = 10
+
 [history]
 # Folders never recorded or shown in the history, as globs on absolute
 # paths, e.g. ["/tmp/**", "**/node_modules/**"]. Single folders can also be
@@ -101,6 +110,58 @@ pub struct Ui {
     pub language: Language,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct IndexConfig {
+    pub roots: Vec<String>,
+    pub exclude: Vec<String>,
+    pub reconcile_minutes: u32,
+}
+
+impl Default for IndexConfig {
+    fn default() -> Self {
+        Self {
+            roots: vec!["~".into()],
+            exclude: [
+                ".cache",
+                ".local/share/Trash",
+                "node_modules",
+                "target",
+                "__pycache__",
+                ".venv",
+                ".git/objects",
+                "snap",
+                ".npm",
+                ".cargo/registry",
+            ]
+            .map(String::from)
+            .to_vec(),
+            reconcile_minutes: 10,
+        }
+    }
+}
+
+impl IndexConfig {
+    /// Root folders with `~` expanded.
+    pub fn root_paths(&self) -> Vec<PathBuf> {
+        let home = std::env::var_os("HOME")
+            .map(PathBuf::from)
+            .unwrap_or_default();
+        self.roots
+            .iter()
+            .map(|r| {
+                if r == "~" {
+                    home.clone()
+                } else if let Some(rest) = r.strip_prefix("~/") {
+                    home.join(rest)
+                } else {
+                    PathBuf::from(r)
+                }
+            })
+            .collect()
+    }
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct History {
@@ -113,6 +174,7 @@ pub struct Config {
     pub ui: Ui,
     pub browse: Browse,
     pub commands: Commands,
+    pub index: IndexConfig,
     pub history: History,
 }
 
