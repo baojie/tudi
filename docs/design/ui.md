@@ -29,8 +29,14 @@ Code: `crates/tudi-gui/src/`. Plan: `docs/PLAN.md` §5.3, §5.7.
 
 ## Details list
 
-- Rows are entry indices in display order (`order`), with the inverse
-  (`pos_of`) for selection restore. Both are computed on a worker.
+- The display order (`order`: entry indices) and its inverse (`pos_of`)
+  are computed on a worker.
+- Model items are *positions*: item i means "row i", whose entry is
+  `order[i]` at bind time. A new order (sort, hidden toggle, other folder)
+  reports only a changed row count, as a tail change, and refills the bound
+  row widgets in place. Replacing all items would make GTK destroy and
+  recreate its ~200 cached row widgets. Selection is always restored (or
+  cleared) explicitly after a new order.
 - Metadata arrives after the rows are shown. Bound row widgets are tracked
   per entry; a batch refills only those widgets, so no `items-changed` is
   emitted and the selection is untouched.

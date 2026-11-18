@@ -94,3 +94,23 @@ load (≥ 18) was discarded.
 Listing is dominated by kernel time in `getdents64`. Natural sorting uses
 precomputed byte keys compared by an 8-byte prefix (`docs/design/listing.md`);
 before that change the 100k name rank took ~62 ms.
+
+### M3 — two-pane browser (2026-11-18, in progress)
+
+Release build, `TUDI_BENCH` scenarios (`crates/tudi-gui/src/bench.rs`).
+P1b and P2 on the desktop session (cold start needs no focused window);
+P1a, P3, P4 in a headless gnome-shell (`scripts/headless.sh`).
+
+| Budget | Measured | Status |
+|---|---|---|
+| P1a window from the resident instance < 150 ms | 22–32 ms (3 runs) | ✅ |
+| P1b cold start < 400 ms | 340–375 ms in process (5 runs) | ✅ |
+| P2 second launch < 50 ms | 10–11 ms with the GIO-only launcher (was 45–53 ms) | ✅ |
+| P3 open 10k-entry folder < 50 ms | median 43 ms, max 77 ms (10 runs) | ✅ median |
+| P4 open 100k-entry folder < 250 ms | median 142 ms, max 207 ms (10 runs) | ✅ |
+| P5, P6 in tudi itself | not yet measured | open |
+| No main-thread stall > 16 ms (scripted session) | not met yet: stalls on large re-sorts and jumps; runs so far were under unrelated load (≥ 9) | open |
+
+The scripted session found that replacing all items made GTK recreate its
+~200 cached row widgets on every re-sort; items are now positions and the
+widgets are reused (`docs/design/ui.md`).
