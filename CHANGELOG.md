@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Bookmarks bar under the header: your bookmarks (`Ctrl+D`, `Alt+1..9`,
+  drag to reorder), then your most used folders; a "»" menu lists all.
+  Replaces the "Frequent" tree root.
+- Settings dialog (gear button, `Ctrl+,`); changes are saved to
+  `config.toml` keeping your comments.
+- tudi can be the default folder handler (`inode/directory`, file:// URIs).
 - Fix: the "Frequent" tree root showed an expander and a folder icon.
 - Fix: files of unknown type showed a missing-image icon with some icon
   themes; executables without an extension get an executable icon.

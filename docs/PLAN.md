@@ -710,9 +710,12 @@ before investing. (P1 was split into P1a/P1b by ADR-012.)
 - Bookmarks bar (§5.7), `Alt+1..9`, `Ctrl+D`, reorder, rename, remove,
   overflow menu; `bookmarks.toml`.
 - Frecency store (§5.5) with visits from the GUI; "Frequent ▾" menu.
-- History view (ADR-016): a "Frequent" root in the folder tree listing
-  visited folders by frecency, with open count and last visit; exclusions
-  from the context menu and `[history] exclude`.
+- Most used folders (ADR-016) on the bookmarks bar after the bookmarks,
+  with open count and last visit in tooltips; exclusions from the context
+  menu, the settings dialog and `[history] exclude`. (A tree root was tried
+  first and replaced by the bar at the maintainer's request.)
+- Settings dialog (gear button): all `config.toml` options of M3/M4, saved
+  without losing the user's comments.
 - First-run import from autojump, zoxide, GTK bookmarks (each optional,
   silent if absent); a `--reimport` flag.
 - Mounted volumes as folder-tree roots from `gio::VolumeMonitor`.

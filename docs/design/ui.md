@@ -89,16 +89,29 @@ double-click, type-ahead, `Ctrl+C`, `Ctrl+Shift+C`, `Ctrl+Alt+T`, `Ctrl+E`,
 `F2`, `Delete`, `Ctrl+Shift+N`. List-only keys (`Ctrl+C`, `Delete`, `F2`)
 are bound on the list so they do not take keys from the path bar.
 
-## Folder history (ADR-016)
+## Bookmarks bar and folder history (ADR-016)
 
+- `bar.rs`: a bar under the header, like a browser's bookmarks bar: the
+  user's bookmarks (`bookmarks.toml`, `Ctrl+D`, `Alt+1..9`, right-click to
+  rename / move / remove, drag to reorder), a separator, then up to 12 most
+  used folders by frecency (tooltip: path, open count, last visit;
+  right-click: pin as bookmark, never show — folder or with subfolders —,
+  remove from history). The buttons are clipped, not wrapped; a "»" menu
+  lists all bookmarks and the 30 most used folders.
 - `history.rs`: one `tudi-history` thread per process owns the frecency
-  database (`tudi_core::frecency`); windows send visits and changes, and
-  receive snapshots (top 300 folders plus exclusions) as `Reply::History`.
-- Counted visits: list activation of a folder, the path bar, a history
-  row, `tudi PATH`, and tree selections still shown after 1 s. Not counted:
+  database; windows send visits and changes and receive snapshots (top 30
+  plus exclusions) as `Reply::History`.
+- Counted visits: list activation of a folder, the path bar, a bar button,
+  `tudi PATH`, and tree selections still shown after 1 s. Not counted:
   back/forward, up, startup restore, live reloads.
-- The "Frequent" special root in the tree switches the right pane (a
-  `GtkStack`) to the history list: name, parent path, open count, last
-  visit. Right-click: never show (folder / with subfolders), remove from
-  history; the "Excluded folders" toggle lists exclusions, where they can be
-  allowed again.
+- `shared.rs`: config, bookmarks and the history handle are shared by all
+  windows; bookmark and history changes refresh every window's bar.
+
+## Settings
+
+`settings.rs`: the gear button (`Ctrl+,`) opens an `AdwPreferencesDialog`:
+General (language, zoom, hidden files, folders first, sort), Commands
+(terminal, editor), History (exclude patterns, excluded folders with
+"Allow", clear history). Changes apply to all windows immediately and are
+written to `config.toml` with `Config::save_preserving`, which keeps the
+user's comments (`toml_edit`). The language takes effect after a restart.
