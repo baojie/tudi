@@ -3,7 +3,14 @@
 //!
 //! Metadata arrives in batches after the rows are shown. Instead of
 //! `items-changed` (which would drop the selection), the model tracks which
-//! row widget is bound to which entry and refills those widgets directly.
+//! row widget is bound to which position and refills those widgets directly.
+//!
+//! Items are *positions*, not entries: a row object stands for "row i", and
+//! the entry shown there is `order[i]`, looked up at bind time. A new order
+//! (sorting, hidden files, another folder) therefore changes no items except
+//! a tail when the row count changes; the bound widgets are refilled in
+//! place. Replacing all items instead would make GTK destroy and recreate
+//! its ~200 cached row widgets (measured: ~205 `setup` calls per re-sort).
 
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
@@ -27,7 +34,7 @@ mod row_imp {
 
     #[derive(Default)]
     pub struct PaneRow {
-        pub entry: Cell<u32>,
+        pub position: Cell<u32>,
     }
 
     #[glib::object_subclass]
@@ -40,19 +47,19 @@ mod row_imp {
 }
 
 glib::wrapper! {
-    /// One row of the details list: just an entry index.
+    /// One row of the details list: just its position.
     pub struct PaneRow(ObjectSubclass<row_imp::PaneRow>);
 }
 
 impl PaneRow {
-    fn new(entry: u32) -> Self {
+    fn new(position: u32) -> Self {
         let obj: Self = glib::Object::new();
-        obj.imp().entry.set(entry);
+        obj.imp().position.set(position);
         obj
     }
 
-    pub fn entry(&self) -> u32 {
-        self.imp().entry.get()
+    pub fn position(&self) -> u32 {
+        self.imp().position.get()
     }
 }
 
@@ -95,7 +102,7 @@ mod model_imp {
     pub struct PaneModel {
         pub data: RefCell<PaneData>,
         pub live: RefCell<HashMap<u32, glib::WeakRef<PaneRow>>>,
-        /// Row widgets currently bound, by entry.
+        /// Row widgets currently bound, by position.
         pub bound: RefCell<HashMap<u32, glib::WeakRef<gtk::Box>>>,
     }
 
@@ -118,9 +125,11 @@ mod model_imp {
         }
 
         fn item(&self, position: u32) -> Option<glib::Object> {
-            let entry = *self.data.borrow().order.get(position as usize)?;
+            if position as usize >= self.data.borrow().order.len() {
+                return None;
+            }
             let mut live = self.live.borrow_mut();
-            if let Some(obj) = live.get(&entry).and_then(|w| w.upgrade()) {
+            if let Some(obj) = live.get(&position).and_then(|w| w.upgrade()) {
                 return Some(obj.upcast());
             }
             // GTK holds only visible items plus a margin; prune dead weak
@@ -128,8 +137,8 @@ mod model_imp {
             if live.len() > 2048 {
                 live.retain(|_, w| w.upgrade().is_some());
             }
-            let obj = PaneRow::new(entry);
-            live.insert(entry, obj.downgrade());
+            let obj = PaneRow::new(position);
+            live.insert(position, obj.downgrade());
             Some(obj.upcast())
         }
     }
@@ -173,9 +182,7 @@ impl PaneModel {
             d.meta_complete = false;
             d.resort_pending = false;
         }
-        self.imp().live.borrow_mut().clear();
-        self.imp().bound.borrow_mut().clear();
-        self.items_changed(0, removed, self.n_items());
+        self.reshape(removed);
     }
 
     /// Show nothing (e.g. the directory could not be listed).
@@ -185,9 +192,7 @@ impl PaneModel {
             generation,
             ..Default::default()
         };
-        self.imp().live.borrow_mut().clear();
-        self.imp().bound.borrow_mut().clear();
-        self.items_changed(0, removed, 0);
+        self.reshape(removed);
     }
 
     /// Replace the order (same listing). Returns false if stale.
@@ -203,10 +208,29 @@ impl PaneModel {
             d.spec = spec;
             d.resort_pending = false;
         }
-        self.imp().live.borrow_mut().clear();
-        self.imp().bound.borrow_mut().clear();
-        self.items_changed(0, removed, self.n_items());
+        self.reshape(removed);
         true
+    }
+
+    /// The rows now show a new order. Only a changed row count is reported
+    /// to GTK (as a change at the tail); bound widgets are refilled.
+    fn reshape(&self, old_len: u32) {
+        let new_len = self.n_items();
+        let common = old_len.min(new_len);
+        if old_len != new_len {
+            self.items_changed(common, old_len - common, new_len - common);
+        }
+        let rows: Vec<(u32, gtk::Box)> = self
+            .imp()
+            .bound
+            .borrow()
+            .iter()
+            .filter(|&(&pos, _)| pos < common)
+            .filter_map(|(&pos, w)| Some((pos, w.upgrade()?)))
+            .collect();
+        for (pos, row) in rows {
+            fill(&row, self, pos);
+        }
     }
 
     /// Apply a metadata batch and refresh bound rows it touches. Returns
@@ -231,14 +255,18 @@ impl PaneModel {
         };
         let rows: Vec<(u32, gtk::Box)> = {
             let bound = self.imp().bound.borrow();
+            let d = self.data();
             batch
                 .items
                 .iter()
-                .filter_map(|&(e, _)| Some((e, bound.get(&e)?.upgrade()?)))
+                .filter_map(|&(e, _)| {
+                    let pos = *d.pos_of.get(e as usize)?;
+                    Some((pos, bound.get(&pos)?.upgrade()?))
+                })
                 .collect()
         };
-        for (entry, row) in rows {
-            fill(&row, self, entry);
+        for (pos, row) in rows {
+            fill(&row, self, pos);
         }
         resort
     }
@@ -314,11 +342,11 @@ fn now() -> glib::DateTime {
     })
 }
 
-fn fill(row: &gtk::Box, model: &PaneModel, entry: u32) {
+fn fill(row: &gtk::Box, model: &PaneModel, position: u32) {
     let d = model.data();
-    if d.listing.is_none() {
+    let Some(&entry) = d.order.get(position as usize) else {
         return;
-    }
+    };
     let p = parts(row);
     let name = d.name(entry);
     let dir = d.is_dir(entry);
@@ -359,17 +387,34 @@ pub fn build_view(
     factory.connect_setup(|_, item| {
         let item = item.downcast_ref::<gtk::ListItem>().unwrap();
         item.set_child(Some(&row_widget()));
+        crate::bench::ROW_WORK.with(|r| {
+            let mut w = r.get();
+            w.setups += 1;
+            r.set(w);
+        });
     });
     let (m, w) = (model.clone(), wanted.clone());
     factory.connect_bind(move |_, item| {
         let item = item.downcast_ref::<gtk::ListItem>().unwrap();
         let row = item.child().and_downcast::<gtk::Box>().unwrap();
-        let entry = item.item().and_downcast::<PaneRow>().unwrap().entry();
-        fill(&row, &m, entry);
-        if m.data().metas.get(entry as usize).status == MetaStatus::Pending {
-            w.borrow_mut().push(entry);
+        let pos = item.item().and_downcast::<PaneRow>().unwrap().position();
+        let t0 = std::time::Instant::now();
+        fill(&row, &m, pos);
+        crate::bench::ROW_WORK.with(|r| {
+            let mut w = r.get();
+            w.binds += 1;
+            w.bind_us += t0.elapsed().as_micros() as u64;
+            r.set(w);
+        });
+        {
+            let d = m.data();
+            if let Some(&entry) = d.order.get(pos as usize)
+                && d.metas.get(entry as usize).status == MetaStatus::Pending
+            {
+                w.borrow_mut().push(entry);
+            }
         }
-        m.imp().bound.borrow_mut().insert(entry, row.downgrade());
+        m.imp().bound.borrow_mut().insert(pos, row.downgrade());
     });
     let m = model.clone();
     factory.connect_unbind(move |_, item| {
@@ -379,8 +424,13 @@ pub fn build_view(
         };
         let row = item.child().and_downcast::<gtk::Box>().unwrap();
         let mut bound = m.imp().bound.borrow_mut();
-        if bound.get(&obj.entry()).and_then(|w| w.upgrade()).as_ref() == Some(&row) {
-            bound.remove(&obj.entry());
+        if bound
+            .get(&obj.position())
+            .and_then(|w| w.upgrade())
+            .as_ref()
+            == Some(&row)
+        {
+            bound.remove(&obj.position());
         }
     });
     let view = gtk::ListView::new(Some(selection.clone()), Some(factory));

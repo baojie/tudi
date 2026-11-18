@@ -39,7 +39,16 @@ pub struct FrameStats {
     pub max_ms: f64,
 }
 
+/// Per-frame counters of list row work, reset after each frame.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct RowWork {
+    pub setups: u32,
+    pub binds: u32,
+    pub bind_us: u64,
+}
+
 thread_local! {
+    pub static ROW_WORK: Cell<RowWork> = const { Cell::new(RowWork { setups: 0, binds: 0, bind_us: 0 }) };
     static STATS: Cell<FrameStats> = const { Cell::new(FrameStats { frames: 0, long_frames: 0, max_ms: 0.0 }) };
     static BENCH: RefCell<Option<Bench>> = const { RefCell::new(None) };
 }
@@ -122,13 +131,24 @@ pub fn attach(b: &Rc<Browser>, reopen: Rc<dyn Fn()>) {
 
 fn record_frame(work: Duration) {
     let ms = work.as_secs_f64() * 1000.0;
+    let rw = ROW_WORK.with(|r| r.replace(RowWork::default()));
     STATS.with(|s| {
         let mut st = s.get();
         st.frames += 1;
         st.max_ms = st.max_ms.max(ms);
         if work > LONG_FRAME {
             st.long_frames += 1;
-            tracing::warn!(ms, "long frame on the main thread");
+            let at = START
+                .get()
+                .map_or(0.0, |s| s.elapsed().as_secs_f64() * 1000.0);
+            tracing::warn!(
+                ms,
+                at,
+                setups = rw.setups,
+                binds = rw.binds,
+                bind_ms = rw.bind_us as f64 / 1000.0,
+                "long frame on the main thread"
+            );
         }
         s.set(st);
     });

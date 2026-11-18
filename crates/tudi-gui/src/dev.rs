@@ -7,7 +7,8 @@
 //!   scripted GUI checks. Commands:
 //!   `wait MS`, `nav PATH`, `up`, `back`, `forward`, `select ROW`,
 //!   `type TEXT`, `hidden`, `sort name|size|mtime`, `rename NAME`,
-//!   `mkdir NAME`, `trash`, `expand ROW`, `collapse ROW`, `dump`,
+//!   `mkdir NAME`, `trash`, `expand ROW`, `collapse ROW`, `scroll FRACTION`,
+//!   `dump`,
 //!   `shot FILE`, `quit`.
 
 // Script results go to stdout on purpose: they are read by test tooling.
@@ -53,7 +54,10 @@ fn step(b: Rc<Browser>, queue: Queue, delay: Duration) {
         let Some(cmd) = queue.borrow_mut().next() else {
             return;
         };
-        println!("> {cmd}");
+        let t = crate::bench::START
+            .get()
+            .map_or(0.0, |s| s.elapsed().as_secs_f64() * 1000.0);
+        println!("> [{t:.0}] {cmd}");
         let (verb, arg) = cmd.split_once(' ').unwrap_or((&cmd, ""));
         let mut next = STEP;
         match verb {
@@ -86,6 +90,11 @@ fn step(b: Rc<Browser>, queue: Queue, delay: Duration) {
             "trash" => b.trash_selected(),
             "expand" => b.expand_tree_row(arg.parse().unwrap_or(0)),
             "collapse" => b.collapse_tree_row(arg.parse().unwrap_or(0)),
+            "scroll" => {
+                let f: f64 = arg.parse().unwrap_or(0.0);
+                let adj = b.pane_scroll.vadjustment();
+                adj.set_value(f * (adj.upper() - adj.page_size()));
+            }
             "dump" => dump(&b),
             "shot" => screenshot(&b, Path::new(arg)),
             "quit" => {

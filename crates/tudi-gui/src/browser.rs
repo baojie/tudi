@@ -1060,8 +1060,13 @@ impl Browser {
             }
         } else if !keep.is_empty() {
             self.select_entries(&keep);
-        } else if scroll.is_none() {
-            self.pane_scroll.vadjustment().set_value(0.0);
+        } else {
+            // Items are positions: a selection left from the previous order
+            // would point at other entries.
+            self.pane_sel.unselect_all();
+            if scroll.is_none() {
+                self.pane_scroll.vadjustment().set_value(0.0);
+            }
         }
         if let Some(v) = scroll {
             // Wait for the new rows' layout before restoring the position.
