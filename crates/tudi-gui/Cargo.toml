@@ -53,4 +53,5 @@ assets = [
     ["../../data/icons/hicolor/scalable/apps/io.github.baojie.tudi.svg", "usr/share/icons/hicolor/scalable/apps/", "644"],
     ["../../target/locale-dist/zh_CN/LC_MESSAGES/tudi.mo", "usr/share/locale/zh_CN/LC_MESSAGES/", "644"],
     ["../../README.md", "usr/share/doc/tudi/", "644"],
+    ["../../data/tudi-indexd.service", "usr/lib/systemd/user/", "644"],
 ]

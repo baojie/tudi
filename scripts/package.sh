@@ -30,6 +30,7 @@ install -Dm644 data/io.github.baojie.tudi.desktop "$STAGE/share/applications/io.
 install -Dm644 data/icons/hicolor/scalable/apps/io.github.baojie.tudi.svg \
     "$STAGE/share/icons/hicolor/scalable/apps/io.github.baojie.tudi.svg"
 cp -r target/locale-dist "$STAGE/share/locale"
+install -Dm644 data/tudi-indexd.service "$STAGE/share/systemd/user/tudi-indexd.service"
 cp README.md LICENSE-MIT LICENSE-APACHE "$STAGE/"
 tar -C target -czf "dist/tudi-$VERSION-x86_64-linux.tar.gz" "tudi-$VERSION-x86_64-linux"
 (cd dist && sha256sum ./*.deb ./*.tar.gz > SHA256SUMS)

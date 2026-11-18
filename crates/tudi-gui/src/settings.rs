@@ -95,6 +95,43 @@ impl Settings {
         browse.add(&dirs_first);
         browse.add(&sort);
         general.add(&browse);
+        let index_group = adw::PreferencesGroup::builder()
+            .title(tr("Search index"))
+            .build();
+        let autostart = switch_row(
+            &tr("Start the search index at login"),
+            &tr("Otherwise it starts the first time you search (Ctrl+P)"),
+            false,
+        );
+        index_group.add(&autostart);
+        general.add(&index_group);
+        // Current state, read off the main thread.
+        let (tx, rx) = async_channel::bounded::<bool>(1);
+        std::thread::spawn(move || {
+            let on = std::process::Command::new("systemctl")
+                .args(["--user", "is-enabled", "tudi-indexd"])
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .status()
+                .is_ok_and(|s| s.success());
+            let _ = tx.send_blocking(on);
+        });
+        let a = autostart.clone();
+        gtk::glib::spawn_future_local(async move {
+            if let Ok(on) = rx.recv().await {
+                a.set_active(on);
+                a.connect_active_notify(|r| {
+                    let verb = if r.is_active() { "enable" } else { "disable" };
+                    std::thread::spawn(move || {
+                        let _ = std::process::Command::new("systemctl")
+                            .args(["--user", verb, "tudi-indexd"])
+                            .stdout(std::process::Stdio::null())
+                            .stderr(std::process::Stdio::null())
+                            .status();
+                    });
+                });
+            }
+        });
         dialog.add(&general);
 
         // ---- Commands

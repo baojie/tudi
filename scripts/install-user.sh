@@ -17,6 +17,8 @@ ICONS="$PREFIX/share/icons/hicolor/scalable/apps"
 if [ "${1:-}" = "--uninstall" ]; then
     tudi --quit 2>/dev/null || true
     tudi index stop 2>/dev/null || true
+    systemctl --user disable --now tudi-indexd 2>/dev/null || true
+    rm -f "$HOME/.config/systemd/user/tudi-indexd.service"
     rm -f "$PREFIX/bin/tudi" "$PREFIX/bin/tudi-gui" "$PREFIX/bin/tudi-indexd" "$APPS/$ID.desktop" "$ICONS/$ID.svg"
     find "$PREFIX/share/locale" -path '*/LC_MESSAGES/tudi.mo' -delete 2>/dev/null || true
     if command -v gsettings >/dev/null; then
@@ -47,6 +49,12 @@ install -Dm644 "$ROOT/data/icons/hicolor/scalable/apps/$ID.svg" "$ICONS/$ID.svg"
 mkdir -p "$APPS"
 sed "s|^Exec=tudi|Exec=$PREFIX/bin/tudi|" "$ROOT/data/$ID.desktop" > "$APPS/$ID.desktop"
 update-desktop-database "$APPS" 2>/dev/null || true
+# systemd user unit for the search index (enable it in Settings, or with
+# `systemctl --user enable --now tudi-indexd`).
+UNITS="$HOME/.config/systemd/user"
+mkdir -p "$UNITS"
+sed "s|^ExecStart=/usr/bin/|ExecStart=$PREFIX/bin/|" "$ROOT/data/tudi-indexd.service" > "$UNITS/tudi-indexd.service"
+systemctl --user daemon-reload 2>/dev/null || true
 gtk-update-icon-cache -q -t "$PREFIX/share/icons/hicolor" 2>/dev/null || true
 
 if [ "${1:-}" = "--pin" ] && command -v gsettings >/dev/null; then
