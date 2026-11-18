@@ -14,6 +14,7 @@
 
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
+use std::rc::Rc;
 use std::sync::Arc;
 
 use gtk::prelude::*;
@@ -387,15 +388,32 @@ fn fill(row: &gtk::Box, model: &PaneModel, position: u32) {
 pub type Wanted = std::rc::Rc<RefCell<Vec<u32>>>;
 
 /// Build the details `ListView`.
+/// Right-click handler: the row position (or `None` for empty space), the
+/// widget clicked, and the click coordinates in it.
+pub type MenuFn = Rc<dyn Fn(Option<u32>, &gtk::Widget, f64, f64)>;
+
 pub fn build_view(
     model: &PaneModel,
     selection: &gtk::MultiSelection,
     wanted: &Wanted,
+    on_menu: MenuFn,
 ) -> gtk::ListView {
     let factory = gtk::SignalListItemFactory::new();
-    factory.connect_setup(|_, item| {
+    let row_menu = on_menu.clone();
+    factory.connect_setup(move |_, item| {
         let item = item.downcast_ref::<gtk::ListItem>().unwrap();
-        item.set_child(Some(&row_widget()));
+        let row = row_widget();
+        let click = gtk::GestureClick::new();
+        click.set_button(gtk::gdk::BUTTON_SECONDARY);
+        let (f, wi, wr) = (row_menu.clone(), item.downgrade(), row.downgrade());
+        click.connect_pressed(move |g, _, x, y| {
+            if let (Some(item), Some(row)) = (wi.upgrade(), wr.upgrade()) {
+                g.set_state(gtk::EventSequenceState::Claimed);
+                f(Some(item.position()), row.upcast_ref(), x, y);
+            }
+        });
+        row.add_controller(click);
+        item.set_child(Some(&row));
         crate::bench::ROW_WORK.with(|r| {
             let mut w = r.get();
             w.setups += 1;
@@ -444,6 +462,15 @@ pub fn build_view(
     });
     let view = gtk::ListView::new(Some(selection.clone()), Some(factory));
     view.add_css_class("tudi-details");
+    // Right-click outside the rows (rows claim their own clicks).
+    let click = gtk::GestureClick::new();
+    click.set_button(gtk::gdk::BUTTON_SECONDARY);
+    click.connect_pressed(move |g, _, x, y| {
+        if let Some(w) = g.widget() {
+            on_menu(None, &w, x, y);
+        }
+    });
+    view.add_controller(click);
     view
 }
 

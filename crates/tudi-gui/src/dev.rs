@@ -10,7 +10,8 @@
 //!   `mkdir NAME`, `trash`, `expand ROW`, `collapse ROW`, `scroll FRACTION`,
 //!   `dump`, `open PATH` (counted visit), `treeselect ROW`, `bookmark`,
 //!   `settings`, bar actions `bm N`, `freq N`, `pin N`, `barexclude N`,
-//!   `barexclude-tree N`, `forget N`, `rmbm N`. Prefix a command with `!` to run the next one after 50 ms.
+//!   `barexclude-tree N`, `forget N`, `rmbm N`, `copy`, `cut`, `paste`,
+//!   `selectall`, `menu ROW|none`. Prefix a command with `!` to run the next one after 50 ms.
 //!   `shot FILE`, `quit`.
 
 // Script results go to stdout on purpose: they are read by test tooling.
@@ -107,6 +108,15 @@ fn step(b: Rc<Browser>, queue: Queue, delay: Duration) {
             "panewidth" => b.dev_set_tree_width(arg.parse().unwrap_or(280)),
             "zoom" => b.show_zoom(crate::zoom::set(arg.parse().unwrap_or(100))),
             "bookmark" => b.bookmark_current(),
+            "copy" => b.copy_files(),
+            "cut" => b.cut_files(),
+            "paste" => b.paste(),
+            "selectall" => b.select_all(),
+            "menu" => {
+                let pos = arg.parse::<u32>().ok();
+                let w: gtk::Widget = b.pane_view.clone().upcast();
+                b.file_menu(pos, &w, 300.0, 120.0);
+            }
             "settings" => b.open_settings(),
             "settingspage" => {
                 let s = b.settings.borrow().as_ref().and_then(|s| s.upgrade());

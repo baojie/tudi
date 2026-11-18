@@ -157,7 +157,20 @@ impl Browser {
         let pane = PaneModel::default();
         let pane_sel = gtk::MultiSelection::new(Some(pane.clone()));
         let wanted: Wanted = Rc::default();
-        let pane_view = pane::build_view(&pane, &pane_sel, &wanted);
+        // The list is built before the browser; its menu handler finds the
+        // browser through this slot, filled in below.
+        let menu_slot: Rc<RefCell<std::rc::Weak<Browser>>> = Rc::default();
+        let slot = menu_slot.clone();
+        let pane_view = pane::build_view(
+            &pane,
+            &pane_sel,
+            &wanted,
+            Rc::new(move |pos, w, x, y| {
+                if let Some(b) = slot.borrow().upgrade() {
+                    b.file_menu(pos, w, x, y);
+                }
+            }),
+        );
         let (col_header, sort_buttons) = pane::build_header();
         let pane_scroll = gtk::ScrolledWindow::builder()
             .overlay_scrolling(false)
@@ -292,6 +305,8 @@ impl Browser {
         b.connect_signals(&up);
         b.install_shortcuts();
         b.install_drag_source();
+        *menu_slot.borrow_mut() = Rc::downgrade(&b);
+        b.install_file_actions();
         let w = Rc::downgrade(&b);
         gear.connect_clicked(move |_| {
             if let Some(b) = w.upgrade() {
@@ -475,6 +490,9 @@ impl Browser {
             ));
         };
         add("<Control>c", Box::new(|b| b.copy_files()));
+        add("<Control>x", Box::new(|b| b.cut_files()));
+        add("<Control>v", Box::new(|b| b.paste()));
+        add("<Control>a", Box::new(|b| b.select_all()));
         add("<Control><Shift>c", Box::new(|b| b.copy_paths()));
         add("Delete", Box::new(|b| b.trash_selected()));
         add("F2", Box::new(|b| b.rename_selected()));
@@ -1273,7 +1291,7 @@ fn fmt_count(n: u64) -> String {
 
 /// Open a file with its default application, asynchronously (GIO looks up
 /// the content type off the main thread).
-fn open_default(path: &Path, window: &adw::ApplicationWindow) {
+pub(crate) fn open_default(path: &Path, window: &adw::ApplicationWindow) {
     let uri = gio::File::for_path(path).uri();
     let ctx = gtk::prelude::WidgetExt::display(window).app_launch_context();
     glib::spawn_future_local(async move {

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Cut / copy / paste files (`Ctrl+X`, `Ctrl+C`, `Ctrl+V`), also with other file
+  managers; `Ctrl+A` selects all.
+- Context menu on files and on empty space in the list.
 - Bookmarks bar under the header: your bookmarks (`Ctrl+D`, `Alt+1..9`,
   drag to reorder), then your most used folders; a "»" menu lists all.
   Replaces the "Frequent" tree root.
