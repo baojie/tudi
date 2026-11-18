@@ -22,6 +22,8 @@ enum Req {
     Forget(PathBuf),
     Clear,
     SetRules(Vec<String>),
+    /// Import autojump / zoxide weights (first run, or forced).
+    Import(bool),
     /// Send the current list (and exclusions) to this window.
     Query(async_channel::Sender<Reply>),
 }
@@ -82,6 +84,7 @@ impl History {
                             store.set_rules(rules(&p));
                             Ok(())
                         }
+                        Req::Import(force) => import_history(&mut store, force),
                         Req::Query(reply) => store.top(SHOWN, now()).and_then(|entries| {
                             let exclusions = store.exclusions()?;
                             let _ = reply.send_blocking(Reply::History(Snapshot {
@@ -128,9 +131,54 @@ impl History {
         self.send(Req::SetRules(patterns));
     }
 
+    /// Import other tools' folder weights, once (or again with `force`).
+    pub fn import(&self, force: bool) {
+        self.send(Req::Import(force));
+    }
+
     pub fn query(&self, reply: async_channel::Sender<Reply>) {
         self.send(Req::Query(reply));
     }
+}
+
+/// Marker files in the state directory: an import runs once per source.
+pub fn import_marker(name: &str) -> Option<PathBuf> {
+    tudi_core::config::state_dir().map(|d| d.join(name))
+}
+
+/// Import from autojump and zoxide (each optional) into the history.
+fn import_history(
+    store: &mut Frecency,
+    force: bool,
+) -> Result<(), tudi_core::frecency::FrecencyError> {
+    use tudi_core::import::{autojump_file, parse_autojump, parse_zoxide, to_visits};
+    let Some(marker) = import_marker("imported-history") else {
+        return Ok(());
+    };
+    if marker.exists() && !force {
+        return Ok(());
+    }
+    let home = gtk::glib::home_dir();
+    let mut items = std::fs::read_to_string(autojump_file(&home))
+        .map(|t| parse_autojump(&t))
+        .unwrap_or_default();
+    if let Ok(out) = std::process::Command::new("zoxide")
+        .args(["query", "-ls"])
+        .stderr(std::process::Stdio::null())
+        .output()
+        && out.status.success()
+    {
+        items.extend(parse_zoxide(&String::from_utf8_lossy(&out.stdout)));
+    }
+    let n = store.import(&to_visits(&items), now())?;
+    if n > 0 {
+        tracing::info!("imported {n} folders from autojump/zoxide");
+    }
+    if let Some(dir) = marker.parent() {
+        let _ = std::fs::create_dir_all(dir);
+    }
+    let _ = std::fs::write(&marker, "");
+    Ok(())
 }
 
 /// "3 min ago", "2 days ago", or a date.

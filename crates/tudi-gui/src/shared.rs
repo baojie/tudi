@@ -80,6 +80,53 @@ impl Shared {
         }
     }
 
+    /// First-run imports (or forced with `--reimport`): GTK bookmarks into
+    /// the bar, autojump / zoxide weights into the history. Files are read
+    /// on threads; the bookmarks are merged here on the main thread.
+    pub fn run_imports(self: &Rc<Self>, force: bool) {
+        self.history.import(force);
+        let (tx, rx) = async_channel::bounded::<Vec<(std::path::PathBuf, Option<String>)>>(1);
+        std::thread::spawn(move || {
+            let Some(marker) = crate::history::import_marker("imported-bookmarks") else {
+                return;
+            };
+            if marker.exists() && !force {
+                return;
+            }
+            let file = tudi_core::import::gtk_bookmarks_file(&gtk::glib::home_dir());
+            let found = std::fs::read_to_string(file)
+                .map(|t| tudi_core::import::parse_gtk_bookmarks(&t))
+                .unwrap_or_default();
+            if let Some(dir) = marker.parent() {
+                let _ = std::fs::create_dir_all(dir);
+            }
+            let _ = std::fs::write(&marker, "");
+            let _ = tx.send_blocking(found);
+        });
+        let me = Rc::downgrade(self);
+        gtk::glib::spawn_future_local(async move {
+            let Ok(found) = rx.recv().await else { return };
+            let Some(me) = me.upgrade() else { return };
+            let mut added = false;
+            {
+                let mut bm = me.bookmarks.borrow_mut();
+                for (path, label) in found {
+                    if bm.add(&path) {
+                        added = true;
+                        if let Some(l) = label {
+                            let i = bm.items.len() - 1;
+                            bm.rename(i, &l);
+                        }
+                    }
+                }
+            }
+            if added {
+                me.bookmarks_changed();
+            }
+            me.history_changed();
+        });
+    }
+
     /// Ask every window to reload the history (after a change).
     pub fn history_changed(&self) {
         for w in self.each() {

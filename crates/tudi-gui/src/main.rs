@@ -131,7 +131,11 @@ impl App {
         let shared = self
             .shared
             .borrow_mut()
-            .get_or_insert_with(|| shared::Shared::new(config, bookmarks, launchers))
+            .get_or_insert_with(|| {
+                let s = shared::Shared::new(config, bookmarks, launchers);
+                s.run_imports(false);
+                s
+            })
             .clone();
         if self.browsers.borrow().is_empty() {
             zoom::set(state.zoom);
@@ -201,6 +205,16 @@ impl App {
         let opts = cl.options_dict();
         if opts.contains("quit") {
             app.quit();
+            return;
+        }
+        if opts.contains("reimport") {
+            // Make sure the shared state exists, then import again.
+            if self.shared.borrow().is_none() {
+                self.open_window(app, None);
+            }
+            if let Some(s) = self.shared.borrow().clone() {
+                s.run_imports(true);
+            }
             return;
         }
         if opts.contains("background") {
@@ -280,6 +294,11 @@ fn main() -> glib::ExitCode {
             i18n::tr("Start the resident instance without a window"),
         ),
         ("quit", 0, i18n::tr("Quit the resident instance")),
+        (
+            "reimport",
+            0,
+            i18n::tr("Import bookmarks and folder history from GTK, autojump and zoxide again"),
+        ),
     ] {
         app.add_main_option(
             name,

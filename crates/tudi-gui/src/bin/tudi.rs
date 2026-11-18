@@ -33,6 +33,7 @@ fn main() -> glib::ExitCode {
             "Start the resident instance without a window",
         ),
         ("quit", 0, "Quit the resident instance"),
+        ("reimport", 0, "Import bookmarks and folder history again"),
     ] {
         app.add_main_option(
             name,
