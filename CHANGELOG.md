@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Extra index roots (`[[index.extra_roots]]`), e.g. a data disk or SD card:
+  slow devices are checked daily, unmounted ones are hidden from results
+  and re-checked when they come back.
 - Memory search: `Ctrl+P` (or `/`) searches every file and folder in your
   home by name fragments in any order, pinyin initials or full pinyin, and
   tolerates typos; results in ~10 ms on two million entries.

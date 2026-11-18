@@ -954,9 +954,10 @@ unplugged while browsing, 100k-file directory on a slow USB stick.
   frequent folders, launchers on the bar, settings, imports, volumes);
   open: desktop checks of launchers in a terminal, `.desktop` launch and
   file drop, and volume hot-plug
-- [ ] M5 Index daemon — index, scan (P9 3.1 s), reconcile, snapshots, daemon,
-  inotify, hints, protocol, CLI, systemd unit done (P8 140 MB); open:
-  per-root filesystem handling (exFAT/HDD), extra roots, offline roots
+- [x] M5 Index daemon — P9 3.1 s, P8 140 MB on 1.83M entries; snapshot
+  restart 157 ms; extra roots with device detection, offline roots,
+  per-root reconcile (`docs/design/index.md`); the exFAT acceptance used
+  a simulated volume, not a loop-mounted image (needs root)
 - [x] M6 Memory search — P7 p95 23 ms on 1.83M entries; golden set 47/47
   in the top 3; overlay, `tudi q`
 - [ ] M7 fanotify helper

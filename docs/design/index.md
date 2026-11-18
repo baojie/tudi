@@ -55,8 +55,24 @@ sends hints) and `tudi q` / `tudi index` in the GIO-only launcher; both
 start the daemon on demand. `systemctl --user enable tudi-indexd` (or the
 settings switch) starts it at login instead.
 
-## Open (M5)
+## Roots and devices
 
-Per-root filesystem detection (exFAT / vfat / FUSE, rotational disks),
-`[[index.extra_roots]]` with their own reconcile interval, and offline
-roots on unmount are not implemented yet.
+`fsinfo::detect` reads the filesystem type (`statfs`) and the block device
+(sysfs: rotational, USB, removable). Slow roots (rotational or USB — an SD
+card in a USB reader reports "rotational" too) default to a daily
+reconcile; `[[index.extra_roots]]` can set `reconcile_minutes` and add
+excludes. Folder mtimes are trusted except on FUSE, where a reconcile
+re-lists the whole root. exFAT, vfat, NTFS and FUSE are marked as not
+supporting fanotify (for M7).
+
+A root looks offline when it is missing or is an empty folder although the
+index has entries for it (an unmounted mount point). Offline roots keep
+their entries, are hidden from results (`Context::offline_roots`), are
+checked every 30 s and reconciled as soon as they are back.
+
+Scans of a root run into a separate `Index` and are grafted into the live
+one (`Index::graft`), so a long scan of a slow volume never blocks queries;
+home roots are done first. Reconciles `statx` under a read lock
+(`scan::changed_dirs`) and take the write lock only to re-list changed
+folders (`scan::apply_changed`). Roots added to or removed from the config
+are scanned or dropped on the next start without rescanning the others.
