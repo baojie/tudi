@@ -218,3 +218,19 @@ Short ADR-style records: context / decision / consequences. Newest last.
 - **Consequences.** The store has an exclusion table next to the visits.
   Database access runs on a dedicated thread in the GUI. A "Frequent" root
   in the tree shows the history.
+
+## ADR-017: Publish 0.1.0 as an early preview; M9 becomes the next minor
+
+- **Context.** The maintainer asked to publish the project on GitHub and
+  release 0.1.0 now, while PLAN called the M9 release "v0.1".
+- **Decision.** 0.1.0 is the first public preview (M0–M2 done, M3 features
+  done, its acceptance open). The M9 release keeps its scope and takes the
+  next minor version. Releases are built by `.github/workflows/release.yml`
+  on Ubuntu 24.04 when a `v*` tag matching the workspace version is pushed:
+  a `.deb` (cargo-deb, dependencies from `dpkg-shlibdeps`) and a `tar.gz`
+  in prefix layout, with SHA-256 sums. The Debian Maintainer field is built
+  from the repository owner's GitHub noreply address in CI, so it is not in
+  the repository files.
+- **Consequences.** Packages are only built in CI (local builds embed local
+  paths). The English UI is the default; translations follow the system
+  locale only with `[ui] language = "system"`.

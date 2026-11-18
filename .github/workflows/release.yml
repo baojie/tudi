@@ -1,0 +1,48 @@
+name: Release
+
+# Push a tag like v0.1.0 to build the packages on Ubuntu 24.04 (so they run
+# on 24.04 and newer) and publish them as a GitHub release.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libgtk-4-dev libadwaita-1-dev gettext
+      - name: Install pinned toolchain
+        run: rustup show active-toolchain || rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cargo-deb
+        run: cargo install cargo-deb --locked
+      - name: Check the tag matches the version
+        run: |
+          v=$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)
+          test "v$v" = "$GITHUB_REF_NAME" || { echo "tag $GITHUB_REF_NAME != version $v"; exit 1; }
+      - name: Test
+        run: cargo test --workspace
+      - name: Build packages
+        run: |
+          owner="${{ github.repository_owner }}"
+          scripts/package.sh "$owner <${{ github.repository_owner_id }}+$owner@users.noreply.github.com>"
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          notes=$(awk -v v="${GITHUB_REF_NAME#v}" '
+            $0 ~ "^## " v { on = 1; next }
+            /^## / && on { exit }
+            on' CHANGELOG.md)
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --title "tudi $GITHUB_REF_NAME" --notes "$notes"
