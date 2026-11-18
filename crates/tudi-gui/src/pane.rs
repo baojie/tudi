@@ -350,13 +350,22 @@ fn fill(row: &gtk::Box, model: &PaneModel, position: u32) {
     let p = parts(row);
     let name = d.name(entry);
     let dir = d.is_dir(entry);
+    let m = d.metas.get(entry as usize);
+    // Executable regular files without an extension (binaries, scripts in
+    // bin/) get an "executable" icon. Files with an extension keep their
+    // type icon: some filesystems (exFAT, NTFS) mark every file executable.
+    let executable = m.status == MetaStatus::Ok
+        && m.mode & 0o170000 == 0o100000
+        && m.mode & 0o111 != 0
+        && !name[1..].contains(&b'.');
     p.icon.set_from_gicon(&if dir {
         format::folder_icon()
+    } else if executable {
+        format::executable_icon()
     } else {
         format::file_icon(name)
     });
     p.name.set_text(&format::name(name));
-    let m = d.metas.get(entry as usize);
     match m.status {
         MetaStatus::Ok => {
             p.size.set_text(&if dir {

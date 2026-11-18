@@ -126,9 +126,7 @@ impl TreeModel {
 
     /// Add a root that is a view, not a folder.
     pub fn add_special_root(&self, label: &str, icon: &'static str) -> NodeId {
-        let id = self.add_root("", label);
-        self.imp().special.borrow_mut().insert(id, icon);
-        id
+        self.add_root_with(String::new(), label, Some(icon))
     }
 
     pub fn is_special(&self, node: NodeId) -> bool {
@@ -136,8 +134,17 @@ impl TreeModel {
     }
 
     pub fn add_root(&self, path: &str, label: &str) -> NodeId {
+        self.add_root_with(path.into(), label, None)
+    }
+
+    fn add_root_with(&self, path: String, label: &str, special: Option<&'static str>) -> NodeId {
         let (id, s) = self.imp().tree.borrow_mut().add_root(path);
         self.imp().root_labels.borrow_mut().insert(id, label.into());
+        if let Some(icon) = special {
+            self.imp().special.borrow_mut().insert(id, icon);
+        }
+        // Only now tell GTK: it may bind the new row right away, and the
+        // row must already be known as special (no expander, own icon).
         self.items_changed(s.position, s.removed, s.added);
         id
     }

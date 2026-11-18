@@ -74,10 +74,33 @@ pub fn file_icon(name: &[u8]) -> gio::Icon {
             .or_insert_with_key(|ext| {
                 let probe = format!("x{}", String::from_utf8_lossy(ext));
                 let (ctype, _) = gio::content_type_guess(Some(probe.as_str()), None);
-                gio::content_type_get_symbolic_icon(&ctype)
+                with_fallback(gio::content_type_get_symbolic_icon(&ctype))
             })
             .clone()
     })
+}
+
+/// Icon themes do not all have the specific symbolic icons GIO names (e.g.
+/// `application-octet-stream-symbolic`); end the fallback chain with a
+/// generic document icon that every theme has, instead of "missing image".
+fn with_fallback(icon: gio::Icon) -> gio::Icon {
+    match icon.downcast::<gio::ThemedIcon>() {
+        Ok(t) => {
+            t.append_name("text-x-generic-symbolic");
+            t.upcast()
+        }
+        Err(icon) => icon,
+    }
+}
+
+/// Icon for an executable regular file (known once metadata arrived).
+pub fn executable_icon() -> gio::Icon {
+    gio::ThemedIcon::from_names(&[
+        "application-x-executable-symbolic",
+        "system-run-symbolic",
+        "text-x-generic-symbolic",
+    ])
+    .upcast()
 }
 
 pub fn folder_icon() -> gio::Icon {
