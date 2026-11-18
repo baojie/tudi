@@ -105,6 +105,7 @@ fn step(b: Rc<Browser>, queue: Queue, delay: Duration) {
             }
             "treeselect" => b.tree_sel.set_selected(arg.parse().unwrap_or(0)),
             "frequent" => b.show_history(),
+            "panewidth" => b.dev_set_tree_width(arg.parse().unwrap_or(280)),
             "zoom" => b.show_zoom(crate::zoom::set(arg.parse().unwrap_or(100))),
             "hselect" => b.dev_history_select(arg.parse().unwrap_or(0)),
             "hexclude" => b.dev_history_action("exclude"),

@@ -60,6 +60,7 @@ pub struct Browser {
     hist_state: crate::history::ViewStateRc,
     in_history: Cell<bool>,
     zoom_toast: RefCell<Option<adw::Toast>>,
+    paned: RefCell<Option<gtk::Paned>>,
     pub(crate) config: Config,
     pub(crate) toasts: adw::ToastOverlay,
     pub(crate) typeahead: crate::actions::TypeAheadState,
@@ -221,6 +222,7 @@ impl Browser {
                 hist_state: Rc::default(),
                 in_history: Cell::new(false),
                 zoom_toast: RefCell::default(),
+                paned: RefCell::default(),
                 config,
                 toasts: adw::ToastOverlay::new(),
                 typeahead: Rc::default(),
@@ -288,15 +290,21 @@ impl Browser {
         b.right_stack.add_named(&files, Some("files"));
         b.right_stack.add_named(&hist, Some("history"));
         let right = &b.right_stack;
+        // The divider between the panes is draggable; a wide handle makes it
+        // easy to grab (the theme's default is a 1 px line).
+        tree_scroll.set_size_request(120, -1);
         let paned = gtk::Paned::builder()
             .orientation(gtk::Orientation::Horizontal)
             .start_child(&tree_scroll)
             .end_child(right)
-            .position(280)
+            .position(state.tree_width.max(120))
             .shrink_start_child(false)
             .resize_start_child(false)
+            .shrink_end_child(false)
+            .wide_handle(true)
             .vexpand(true)
             .build();
+        b.paned.replace(Some(paned.clone()));
         let content = gtk::Box::new(gtk::Orientation::Vertical, 0);
         content.append(&header);
         content.append(&paned);
@@ -859,6 +867,7 @@ impl Browser {
     pub fn snapshot_state(&self) -> WindowState {
         let mut st = WindowState {
             zoom: crate::zoom::level(),
+            tree_width: self.paned.borrow().as_ref().map_or(280, |p| p.position()),
             width: self.window.default_width(),
             height: self.window.default_height(),
             maximized: self.window.is_maximized(),
@@ -1002,6 +1011,12 @@ impl Browser {
     }
 
     // Test hooks for TUDI_DEV_SCRIPT.
+    pub(crate) fn dev_set_tree_width(&self, w: i32) {
+        if let Some(p) = &*self.paned.borrow() {
+            p.set_position(w);
+        }
+    }
+
     pub(crate) fn dev_history_select(&self, pos: u32) {
         self.hist_sel.set_selected(pos);
     }

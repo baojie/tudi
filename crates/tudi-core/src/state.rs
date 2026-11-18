@@ -20,6 +20,8 @@ pub struct WindowState {
     pub expanded: Vec<String>,
     /// Interface zoom in percent.
     pub zoom: u32,
+    /// Width of the folder tree pane in pixels.
+    pub tree_width: i32,
 }
 
 impl Default for WindowState {
@@ -31,6 +33,7 @@ impl Default for WindowState {
             last_dir: None,
             expanded: Vec::new(),
             zoom: 100,
+            tree_width: 280,
         }
     }
 }
