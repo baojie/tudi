@@ -21,6 +21,7 @@ mod history;
 mod i18n;
 mod icons;
 mod launch;
+mod menu;
 mod pane;
 mod properties;
 mod search;

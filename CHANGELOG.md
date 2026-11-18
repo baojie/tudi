@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Context menus always show all their items (no scrollbar); near the
+  bottom of the window they open upwards.
 - Bookmarks bar: launchers first, then bookmarks and frequent folders; at
   most 10 buttons, the rest in an "N more" drop-down.
 - Search filters (`docs/query-syntax.md`): `.pdf`, `ext:`, `in:acme`,

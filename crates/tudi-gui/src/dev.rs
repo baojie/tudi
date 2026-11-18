@@ -117,6 +117,12 @@ fn step(b: Rc<Browser>, queue: Queue, delay: Duration) {
                 let w: gtk::Widget = b.pane_view.clone().upcast();
                 b.file_menu(pos, &w, 300.0, 120.0);
             }
+            "menuat" => {
+                // Dev only: the background menu at a height in the list.
+                let y = arg.parse::<f64>().unwrap_or(120.0);
+                let w: gtk::Widget = b.pane_view.clone().upcast();
+                b.file_menu(None, &w, 300.0, y);
+            }
             "settings" => b.open_settings(),
             "settingspage" => {
                 let s = b.settings.borrow().as_ref().and_then(|s| s.upgrade());

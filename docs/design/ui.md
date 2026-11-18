@@ -81,6 +81,15 @@ Code: `crates/tudi-gui/src/`. Plan: `docs/PLAN.md` §5.3, §5.7.
   `Browser` (models, listings, watches) and saves the window state; the
   process stays for the next window.
 
+## Context menus
+
+`menu.rs::popup_at` shows every context menu (list, tree, bookmarks bar).
+GtkPopoverMenu puts its items in a scrolled window, and on a multi-monitor
+GNOME session menus came up shorter than their items and scrolled. The
+helper turns that scrollbar off (the items become the menu's minimum
+height) and opens the menu upwards when it does not fit below the pointer
+inside the window but does above it.
+
 ## Keys
 
 See PLAN §5.7. Implemented in M3: history (`Alt+←/→`), up (`Alt+↑`,

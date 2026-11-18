@@ -652,16 +652,7 @@ impl Browser {
             info.append_item(&item(tr("Folder Properties"), "file.folder-properties", ""));
             menu.append_section(None, &info);
         }
-        let pop = gtk::PopoverMenu::from_model(Some(&menu));
-        pop.set_parent(widget);
-        pop.set_pointing_to(Some(&gdk::Rectangle::new(x as i32, y as i32, 1, 1)));
-        pop.set_has_arrow(false);
-        pop.set_halign(gtk::Align::Start);
-        pop.connect_closed(|p| {
-            let p = p.clone();
-            glib::idle_add_local_once(move || p.unparent());
-        });
-        pop.popup();
+        crate::menu::popup_at(widget, menu.upcast_ref(), x, y);
     }
 
     // ------------------------------------------------------------ drag out
