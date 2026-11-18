@@ -348,6 +348,15 @@ impl Browser {
             b.record_visit_after_dwell(path);
         });
 
+        // Double-click (or Enter) on a tree folder expands or collapses it;
+        // a single click already shows it in the list.
+        let w = Rc::downgrade(self);
+        self.tree_view.connect_activate(move |_, pos| {
+            if let Some(b) = w.upgrade() {
+                b.toggle_tree_row(pos as usize);
+            }
+        });
+
         let w = Rc::downgrade(self);
         self.pane_view.connect_activate(move |_, pos| {
             if let Some(b) = w.upgrade() {
@@ -636,6 +645,8 @@ impl Browser {
         let expanded = {
             let tree = self.tree.tree();
             match tree.rows().get(pos) {
+                // An error row stands for its parent; ignore it.
+                Some(r) if r.kind == tudi_core::tree::RowKind::Error => return,
                 Some(r) => tree.node(r.node).is_expanded(),
                 None => return,
             }

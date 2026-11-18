@@ -125,6 +125,10 @@ fn step(b: Rc<Browser>, queue: Queue, delay: Duration) {
                 }
             }
             "ctrld" => b.bookmark_or_launcher(),
+            "treeactivate" => {
+                let pos: u32 = arg.parse().unwrap_or(0);
+                b.tree_view.emit_by_name::<()>("activate", &[&pos]);
+            }
             "bm" | "freq" | "pin" | "barexclude" | "barexclude-tree" | "forget" | "rmbm"
             | "runl" | "lbg" | "lterm" => {
                 let action = match verb {

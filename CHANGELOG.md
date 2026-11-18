@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Double-click (or Enter) on a folder in the tree expands or collapses it.
 - Launchers: `Ctrl+D` on a script, executable or `.desktop` file pins it to
   the bookmarks bar; click to run (in a terminal, or in the background with
   a log), drop files on it to run it with them.
