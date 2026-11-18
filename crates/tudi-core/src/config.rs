@@ -26,6 +26,8 @@ sort = "name"          # name | size | mtime
 # {dir}: the current folder. {path}: each selected item (or the current
 # folder if nothing is selected), as separate arguments.
 terminal = ["kitty", "--directory", "{dir}"]
+# Run a launcher in a terminal that stays open: {cmd} = program and args.
+terminal_exec = ["kitty", "--directory", "{dir}", "--hold", "{cmd}"]
 editor = ["zed", "{path}"]
 
 [history]
@@ -67,6 +69,7 @@ impl Default for Browse {
 #[serde(default)]
 pub struct Commands {
     pub terminal: Vec<String>,
+    pub terminal_exec: Vec<String>,
     pub editor: Vec<String>,
 }
 
@@ -74,6 +77,9 @@ impl Default for Commands {
     fn default() -> Self {
         Self {
             terminal: vec!["kitty".into(), "--directory".into(), "{dir}".into()],
+            terminal_exec: ["kitty", "--directory", "{dir}", "--hold", "{cmd}"]
+                .map(String::from)
+                .to_vec(),
             editor: vec!["zed".into(), "{path}".into()],
         }
     }
