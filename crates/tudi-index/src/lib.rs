@@ -13,6 +13,7 @@
 //! This crate does no GTK; scanning lives in [`scan`], snapshots in
 //! [`snapshot`].
 
+pub mod matcher;
 pub mod scan;
 pub mod snapshot;
 

@@ -114,3 +114,19 @@ P1a, P3, P4 in a headless gnome-shell (`scripts/headless.sh`).
 The scripted session found that replacing all items made GTK recreate its
 ~200 cached row widgets on every re-sort; items are now positions and the
 widgets are reused (`docs/design/ui.md`).
+
+### M5/M6 — index and memory search (2026-11-18)
+
+`deep-2m` fixture, release build, load average < 2
+(`cargo run --release -p tudi-index --example scan|search`).
+
+| Metric | Measured | Budget |
+|---|---|---|
+| P9 initial scan (1,830,862 entries after default excludes) | 3.1 s | < 20 s ✅ |
+| P8 RSS after scan | 99 MB | < 150 MB ✅ |
+| Snapshot save / load (69 MB file) | 57 ms / 79 ms | — |
+| Search data build (bags, pinyin) / typo vocabulary | 86 ms / 471 ms (background) | — |
+| P7 query over 1.83M entries, 12 queries × 5 | p50 7.6 ms, p95 23.2 ms, max 34.9 ms | < 30 ms p95 ✅ |
+
+Single-character queries are the slowest (~23 ms): almost every name
+passes the character-bag prefilter.
