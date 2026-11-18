@@ -1,12 +1,12 @@
 //! The bookmarks bar under the header (PLAN §5.7, ADR-016): the user's
 //! bookmarks first, then — after a separator — the most used folders by
 //! frecency, like a browser's bookmarks bar. At most [`BAR_BUTTONS`]
-//! buttons (bookmarks, then launchers, then frequent folders); the rest
+//! buttons (launchers, then bookmarks, then frequent folders); the rest
 //! are in a drop-down list at the right end ("N more").
 //!
-//! Launchers (ADR-014) follow the bookmarks: clicking runs the script or
-//! app; dropping files on one runs it with them; right-click switches
-//! terminal / background, edits arguments, shows it in its folder.
+//! Launchers (ADR-014) come first, before the bookmarks: clicking runs the
+//! script or app; dropping files on one runs it with them; right-click
+//! switches terminal / background, edits arguments, shows it in its folder.
 //!
 //! Bookmarks: `Ctrl+D` adds the current folder, `Alt+1..9` opens them,
 //! right-click renames / moves / removes, drag and drop reorders.
@@ -289,31 +289,7 @@ impl Browser {
         // Buttons so far; later items only go to the drop-down list.
         let mut shown = 0usize;
         let mut hidden = 0u64;
-        for (i, bm) in bookmarks.items.iter().enumerate() {
-            let label = bm.label();
-            let mut tip = bm.path.clone();
-            if i < 9 {
-                tip.push_str(&format!("  (Alt+{})", i + 1));
-            }
-            if shown < BAR_BUTTONS {
-                shown += 1;
-                let btn = folder_button(&label, &tip);
-                btn.set_action_name(Some("bar.open-bookmark"));
-                btn.set_action_target_value(Some(&(i as i32).to_variant()));
-                self.bookmark_menu(&btn, i, bookmarks.items.len());
-                self.bookmark_drag(&btn, i);
-                self.bar_box.append(&btn);
-                continue;
-            }
-            hidden += 1;
-            let item = gio::MenuItem::new(Some(&label), None);
-            item.set_action_and_target_value(
-                Some("bar.open-bookmark"),
-                Some(&(i as i32).to_variant()),
-            );
-            bm_section.append_item(&item);
-        }
-        // Launchers, right after the folder bookmarks.
+        // Launchers first, then the folder bookmarks.
         let launchers = self.shared.launchers.borrow();
         let ln_section = gio::Menu::new();
         for (i, l) in launchers.items.iter().enumerate() {
@@ -347,6 +323,30 @@ impl Browser {
                 Some(&(i as i32).to_variant()),
             );
             ln_section.append_item(&item);
+        }
+        for (i, bm) in bookmarks.items.iter().enumerate() {
+            let label = bm.label();
+            let mut tip = bm.path.clone();
+            if i < 9 {
+                tip.push_str(&format!("  (Alt+{})", i + 1));
+            }
+            if shown < BAR_BUTTONS {
+                shown += 1;
+                let btn = folder_button(&label, &tip);
+                btn.set_action_name(Some("bar.open-bookmark"));
+                btn.set_action_target_value(Some(&(i as i32).to_variant()));
+                self.bookmark_menu(&btn, i, bookmarks.items.len());
+                self.bookmark_drag(&btn, i);
+                self.bar_box.append(&btn);
+                continue;
+            }
+            hidden += 1;
+            let item = gio::MenuItem::new(Some(&label), None);
+            item.set_action_and_target_value(
+                Some("bar.open-bookmark"),
+                Some(&(i as i32).to_variant()),
+            );
+            bm_section.append_item(&item);
         }
         if bookmarks.items.is_empty() && launchers.items.is_empty() {
             let hint = gtk::Label::new(Some(&tr("Ctrl+D bookmarks the current folder")));
@@ -401,8 +401,8 @@ impl Browser {
             freq_section.append_item(&item);
         }
         for (title, section) in [
-            (tr("Bookmarks"), &bm_section),
             (tr("Launchers"), &ln_section),
+            (tr("Bookmarks"), &bm_section),
             (tr("Frequent"), &freq_section),
         ] {
             if section.n_items() > 0 {

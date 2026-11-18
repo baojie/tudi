@@ -91,7 +91,7 @@ are bound on the list so they do not take keys from the path bar.
 
 ## Bookmarks bar and folder history (ADR-016)
 
-At most 10 buttons (bookmarks, then launchers, then frequent folders);
+At most 10 buttons (launchers, then bookmarks, then frequent folders);
 the rest are in a drop-down at the right end, labelled "N more" and
 hidden when nothing overflows.
 

@@ -2,7 +2,8 @@
 
 ## Unreleased
 
-- Bookmarks bar: at most 10 buttons; the rest in an "N more" drop-down.
+- Bookmarks bar: launchers first, then bookmarks and frequent folders; at
+  most 10 buttons, the rest in an "N more" drop-down.
 - Search filters (`docs/query-syntax.md`): `.pdf`, `ext:`, `in:acme`,
   `dir:` / `file:`, `<7d`, `>2025-06`, `date:2025-06`, `today` … `lastyear`
   and `今天 昨天 本周 上周 本月 上月 今年 去年`, `size>10M`. Unreadable filters
