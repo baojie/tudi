@@ -169,6 +169,13 @@ impl App {
             return;
         }
         let path = cl.arguments().into_iter().nth(1).map(|a| {
+            // Other apps open folders with file:// URIs (desktop Exec %u).
+            use std::os::unix::ffi::OsStrExt;
+            if a.as_bytes().starts_with(b"file://")
+                && let Some(p) = gio::File::for_uri(&a.to_string_lossy()).path()
+            {
+                return p;
+            }
             let p = PathBuf::from(a);
             match cl.cwd() {
                 Some(cwd) if p.is_relative() => cwd.join(p),
