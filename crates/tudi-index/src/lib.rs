@@ -90,6 +90,17 @@ impl Node {
     }
 }
 
+/// Give freed heap memory back to the system. Building the index and its
+/// search data allocates a lot of temporary memory on rayon threads; glibc
+/// keeps it in per-thread arenas, so RSS stays high until trimmed.
+pub fn release_free_memory() {
+    // SAFETY: malloc_trim only walks glibc's own heap bookkeeping and has
+    // no preconditions; it is safe to call at any time from any thread.
+    unsafe {
+        libc::malloc_trim(0);
+    }
+}
+
 /// `mtime` (Unix seconds) to the stored form.
 pub fn pack_mtime(unix: i64) -> u32 {
     (unix - EPOCH_2000).clamp(0, i64::from(u32::MAX)) as u32

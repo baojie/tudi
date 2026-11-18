@@ -79,10 +79,10 @@ pub struct Hit {
 pub struct SearchData {
     bags: Vec<u64>,
     /// Pinyin alternates ("hetonghedui", "hthd") of CJK names.
-    alt: HashMap<u32, Vec<String>>,
+    alt: Alternates,
     /// Lowercased words of names with the nodes containing them, for the
     /// typo fallback (built lazily, or by [`SearchData::warm`]).
-    vocab: std::sync::OnceLock<Vec<VocabWord>>,
+    vocab: std::sync::OnceLock<Vocab>,
 }
 
 fn bag_byte(b: u8) -> u64 {
@@ -182,28 +182,84 @@ pub fn osa_distance(a: &str, b: &str, max: usize) -> usize {
     d[n][m]
 }
 
+/// Pinyin alternates of CJK names, compactly: sorted node ids with
+/// offsets into one text arena (full pinyin, then initials).
+#[derive(Default)]
+struct Alternates {
+    nodes: Vec<u32>,
+    /// Per node: start of the full form; the initials follow at `mid`.
+    spans: Vec<(u32, u32, u32)>,
+    text: String,
+}
+
+impl Alternates {
+    fn get(&self, node: u32) -> Option<[&str; 2]> {
+        let k = self.nodes.binary_search(&node).ok()?;
+        let (a, mid, b) = self.spans[k];
+        Some([
+            &self.text[a as usize..mid as usize],
+            &self.text[mid as usize..b as usize],
+        ])
+    }
+}
+
+/// Name words for the typo fallback: one text arena, cheap prefilters per
+/// word, and the nodes containing each word in one postings array.
+#[derive(Default)]
+struct Vocab {
+    text: String,
+    words: Vec<VocabWord>,
+    postings: Vec<u32>,
+}
+
+struct VocabWord {
+    off: u32,
+    len: u16,
+    chars: u8,
+    bag: u64,
+    post_off: u32,
+    post_len: u32,
+}
+
+impl Vocab {
+    fn word(&self, w: &VocabWord) -> &str {
+        &self.text[w.off as usize..w.off as usize + usize::from(w.len)]
+    }
+}
+
 impl SearchData {
     pub fn build(ix: &Index) -> Self {
-        let bags: Vec<u64> = (0..ix.nodes.len() as u32)
+        let mut bags: Vec<u64> = (0..ix.nodes.len() as u32)
             .into_par_iter()
             .map(|i| bag(ix.name(i)))
             .collect();
-        let alt: HashMap<u32, Vec<String>> = ix
+        let mut pairs: Vec<(u32, [String; 2])> = ix
             .nodes
             .par_iter()
             .enumerate()
-            .filter(|(_, n)| n.flags & flags::CJK != 0)
+            .filter(|(_, n)| n.flags & flags::CJK != 0 && !n.is_dead())
             .map(|(i, _)| {
                 let name = String::from_utf8_lossy(ix.name(i as u32));
-                (i as u32, pinyin_alternates(&name))
+                let mut v = pinyin_alternates(&name);
+                let init = v.pop().unwrap_or_default();
+                let full = v.pop().unwrap_or_default();
+                (i as u32, [full, init])
             })
             .collect();
-        let mut bags = bags;
-        for (&i, alts) in &alt {
-            for a in alts {
-                bags[i as usize] |= bag(a.as_bytes());
-            }
+        pairs.sort_unstable_by_key(|p| p.0);
+        let mut alt = Alternates::default();
+        alt.nodes.reserve_exact(pairs.len());
+        alt.spans.reserve_exact(pairs.len());
+        for (i, [full, init]) in pairs {
+            bags[i as usize] |= bag(full.as_bytes()) | bag(init.as_bytes());
+            let a = alt.text.len() as u32;
+            alt.text.push_str(&full);
+            let mid = alt.text.len() as u32;
+            alt.text.push_str(&init);
+            alt.nodes.push(i);
+            alt.spans.push((a, mid, alt.text.len() as u32));
         }
+        alt.text.shrink_to_fit();
         Self {
             bags,
             alt,
@@ -217,37 +273,50 @@ impl SearchData {
         self.vocab(ix);
     }
 
-    fn vocab(&self, ix: &Index) -> &[VocabWord] {
+    fn vocab(&self, ix: &Index) -> &Vocab {
         self.vocab.get_or_init(|| {
-            let mut v: HashMap<String, Vec<u32>> = HashMap::new();
-            for i in 0..ix.nodes.len() as u32 {
-                if ix.nodes[i as usize].is_dead() || ix.nodes[i as usize].parent == NONE {
-                    continue;
-                }
-                for w in words(&String::from_utf8_lossy(ix.name(i))) {
-                    if w.len() >= 3 {
-                        v.entry(w).or_default().push(i);
-                    }
-                }
-            }
-            v.into_iter()
-                .map(|(word, nodes)| VocabWord {
-                    bag: bag(word.as_bytes()),
-                    chars: word.chars().count().min(255) as u8,
-                    word,
-                    nodes,
+            // (word, node) pairs, sorted, then grouped.
+            let mut pairs: Vec<(String, u32)> = (0..ix.nodes.len() as u32)
+                .into_par_iter()
+                .filter(|&i| {
+                    let n = &ix.nodes[i as usize];
+                    !n.is_dead() && n.parent != NONE
                 })
-                .collect()
+                .flat_map_iter(|i| {
+                    words(&String::from_utf8_lossy(ix.name(i)))
+                        .into_iter()
+                        .filter(|w| w.len() >= 3 && w.len() < 64)
+                        .map(move |w| (w, i))
+                })
+                .collect();
+            pairs.par_sort_unstable();
+            pairs.dedup();
+            let mut v = Vocab::default();
+            v.postings.reserve_exact(pairs.len());
+            let mut k = 0;
+            while k < pairs.len() {
+                let word = pairs[k].0.clone();
+                let post_off = v.postings.len() as u32;
+                while k < pairs.len() && pairs[k].0 == word {
+                    v.postings.push(pairs[k].1);
+                    k += 1;
+                }
+                let off = v.text.len() as u32;
+                v.text.push_str(&word);
+                v.words.push(VocabWord {
+                    off,
+                    len: word.len() as u16,
+                    chars: word.chars().count().min(255) as u8,
+                    bag: bag(word.as_bytes()),
+                    post_off,
+                    post_len: v.postings.len() as u32 - post_off,
+                });
+            }
+            v.text.shrink_to_fit();
+            v.words.shrink_to_fit();
+            v
         })
     }
-}
-
-/// A name word for the typo fallback, with cheap prefilters.
-pub struct VocabWord {
-    word: String,
-    bag: u64,
-    chars: u8,
-    nodes: Vec<u32>,
 }
 
 /// Extra context for ranking.
@@ -259,6 +328,8 @@ pub struct Context<'a> {
     pub now: i64,
     /// Include hidden entries even if no token starts with a dot.
     pub show_hidden: bool,
+    /// Only folders.
+    pub dirs_only: bool,
 }
 
 /// Case-insensitive "starts with" without allocating.
@@ -320,7 +391,9 @@ pub fn search(
                     if node.is_dead() || node.parent == NONE {
                         continue;
                     }
-                    let nb = sd.bags[i as usize];
+                    // Nodes appended since the search data was built have
+                    // no bag yet: let them through the prefilter.
+                    let nb = sd.bags.get(i as usize).copied().unwrap_or(u64::MAX);
                     if token_bags.iter().all(|&tb| tb & !nb != 0) {
                         continue;
                     }
@@ -333,7 +406,7 @@ pub fn search(
                         let mut best = atom
                             .score(Utf32Str::new(&name, buf), m)
                             .map(|s| f32::from(s) / tlen);
-                        if let Some(alts) = sd.alt.get(&i) {
+                        if let Some(alts) = sd.alt.get(i) {
                             for a in alts {
                                 if let Some(s) = atom.score(Utf32Str::new(a, buf), m) {
                                     let s = f32::from(s) / tlen * 0.9;
@@ -367,19 +440,21 @@ pub fn search(
         let max = if len >= 8 { 2 } else { 1 };
         let tbag = token_bags[t];
         // Each edit changes at most two bits of the character bag.
-        let close: Vec<&VocabWord> = sd
-            .vocab(ix)
+        let vocab = sd.vocab(ix);
+        let close: Vec<&VocabWord> = vocab
+            .words
             .par_iter()
             .filter(|v| {
                 usize::from(v.chars).abs_diff(len) <= max
                     && (v.bag ^ tbag).count_ones() as usize <= 2 * max
-                    && v.word != *tok
-                    && osa_distance(&v.word, tok, max) <= max
+                    && vocab.word(v) != tok
+                    && osa_distance(vocab.word(v), tok, max) <= max
             })
             .collect();
         for v in close {
             {
-                let nodes = &v.nodes;
+                let nodes =
+                    &vocab.postings[v.post_off as usize..(v.post_off + v.post_len) as usize];
                 for &i in nodes {
                     if masks[i as usize] & bit == 0 {
                         masks[i as usize] |= bit;
@@ -403,6 +478,9 @@ pub fn search(
             }
             let node = &ix.nodes[i];
             if !want_hidden && node.flags & flags::HIDDEN != 0 {
+                return None;
+            }
+            if ctx.dirs_only && !node.is_dir() {
                 return None;
             }
             let mut cum = own;

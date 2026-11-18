@@ -32,31 +32,60 @@ pub fn default_path() -> Option<PathBuf> {
     Some(base.join(format!("tudi/index-v{VERSION}.bin")))
 }
 
-pub fn encode(ix: &Index) -> Vec<u8> {
-    let mut b = Vec::with_capacity(64 + ix.nodes.len() * 24 + ix.names.len());
-    b.extend_from_slice(MAGIC);
-    b.extend_from_slice(&VERSION.to_le_bytes());
-    b.extend_from_slice(&(ix.nodes.len() as u64).to_le_bytes());
-    b.extend_from_slice(&(ix.names.len() as u64).to_le_bytes());
-    b.extend_from_slice(&(ix.roots.len() as u32).to_le_bytes());
+/// Writes through to `inner` while computing the CRC32.
+struct Crc<W> {
+    inner: W,
+    hasher: crc32fast::Hasher,
+}
+
+impl<W: Write> Write for Crc<W> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        let n = self.inner.write(buf)?;
+        self.hasher.update(&buf[..n]);
+        Ok(n)
+    }
+    fn flush(&mut self) -> io::Result<()> {
+        self.inner.flush()
+    }
+}
+
+/// Stream `ix` to `out` (no full in-memory copy).
+pub fn write_to(ix: &Index, out: impl Write) -> io::Result<()> {
+    let mut w = Crc {
+        inner: out,
+        hasher: crc32fast::Hasher::new(),
+    };
+    w.write_all(MAGIC)?;
+    w.write_all(&VERSION.to_le_bytes())?;
+    w.write_all(&(ix.nodes.len() as u64).to_le_bytes())?;
+    w.write_all(&(ix.names.len() as u64).to_le_bytes())?;
+    w.write_all(&(ix.roots.len() as u32).to_le_bytes())?;
     for (p, n) in &ix.roots {
         let bytes = p.as_os_str().as_bytes();
-        b.extend_from_slice(&(bytes.len() as u32).to_le_bytes());
-        b.extend_from_slice(bytes);
-        b.extend_from_slice(&n.to_le_bytes());
+        w.write_all(&(bytes.len() as u32).to_le_bytes())?;
+        w.write_all(bytes)?;
+        w.write_all(&n.to_le_bytes())?;
     }
+    let mut rec = [0u8; 24];
     for n in &ix.nodes {
-        b.extend_from_slice(&n.parent.to_le_bytes());
-        b.extend_from_slice(&n.name_off.to_le_bytes());
-        b.extend_from_slice(&n.name_len.to_le_bytes());
-        b.push(n.kind);
-        b.push(n.flags);
-        b.extend_from_slice(&n.mtime.to_le_bytes());
-        b.extend_from_slice(&n.size.to_le_bytes());
+        rec[0..4].copy_from_slice(&n.parent.to_le_bytes());
+        rec[4..8].copy_from_slice(&n.name_off.to_le_bytes());
+        rec[8..10].copy_from_slice(&n.name_len.to_le_bytes());
+        rec[10] = n.kind;
+        rec[11] = n.flags;
+        rec[12..16].copy_from_slice(&n.mtime.to_le_bytes());
+        rec[16..24].copy_from_slice(&n.size.to_le_bytes());
+        w.write_all(&rec)?;
     }
-    b.extend_from_slice(&ix.names);
-    let crc = crc32fast::hash(&b);
-    b.extend_from_slice(&crc.to_le_bytes());
+    w.write_all(&ix.names)?;
+    let crc = w.hasher.clone().finalize();
+    w.inner.write_all(&crc.to_le_bytes())?;
+    w.inner.flush()
+}
+
+pub fn encode(ix: &Index) -> Vec<u8> {
+    let mut b = Vec::with_capacity(64 + ix.nodes.len() * 24 + ix.names.len());
+    write_to(ix, &mut b).expect("writing to a Vec cannot fail");
     b
 }
 
@@ -166,11 +195,11 @@ pub fn save(ix: &Index, path: &Path) -> io::Result<()> {
         std::fs::create_dir_all(dir)?;
     }
     let tmp = path.with_extension("bin.tmp");
-    let data = encode(ix);
     {
-        let mut f = std::fs::File::create(&tmp)?;
-        f.write_all(&data)?;
-        f.sync_all()?;
+        let f = std::fs::File::create(&tmp)?;
+        let mut w = io::BufWriter::with_capacity(1 << 20, f);
+        write_to(ix, &mut w)?;
+        w.into_inner().map_err(|e| e.into_error())?.sync_all()?;
     }
     std::fs::rename(&tmp, path)
 }

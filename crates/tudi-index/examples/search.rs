@@ -10,13 +10,27 @@ fn main() {
     let mut args = std::env::args().skip(1);
     let snap = args.next().expect("SNAPSHOT");
     let queries: Vec<String> = args.collect();
+    let rss = || {
+        std::fs::read_to_string("/proc/self/status")
+            .ok()
+            .and_then(|s| {
+                s.lines()
+                    .find(|l| l.starts_with("VmRSS:"))
+                    .and_then(|l| l.split_whitespace().nth(1)?.parse::<f64>().ok())
+            })
+            .map_or(0.0, |kb| kb / 1024.0)
+    };
     let ix = tudi_index::snapshot::load(std::path::Path::new(&snap)).unwrap();
+    eprintln!("rss after load: {:.0} MB", rss());
     let t = Instant::now();
     let sd = SearchData::build(&ix);
     eprintln!("search data: {:.0} ms", t.elapsed().as_secs_f64() * 1e3);
     let t = Instant::now();
     sd.warm(&ix); // the daemon does this in the background after loading
     eprintln!("typo vocabulary: {:.0} ms", t.elapsed().as_secs_f64() * 1e3);
+    eprintln!("rss after search data + vocabulary: {:.0} MB", rss());
+    tudi_index::release_free_memory();
+    eprintln!("rss after trim: {:.0} MB", rss());
     let default = [
         "r",
         "re",
@@ -52,6 +66,8 @@ fn main() {
             }
         }
     }
+    tudi_index::release_free_memory();
+    eprintln!("rss after queries + trim: {:.0} MB", rss());
     times.sort_by(f64::total_cmp);
     eprintln!(
         "p50 {:.1} ms, p95 {:.1} ms, max {:.1} ms",
