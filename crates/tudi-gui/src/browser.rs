@@ -8,15 +8,16 @@ use std::rc::Rc;
 
 use adw::prelude::*;
 use gtk::{gdk, gio, glib};
-use tudi_core::config::{Config, SortBy};
+use tudi_core::config::SortBy;
 use tudi_core::listing::meta::{MetaFetcher, MetaStatus};
 use tudi_core::listing::sort::{SortKey, SortSpec};
 use tudi_core::state::WindowState;
 use tudi_core::tree::{Expand, NodeId};
 
-use crate::history::{History, HistoryModel, Item};
+use crate::history::Snapshot;
 use crate::i18n::{fill, ntr, tr};
 use crate::pane::{self, PaneModel, Wanted};
+use crate::shared::Shared;
 use crate::sidebar::{self, TreeModel};
 use crate::worker::{Job, Reply, WatchKey, Worker};
 
@@ -50,18 +51,17 @@ struct Reveal {
 
 pub struct Browser {
     pub window: adw::ApplicationWindow,
-    pub(crate) folders: History,
-    frequent_root: Cell<NodeId>,
-    right_stack: gtk::Stack,
-    hist_model: HistoryModel,
-    hist_sel: gtk::SingleSelection,
-    hist_view: gtk::ListView,
-    hist_toggle: gtk::ToggleButton,
-    hist_state: crate::history::ViewStateRc,
-    in_history: Cell<bool>,
+    pub(crate) shared: Rc<Shared>,
+    /// Bookmarks bar: buttons, and the "»" menu with everything.
+    pub(crate) bar_box: gtk::Box,
+    pub(crate) bar_more: gtk::MenuButton,
+    /// Latest folder history (most used folders, exclusions).
+    pub(crate) hist: RefCell<Snapshot>,
+    /// The settings dialog, while open.
+    pub(crate) settings: RefCell<Option<std::rc::Weak<crate::settings::Settings>>>,
+    settings_strong: RefCell<Option<Rc<crate::settings::Settings>>>,
     zoom_toast: RefCell<Option<adw::Toast>>,
     paned: RefCell<Option<gtk::Paned>>,
-    pub(crate) config: Config,
     pub(crate) toasts: adw::ToastOverlay,
     pub(crate) typeahead: crate::actions::TypeAheadState,
     pub(crate) worker: Worker,
@@ -124,10 +124,10 @@ impl Browser {
     pub fn new(
         app: &adw::Application,
         start: &Path,
-        config: Config,
         state: &WindowState,
-        history: History,
+        shared: Rc<Shared>,
     ) -> Rc<Self> {
+        let config = shared.config.borrow().clone();
         let spec = SortSpec {
             key: match config.browse.sort {
                 SortBy::Name => SortKey::Name,
@@ -180,6 +180,9 @@ impl Browser {
         header.pack_start(&back);
         header.pack_start(&forward);
         header.pack_start(&up);
+        let gear = gtk::Button::from_icon_name("emblem-system-symbolic");
+        gear.set_tooltip_text(Some(&tr("Settings (Ctrl+,)")));
+        header.pack_end(&gear);
         header.set_title_widget(Some(&path_entry));
 
         let status = gtk::Label::new(None);
@@ -203,28 +206,16 @@ impl Browser {
                     b.toggle_tree_row(pos as usize);
                 }
             });
-            let hist_model = HistoryModel::default();
-            let w = weak.clone();
-            let (hist_view, hist_sel) =
-                crate::history::build_view(&hist_model, move |pos, row, x, y| {
-                    if let Some(b) = w.upgrade() {
-                        b.history_menu(pos, row, x, y);
-                    }
-                });
             Browser {
                 window: window.clone(),
-                folders: history,
-                frequent_root: Cell::new(0),
-                right_stack: gtk::Stack::new(),
-                hist_model,
-                hist_sel,
-                hist_view,
-                hist_toggle: gtk::ToggleButton::with_label(&tr("Excluded folders")),
-                hist_state: Rc::default(),
-                in_history: Cell::new(false),
+                shared,
+                bar_box: gtk::Box::new(gtk::Orientation::Horizontal, 2),
+                bar_more: gtk::MenuButton::new(),
+                hist: RefCell::default(),
+                settings: RefCell::default(),
+                settings_strong: RefCell::default(),
                 zoom_toast: RefCell::default(),
                 paned: RefCell::default(),
-                config,
                 toasts: adw::ToastOverlay::new(),
                 typeahead: Rc::default(),
                 worker,
@@ -270,29 +261,7 @@ impl Browser {
         files.append(&col_header);
         files.append(&gtk::Separator::new(gtk::Orientation::Horizontal));
         files.append(&b.pane_scroll);
-        let hist = gtk::Box::new(gtk::Orientation::Vertical, 0);
-        let hist_bar = gtk::Box::new(gtk::Orientation::Horizontal, 8);
-        hist_bar.add_css_class("tudi-column-header");
-        let hist_title = gtk::Label::new(Some(&tr("Most used folders")));
-        hist_title.set_xalign(0.0);
-        hist_title.set_hexpand(true);
-        hist_title.add_css_class("heading");
-        b.hist_toggle.add_css_class("flat");
-        hist_bar.append(&hist_title);
-        hist_bar.append(&b.hist_toggle);
-        hist.append(&hist_bar);
-        hist.append(&gtk::Separator::new(gtk::Orientation::Horizontal));
-        hist.append(
-            &gtk::ScrolledWindow::builder()
-                .overlay_scrolling(false)
-                .hscrollbar_policy(gtk::PolicyType::Never)
-                .vexpand(true)
-                .child(&b.hist_view)
-                .build(),
-        );
-        b.right_stack.add_named(&files, Some("files"));
-        b.right_stack.add_named(&hist, Some("history"));
-        let right = &b.right_stack;
+        let right = &files;
         // The divider between the panes is draggable; a wide handle makes it
         // easy to grab (the theme's default is a 1 px line).
         tree_scroll.set_size_request(120, -1);
@@ -310,6 +279,8 @@ impl Browser {
         b.paned.replace(Some(paned.clone()));
         let content = gtk::Box::new(gtk::Orientation::Vertical, 0);
         content.append(&header);
+        content.append(&b.bar_widget());
+        content.append(&gtk::Separator::new(gtk::Orientation::Horizontal));
         content.append(&paned);
         content.append(&gtk::Separator::new(gtk::Orientation::Horizontal));
         content.append(&b.status);
@@ -317,10 +288,16 @@ impl Browser {
         b.window.set_content(Some(&b.toasts));
 
         b.add_roots();
-        b.connect_history();
+        b.build_bar();
         b.connect_signals(&up);
         b.install_shortcuts();
         b.install_drag_source();
+        let w = Rc::downgrade(&b);
+        gear.connect_clicked(move |_| {
+            if let Some(b) = w.upgrade() {
+                b.open_settings();
+            }
+        });
         b.spawn_reply_loop(replies);
         b.update_sort_buttons();
         b.navigate(start, true);
@@ -330,10 +307,6 @@ impl Browser {
     fn add_roots(&self) {
         let home = home();
         let mut roots = self.roots.borrow_mut();
-        self.frequent_root.set(
-            self.tree
-                .add_special_root(&tr("Frequent"), "document-open-recent-symbolic"),
-        );
         let id = self.tree.add_root(&home.to_string_lossy(), &tr("Home"));
         roots.push((home, id));
         let id = self.tree.add_root("/", &tr("File System"));
@@ -353,10 +326,6 @@ impl Browser {
                 return;
             };
             if row.is_error() {
-                return;
-            }
-            if b.tree.is_special(row.node()) {
-                b.show_history();
                 return;
             }
             let path = b.tree.tree().path(row.node());
@@ -468,6 +437,14 @@ impl Browser {
         add("<Control>l", Box::new(|b| b.focus_path()));
         add("<Control>h", Box::new(|b| b.toggle_hidden()));
         add("F6", Box::new(|b| b.switch_pane_focus()));
+        add("<Control>d", Box::new(|b| b.bookmark_current()));
+        add("<Control>comma", Box::new(|b| b.open_settings()));
+        for n in 1..=9usize {
+            add(
+                &format!("<Alt>{n}"),
+                Box::new(move |b| b.open_bookmark(n - 1)),
+            );
+        }
         for accel in ["<Control>equal", "<Control>plus", "<Control>KP_Add"] {
             add(accel, Box::new(|b| b.show_zoom(crate::zoom::zoom_in())));
         }
@@ -530,8 +507,6 @@ impl Browser {
 
     /// Show `path` in the details list and reveal it in the tree.
     pub fn navigate(self: &Rc<Self>, path: &Path, push_history: bool) {
-        self.in_history.set(false);
-        self.right_stack.set_visible_child_name("files");
         let path = path.to_path_buf();
         {
             let mut cur = self.current.borrow_mut();
@@ -641,9 +616,6 @@ impl Browser {
     // --------------------------------------------------------------- tree
 
     fn toggle_tree_row(self: &Rc<Self>, pos: usize) {
-        if self.tree.is_special(self.tree.tree().rows()[pos].node) {
-            return;
-        }
         let expanded = {
             let tree = self.tree.tree();
             match tree.rows().get(pos) {
@@ -660,9 +632,6 @@ impl Browser {
 
     pub(crate) fn expand_tree_row(self: &Rc<Self>, pos: usize) {
         let node = self.tree.tree().rows()[pos].node;
-        if self.tree.is_special(node) {
-            return;
-        }
         let outcome = self.tree.update(Some(node), |t| {
             let e = t.expand(pos);
             let s = match &e {
@@ -890,11 +859,51 @@ impl Browser {
         st
     }
 
+    // ----------------------------------------------------------- settings
+
+    pub(crate) fn open_settings(self: &Rc<Self>) {
+        let open = self.settings.borrow().as_ref().and_then(|s| s.upgrade());
+        if open.is_some() {
+            return;
+        }
+        let s = crate::settings::Settings::open(self);
+        // The dialog's own handlers keep it alive; hold it strongly while
+        // shown (dropped on close).
+        self.settings_strong.replace(Some(s.clone()));
+        self.settings.replace(Some(Rc::downgrade(&s)));
+    }
+
+    pub(crate) fn drop_settings(&self) {
+        // Not inside the dialog's own signal emission.
+        let s = self.settings_strong.take();
+        glib::idle_add_local_once(move || drop(s));
+    }
+
+    /// Apply changed browsing settings (from the settings dialog).
+    pub(crate) fn apply_browse(self: &Rc<Self>, browse: &tudi_core::config::Browse) {
+        let mut spec = self.spec.get();
+        spec.dirs_first = browse.dirs_first;
+        spec.key = match browse.sort {
+            SortBy::Name => SortKey::Name,
+            SortBy::Size => SortKey::Size,
+            SortBy::Mtime => SortKey::Modified,
+        };
+        spec.descending = browse.sort != SortBy::Name;
+        self.spec.set(spec);
+        self.update_sort_buttons();
+        if self.show_hidden.get() != browse.show_hidden {
+            self.toggle_hidden();
+        } else {
+            self.request_sort();
+        }
+    }
+
     // ------------------------------------------------------------ history
 
-    /// Record a deliberate visit of a folder (ADR-016).
+    /// Record a deliberate visit of a folder (ADR-016) and refresh the bar.
     pub(crate) fn record_visit(&self, path: &Path) {
-        self.folders.visit(path.to_path_buf());
+        self.shared.history.visit(path.to_path_buf());
+        self.shared.history.query(self.worker.reply_sender());
     }
 
     /// Record a visit if the folder is still shown after one second, so
@@ -903,7 +912,6 @@ impl Browser {
         let w = Rc::downgrade(self);
         glib::timeout_add_local_once(std::time::Duration::from_secs(1), move || {
             if let Some(b) = w.upgrade()
-                && !b.in_history.get()
                 && *b.current.borrow() == path
             {
                 b.record_visit(&path);
@@ -911,170 +919,31 @@ impl Browser {
         });
     }
 
-    /// Show the "Frequent" view in the right pane.
-    pub(crate) fn show_history(self: &Rc<Self>) {
-        self.in_history.set(true);
-        self.right_stack.set_visible_child_name("history");
-        self.path_entry.set_text("");
-        self.path_entry.set_placeholder_text(Some(&tr("Frequent")));
-        self.window
-            .set_title(Some(&format!("{} — tudi", tr("Frequent"))));
-        if let Some(row) = self.tree.tree().row_of(self.frequent_root.get()) {
-            self.syncing.set(true);
-            self.tree_sel.set_selected(row as u32);
-            self.syncing.set(false);
-            self.tree_view
-                .scroll_to(row as u32, gtk::ListScrollFlags::NONE, None);
-        }
-        self.folders.query(self.worker.reply_sender());
-    }
-
-    fn refresh_history_rows(&self) {
-        let st = self.hist_state.borrow();
-        let Some(snap) = &st.snapshot else { return };
-        let items: Vec<Item> = if st.show_excluded {
-            snap.exclusions
-                .iter()
-                .cloned()
-                .map(Item::Excluded)
-                .collect()
-        } else {
-            snap.entries.iter().cloned().map(Item::Visited).collect()
-        };
-        let n = items.len() as u64;
-        self.hist_model.set(items);
-        if self.in_history.get() {
-            let text = if st.show_excluded {
-                fill(&ntr("{} excluded folder", "{} excluded folders", n), &[&n])
-            } else {
-                fill(&ntr("{} folder", "{} folders", n), &[&n])
-            };
-            self.status.set_text(&text);
-        }
-    }
-
-    fn selected_history_item(&self) -> Option<Item> {
-        let pos = self.hist_sel.selected();
-        (pos != gtk::INVALID_LIST_POSITION)
-            .then(|| self.hist_model.get(pos))
-            .flatten()
-    }
-
-    /// Apply a change to the store, then reload the view.
-    fn history_change(self: &Rc<Self>, f: impl FnOnce(&History, PathBuf)) {
-        if let Some(item) = self.selected_history_item() {
-            f(&self.folders, item.path().to_path_buf());
-            self.folders.query(self.worker.reply_sender());
-        }
-    }
-
-    fn connect_history(self: &Rc<Self>) {
-        let w = Rc::downgrade(self);
-        self.hist_view.connect_activate(move |_, pos| {
-            let Some(b) = w.upgrade() else { return };
-            if let Some(Item::Visited(e)) = b.hist_model.get(pos) {
-                b.navigate(&e.path, true);
-                b.record_visit(&e.path);
-            }
-        });
-        let w = Rc::downgrade(self);
-        self.hist_toggle.connect_toggled(move |t| {
-            if let Some(b) = w.upgrade() {
-                b.hist_state.borrow_mut().show_excluded = t.is_active();
-                b.refresh_history_rows();
-            }
-        });
-
-        // Context menu actions on the selected row.
-        let group = gio::SimpleActionGroup::new();
-        let add = |name: &str, f: Handler| {
-            let a = gio::SimpleAction::new(name, None);
-            let w = Rc::downgrade(self);
-            a.connect_activate(move |_, _| {
-                if let Some(b) = w.upgrade() {
-                    f(&b);
-                }
-            });
-            group.add_action(&a);
-        };
-        add(
-            "exclude",
-            Box::new(|b| b.history_change(|h, p| h.exclude(p, false))),
-        );
-        add(
-            "exclude-tree",
-            Box::new(|b| b.history_change(|h, p| h.exclude(p, true))),
-        );
-        add("forget", Box::new(|b| b.history_change(|h, p| h.forget(p))));
-        add(
-            "unexclude",
-            Box::new(|b| b.history_change(|h, p| h.unexclude(p))),
-        );
-        self.hist_view.insert_action_group("hist", Some(&group));
-    }
-
     // Test hooks for TUDI_DEV_SCRIPT.
+    pub(crate) fn dev_bar_labels(&self) -> Vec<String> {
+        let mut out = Vec::new();
+        let mut c = self.bar_box.first_child();
+        while let Some(w) = c {
+            if w.is::<gtk::Separator>() {
+                out.push("‖".into());
+            } else if let Some(b) = w.downcast_ref::<gtk::Button>() {
+                let label = b
+                    .child()
+                    .and_then(|bx| bx.last_child())
+                    .and_downcast::<gtk::Label>()
+                    .map(|l| l.text().to_string())
+                    .unwrap_or_default();
+                out.push(label);
+            }
+            c = w.next_sibling();
+        }
+        out
+    }
+
     pub(crate) fn dev_set_tree_width(&self, w: i32) {
         if let Some(p) = &*self.paned.borrow() {
             p.set_position(w);
         }
-    }
-
-    pub(crate) fn dev_history_select(&self, pos: u32) {
-        self.hist_sel.set_selected(pos);
-    }
-
-    pub(crate) fn dev_history_action(&self, name: &str) {
-        let _ = self
-            .hist_view
-            .activate_action(&format!("hist.{name}"), None);
-    }
-
-    pub(crate) fn dev_history_toggle_excluded(&self) {
-        self.hist_toggle.set_active(!self.hist_toggle.is_active());
-    }
-
-    pub(crate) fn dev_history_rows(&self) -> Vec<String> {
-        if !self.in_history.get() {
-            return Vec::new();
-        }
-        (0..self.hist_model.n_items())
-            .filter_map(|i| self.hist_model.get(i))
-            .map(|it| match it {
-                Item::Visited(e) => format!("{} ×{}", e.path.display(), e.count),
-                Item::Excluded(x) => {
-                    format!("excluded {} recursive={}", x.path.display(), x.recursive)
-                }
-            })
-            .collect()
-    }
-
-    /// Right-click on history row `pos` (at `x`, `y` in `row`).
-    fn history_menu(self: &Rc<Self>, pos: u32, row: &gtk::Widget, x: f64, y: f64) {
-        self.hist_sel.set_selected(pos);
-        if self.selected_history_item().is_none() {
-            return;
-        }
-        let menu = gio::Menu::new();
-        if self.hist_state.borrow().show_excluded {
-            menu.append(Some(&tr("Allow in history again")), Some("hist.unexclude"));
-        } else {
-            menu.append(Some(&tr("Never show in history")), Some("hist.exclude"));
-            menu.append(
-                Some(&tr("Never show, including subfolders")),
-                Some("hist.exclude-tree"),
-            );
-            menu.append(Some(&tr("Remove from history")), Some("hist.forget"));
-        }
-        let pop = gtk::PopoverMenu::from_model(Some(&menu));
-        pop.set_parent(row);
-        pop.set_pointing_to(Some(&gdk::Rectangle::new(x as i32, y as i32, 1, 1)));
-        pop.set_has_arrow(false);
-        pop.connect_closed(|p| {
-            let p = p.clone();
-            glib::idle_add_local_once(move || p.unparent());
-        });
-        pop.popup();
     }
 
     // ------------------------------------------------------------- pane
@@ -1301,8 +1170,12 @@ impl Browser {
                 self.continue_reveal();
             }
             Reply::History(snap) => {
-                self.hist_state.borrow_mut().snapshot = Some(snap);
-                self.refresh_history_rows();
+                *self.hist.borrow_mut() = snap;
+                self.rebuild_bar();
+                let dialog = self.settings.borrow().as_ref().and_then(|w| w.upgrade());
+                if let Some(d) = dialog {
+                    d.refresh_exclusions(&self.hist.borrow());
+                }
             }
             Reply::Changed(keys) => {
                 let mut tree_nodes = Vec::new();

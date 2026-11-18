@@ -12,6 +12,7 @@
 //! `GApplication`: a second `tudi PATH` is forwarded to the running one.
 
 mod actions;
+mod bar;
 mod bench;
 mod browser;
 mod dev;
@@ -19,6 +20,8 @@ mod format;
 mod history;
 mod i18n;
 mod pane;
+mod settings;
+mod shared;
 mod sidebar;
 mod worker;
 mod zoom;
@@ -45,12 +48,21 @@ const CSS: &str = "
 .tudi-status { padding: 3px 12px; font-size: smaller; }
 .tudi-expander { opacity: 0.7; }
 .tudi-tree row { padding: 3px 6px; }
+.tudi-bar { padding: 2px 6px; }
+.tudi-bar-button { font-weight: normal; padding: 2px 8px; min-height: 0; }
+.tudi-bar-items separator { margin: 5px 8px; min-width: 1px; background: alpha(currentColor, 0.25); }
+.tudi-bar-hint { padding: 0 8px; font-size: smaller; }
 /* Always-visible, wider scrollbars (overlay scrolling is off). */
 window.tudi-window scrollbar.vertical slider { min-width: 10px; }
 window.tudi-window scrollbar.horizontal slider { min-height: 10px; }
 ";
 
-type Loaded = (Config, Option<ConfigError>, WindowState);
+type Loaded = (
+    Config,
+    Option<ConfigError>,
+    WindowState,
+    tudi_core::bookmarks::Bookmarks,
+);
 
 /// Process-wide state of the GUI (main thread only).
 #[derive(Default)]
@@ -61,8 +73,9 @@ struct App {
     /// Open windows, most recently opened last. Owning the browsers here
     /// keeps them alive while their windows are open.
     browsers: RefCell<Vec<Rc<Browser>>>,
-    /// The folder history thread, started with the first window.
-    history: RefCell<Option<history::History>>,
+    /// Config, bookmarks and the history thread, shared by all windows;
+    /// created with the first window.
+    shared: RefCell<Option<Rc<shared::Shared>>>,
 }
 
 impl App {
@@ -73,33 +86,42 @@ impl App {
                 .borrow_mut()
                 .take()
                 .and_then(|h| h.join().ok())
-                .unwrap_or_else(|| (Config::default(), None, WindowState::default()));
+                .unwrap_or_else(|| {
+                    (
+                        Config::default(),
+                        None,
+                        WindowState::default(),
+                        Default::default(),
+                    )
+                });
             *self.loaded.borrow_mut() = Some(l);
         }
         std::cell::Ref::map(self.loaded.borrow(), |l| l.as_ref().unwrap())
     }
 
     fn open_window(self: &Rc<Self>, app: &adw::Application, path: Option<PathBuf>) {
-        let (config, err, state) = {
+        let (config, err, state, bookmarks) = {
             let l = self.loaded();
             (
                 l.0.clone(),
                 l.1.as_ref().map(|e| e.to_string()),
                 l.2.clone(),
+                l.3.clone(),
             )
         };
         let start = path
             .or_else(|| state.last_dir.as_ref().map(PathBuf::from))
             .unwrap_or_else(glib::home_dir);
-        let hist = self
-            .history
+        let shared = self
+            .shared
             .borrow_mut()
-            .get_or_insert_with(|| history::History::start(config.history.exclude.clone()))
+            .get_or_insert_with(|| shared::Shared::new(config, bookmarks))
             .clone();
         if self.browsers.borrow().is_empty() {
             zoom::set(state.zoom);
         }
-        let b = Browser::new(app, &start, config, &state, hist);
+        let b = Browser::new(app, &start, &state, shared.clone());
+        shared.browsers.borrow_mut().push(Rc::downgrade(&b));
         let first = self.browsers.borrow().is_empty();
         self.browsers.borrow_mut().push(b.clone());
 
@@ -219,7 +241,10 @@ fn main() -> glib::ExitCode {
         let state = WindowState::path()
             .map(|p| WindowState::load(&p))
             .unwrap_or_default();
-        (config, err, state)
+        let bookmarks = tudi_core::bookmarks::Bookmarks::path()
+            .map(|p| tudi_core::bookmarks::Bookmarks::load(&p))
+            .unwrap_or_default();
+        (config, err, state, bookmarks)
     }));
 
     let app = adw::Application::builder()

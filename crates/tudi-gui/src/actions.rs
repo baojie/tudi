@@ -171,12 +171,12 @@ impl Browser {
     // ------------------------------------------------------------ commands
 
     pub(crate) fn open_terminal(self: &Rc<Self>) {
-        let t = self.config.commands.terminal.clone();
+        let t = self.shared.config.borrow().commands.terminal.clone();
         self.run_command(&t, &[]);
     }
 
     pub(crate) fn open_editor(self: &Rc<Self>) {
-        let t = self.config.commands.editor.clone();
+        let t = self.shared.config.borrow().commands.editor.clone();
         let paths = self.selected_paths();
         self.run_command(&t, &paths);
     }
@@ -315,7 +315,13 @@ impl Browser {
 
     /// A dialog asking for a file name; `done` gets a non-empty name without
     /// `/`. The stem (before the last `.`) is preselected.
-    fn ask_name(&self, heading: &str, verb: &str, initial: &str, done: impl Fn(String) + 'static) {
+    pub(crate) fn ask_name(
+        &self,
+        heading: &str,
+        verb: &str,
+        initial: &str,
+        done: impl Fn(String) + 'static,
+    ) {
         let entry = gtk::Entry::builder()
             .text(initial)
             .activates_default(true)

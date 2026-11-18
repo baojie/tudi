@@ -8,9 +8,9 @@
 //!   `wait MS`, `nav PATH`, `up`, `back`, `forward`, `select ROW`,
 //!   `type TEXT`, `hidden`, `sort name|size|mtime`, `rename NAME`,
 //!   `mkdir NAME`, `trash`, `expand ROW`, `collapse ROW`, `scroll FRACTION`,
-//!   `dump`, `open PATH` (counted visit), `treeselect ROW`, `frequent`,
-//!   `hselect ROW`, `hexclude`, `hexclude-tree`, `hforget`, `hunexclude`,
-//!   `hexcluded`. Prefix a command with `!` to run the next one after 50 ms.
+//!   `dump`, `open PATH` (counted visit), `treeselect ROW`, `bookmark`,
+//!   `settings`, bar actions `bm N`, `freq N`, `pin N`, `barexclude N`,
+//!   `barexclude-tree N`, `forget N`, `rmbm N`. Prefix a command with `!` to run the next one after 50 ms.
 //!   `shot FILE`, `quit`.
 
 // Script results go to stdout on purpose: they are read by test tooling.
@@ -104,15 +104,33 @@ fn step(b: Rc<Browser>, queue: Queue, delay: Duration) {
                 b.record_visit(&p);
             }
             "treeselect" => b.tree_sel.set_selected(arg.parse().unwrap_or(0)),
-            "frequent" => b.show_history(),
             "panewidth" => b.dev_set_tree_width(arg.parse().unwrap_or(280)),
             "zoom" => b.show_zoom(crate::zoom::set(arg.parse().unwrap_or(100))),
-            "hselect" => b.dev_history_select(arg.parse().unwrap_or(0)),
-            "hexclude" => b.dev_history_action("exclude"),
-            "hexclude-tree" => b.dev_history_action("exclude-tree"),
-            "hforget" => b.dev_history_action("forget"),
-            "hunexclude" => b.dev_history_action("unexclude"),
-            "hexcluded" => b.dev_history_toggle_excluded(),
+            "bookmark" => b.bookmark_current(),
+            "settings" => b.open_settings(),
+            "settingspage" => {
+                let s = b.settings.borrow().as_ref().and_then(|s| s.upgrade());
+                if let Some(s) = s {
+                    s.show_page(arg);
+                }
+            }
+            "bm" | "freq" | "pin" | "barexclude" | "barexclude-tree" | "forget" | "rmbm" => {
+                let action = match verb {
+                    "bm" => "open-bookmark",
+                    "freq" => "open-frequent",
+                    "pin" => "pin",
+                    "barexclude" => "exclude",
+                    "barexclude-tree" => "exclude-tree",
+                    "forget" => "forget",
+                    _ => "remove-bookmark",
+                };
+                let i: i32 = arg.parse().unwrap_or(0);
+                let _ = WidgetExt::activate_action(
+                    &b.window,
+                    &format!("bar.{action}"),
+                    Some(&i.to_variant()),
+                );
+            }
             "scroll" => {
                 let f: f64 = arg.parse().unwrap_or(0.0);
                 let adj = b.pane_scroll.vadjustment();
@@ -169,9 +187,7 @@ fn dump(b: &Browser) {
             t.path(t.rows()[sel as usize].node).display()
         );
     }
-    for line in b.dev_history_rows() {
-        println!("history: {line}");
-    }
+    println!("bar: {}", b.dev_bar_labels().join(" | "));
     println!("status: {}", b.status.text());
     let f = crate::bench::frame_stats();
     println!(

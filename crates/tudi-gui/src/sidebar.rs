@@ -61,9 +61,6 @@ mod model_imp {
         /// Display names for roots, by node.
         pub root_labels: RefCell<HashMap<NodeId, String>>,
         pub bound: RefCell<HashMap<Key, glib::WeakRef<gtk::Box>>>,
-        /// Roots that are views, not folders (e.g. "Frequent"): an icon
-        /// name each; they never expand.
-        pub special: RefCell<HashMap<NodeId, &'static str>>,
     }
 
     #[glib::object_subclass]
@@ -124,27 +121,10 @@ impl TreeModel {
         r
     }
 
-    /// Add a root that is a view, not a folder.
-    pub fn add_special_root(&self, label: &str, icon: &'static str) -> NodeId {
-        self.add_root_with(String::new(), label, Some(icon))
-    }
-
-    pub fn is_special(&self, node: NodeId) -> bool {
-        self.imp().special.borrow().contains_key(&node)
-    }
-
     pub fn add_root(&self, path: &str, label: &str) -> NodeId {
-        self.add_root_with(path.into(), label, None)
-    }
-
-    fn add_root_with(&self, path: String, label: &str, special: Option<&'static str>) -> NodeId {
         let (id, s) = self.imp().tree.borrow_mut().add_root(path);
+        // Record the label before telling GTK: it may bind the row at once.
         self.imp().root_labels.borrow_mut().insert(id, label.into());
-        if let Some(icon) = special {
-            self.imp().special.borrow_mut().insert(id, icon);
-        }
-        // Only now tell GTK: it may bind the new row right away, and the
-        // row must already be known as special (no expander, own icon).
         self.items_changed(s.position, s.removed, s.added);
         id
     }
@@ -228,12 +208,6 @@ fn fill(b: &gtk::Box, model: &TreeModel, node: NodeId, error: bool) {
     }
     b.set_margin_start(i32::from(depth) * 16);
     p.label.remove_css_class("dim-label");
-    if let Some(icon) = model.imp().special.borrow().get(&node) {
-        p.expander.clear();
-        p.icon.set_icon_name(Some(icon));
-        p.label.set_text(&model.label(node));
-        return;
-    }
     let leaf = matches!(&children, Children::Loaded(k) if k.is_empty());
     if leaf {
         p.expander.clear();
