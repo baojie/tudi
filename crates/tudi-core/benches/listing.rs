@@ -48,6 +48,9 @@ fn bench_list_sort(c: &mut Criterion) {
         c.bench_function(&format!("name-rank/{name}"), |b| {
             b.iter(|| NameRank::new(&l))
         });
+        c.bench_function(&format!("name-rank-pinyin/{name}"), |b| {
+            b.iter(|| NameRank::with_pinyin(&l, true))
+        });
         let rank = NameRank::new(&l);
         let metas = MetaTable::new(l.len());
         c.bench_function(&format!("order/{name}"), |b| {

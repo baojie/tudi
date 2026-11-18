@@ -21,6 +21,8 @@ language = "en"
 show_hidden = false
 dirs_first = true
 sort = "name"          # name | size | mtime
+# Sort Chinese names by pinyin, among the Latin letters (合同 near "hetong").
+pinyin_sort = false
 
 [commands]
 # {dir}: the current folder. {path}: each selected item (or the current
@@ -70,6 +72,7 @@ pub struct Browse {
     pub show_hidden: bool,
     pub dirs_first: bool,
     pub sort: SortBy,
+    pub pinyin_sort: bool,
 }
 
 impl Default for Browse {
@@ -78,6 +81,7 @@ impl Default for Browse {
             show_hidden: false,
             dirs_first: true,
             sort: SortBy::Name,
+            pinyin_sort: false,
         }
     }
 }

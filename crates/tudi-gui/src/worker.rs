@@ -10,6 +10,16 @@ use std::sync::Arc;
 use rustix::fs::{AtFlags, StatxFlags};
 use tudi_core::listing::meta::{MetaBatch, MetaTable};
 use tudi_core::listing::sort::{NameRank, SortSpec, order};
+
+/// `[browse] pinyin_sort`, read by the worker threads when they rank names.
+pub static PINYIN_SORT: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+fn name_rank(listing: &tudi_core::listing::Listing) -> NameRank {
+    NameRank::with_pinyin(
+        listing,
+        PINYIN_SORT.load(std::sync::atomic::Ordering::Relaxed),
+    )
+}
 use tudi_core::listing::{Kind, ListError, Lister, Listing};
 use tudi_core::tree::{ListFailure, NodeId};
 
@@ -191,7 +201,7 @@ fn run(jobs: async_channel::Receiver<Job>, replies: async_channel::Sender<Reply>
                 select,
             } => match lister.list(&path, generation) {
                 Ok(listing) => {
-                    let rank = NameRank::new(&listing);
+                    let rank = name_rank(&listing);
                     let metas = MetaTable::new(listing.len());
                     let order = filtered_order(&listing, &rank, &metas, spec, show_hidden);
                     let select = positions_of(&listing, &order, &select);
@@ -301,7 +311,7 @@ fn list_subdirs(
         .is_ok_and(|st| u32::from(st.stx_mode) & 0o170000 == 0o040000),
         _ => false,
     };
-    let rank = NameRank::new(&listing);
+    let rank = name_rank(&listing);
     Ok(rank
         .sorted()
         .iter()

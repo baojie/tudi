@@ -10,6 +10,7 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
+pinyin.workspace = true
 rustix.workspace = true
 rayon.workspace = true
 thiserror.workspace = true

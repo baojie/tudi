@@ -31,14 +31,24 @@ fn prefix(key: &[u8]) -> u64 {
 
 impl NameRank {
     pub fn new(listing: &Listing) -> Self {
+        Self::with_pinyin(listing, false)
+    }
+
+    /// With `pinyin`, Chinese names sort by their pinyin among Latin ones.
+    pub fn with_pinyin(listing: &Listing, pinyin: bool) -> Self {
         let n = listing.len();
+        let mut scratch = Vec::new();
         // Natural-order byte keys in one arena; sort by an 8-byte prefix
         // first, falling back to the full key and then the raw name.
         let mut arena = Vec::with_capacity(n * 16);
         let mut spans = Vec::with_capacity(n);
         for i in 0..n {
             let start = arena.len();
-            natural::key(listing.name(i), &mut arena);
+            if pinyin {
+                natural::pinyin_key(listing.name(i), &mut arena, &mut scratch);
+            } else {
+                natural::key(listing.name(i), &mut arena);
+            }
             spans.push((start, arena.len()));
         }
         let key = |i: u32| &arena[spans[i as usize].0..spans[i as usize].1];

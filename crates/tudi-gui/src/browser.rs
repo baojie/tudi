@@ -155,6 +155,10 @@ impl Browser {
             dirs_first: config.browse.dirs_first,
         };
         let show_hidden = config.browse.show_hidden;
+        crate::worker::PINYIN_SORT.store(
+            config.browse.pinyin_sort,
+            std::sync::atomic::Ordering::Relaxed,
+        );
         let (worker, replies) = Worker::start();
         let tx = worker.reply_sender();
         let watcher = tudi_core::watch::Watcher::start(WATCH_LIMIT, move |keys| {
@@ -1025,7 +1029,13 @@ impl Browser {
         spec.descending = browse.sort != SortBy::Name;
         self.spec.set(spec);
         self.update_sort_buttons();
-        if self.show_hidden.get() != browse.show_hidden {
+        let pinyin = &crate::worker::PINYIN_SORT;
+        if pinyin.swap(browse.pinyin_sort, std::sync::atomic::Ordering::Relaxed)
+            != browse.pinyin_sort
+        {
+            // Name ranks are made when listing: list again.
+            self.reload(None);
+        } else if self.show_hidden.get() != browse.show_hidden {
             self.toggle_hidden();
         } else {
             self.request_sort();

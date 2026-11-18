@@ -82,6 +82,11 @@ impl Settings {
             .build();
         let hidden = switch_row(&tr("Show hidden files"), "Ctrl+H", cfg.browse.show_hidden);
         let dirs_first = switch_row(&tr("Folders before files"), "", cfg.browse.dirs_first);
+        let pinyin = switch_row(
+            &tr("Sort Chinese names by pinyin"),
+            &tr("合同 sorts near “hetong”, among the h’s"),
+            cfg.browse.pinyin_sort,
+        );
         let sort = combo_row(
             &tr("Sort by"),
             &[tr("Name"), tr("Size"), tr("Modified")],
@@ -94,6 +99,7 @@ impl Settings {
         browse.add(&hidden);
         browse.add(&dirs_first);
         browse.add(&sort);
+        browse.add(&pinyin);
         general.add(&browse);
         let index_group = adw::PreferencesGroup::builder()
             .title(tr("Search index"))
@@ -236,6 +242,13 @@ impl Settings {
         hidden.connect_active_notify(move |r| {
             if let Some(s) = w.upgrade() {
                 s.edit(|c| c.browse.show_hidden = r.is_active());
+                s.apply_browse();
+            }
+        });
+        let w = Rc::downgrade(&s);
+        pinyin.connect_active_notify(move |r| {
+            if let Some(s) = w.upgrade() {
+                s.edit(|c| c.browse.pinyin_sort = r.is_active());
                 s.apply_browse();
             }
         });

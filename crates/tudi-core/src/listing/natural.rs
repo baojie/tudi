@@ -6,7 +6,9 @@
 //!    without parsing, so arbitrarily long runs work.
 //! 3. Other bytes compare ASCII-case-insensitively. Non-ASCII bytes compare
 //!    raw; for valid UTF-8 that is code-point order, which puts CJK after
-//!    Latin and keeps CJK in code-point order (pinyin collation is M8).
+//!    Latin and keeps CJK in code-point order. With pinyin collation
+//!    ([`pinyin_key`], `[browse] pinyin_sort`), Chinese characters sort as
+//!    their pinyin among the Latin letters: 合同 next to "hetong".
 //! 4. Ties (`a` vs `A`, `file01` vs `file1`, `.x` vs `x`) are broken by the
 //!    raw bytes, so the order is total and deterministic.
 
@@ -43,6 +45,30 @@ pub fn key(name: &[u8], out: &mut Vec<u8>) {
             i += 1;
         }
     }
+}
+
+/// Like [`key`], with each Chinese character replaced by its pinyin
+/// (without tones) first. `scratch` is reused between calls. ASCII names
+/// take the plain path.
+pub fn pinyin_key(name: &[u8], out: &mut Vec<u8>, scratch: &mut Vec<u8>) {
+    use pinyin::ToPinyin;
+    if name.is_ascii() {
+        return key(name, out);
+    }
+    scratch.clear();
+    for chunk in name.utf8_chunks() {
+        for c in chunk.valid().chars() {
+            match c.to_pinyin() {
+                Some(p) => scratch.extend_from_slice(p.plain().as_bytes()),
+                None => {
+                    let mut b = [0u8; 4];
+                    scratch.extend_from_slice(c.encode_utf8(&mut b).as_bytes());
+                }
+            }
+        }
+        scratch.extend_from_slice(chunk.invalid());
+    }
+    key(scratch, out);
 }
 
 /// Total order used for listing names. See the module docs.
@@ -159,6 +185,35 @@ mod tests {
             sorted(&["报告", "季报", "zeta", "合同", "Alpha", "2024"]),
             ["2024", "Alpha", "zeta", "合同", "季报", "报告"]
         );
+    }
+
+    #[test]
+    fn pinyin_collation() {
+        let mut v: Vec<&[u8]> = [
+            "报告", "zeta", "合同", "Alpha", "hotel", "季报", "第2章", "第10章",
+        ]
+        .iter()
+        .map(|s| s.as_bytes())
+        .collect();
+        let mut scratch = Vec::new();
+        let k = |s: &[u8], scratch: &mut Vec<u8>| {
+            let mut out = Vec::new();
+            pinyin_key(s, &mut out, scratch);
+            out
+        };
+        v.sort_by_cached_key(|s| (k(s, &mut scratch), s.to_vec()));
+        let got: Vec<&str> = v.iter().map(|s| std::str::from_utf8(s).unwrap()).collect();
+        // baogao, dierzhang, dishizhang... jibao, hetong, hotel
+        assert_eq!(
+            got,
+            [
+                "Alpha", "报告", "第2章", "第10章", "合同", "hotel", "季报", "zeta"
+            ]
+        );
+        // Invalid UTF-8 does not panic.
+        let mut out = Vec::new();
+        pinyin_key(b"\xff\xe5\x90", &mut out, &mut scratch);
+        assert!(!out.is_empty());
     }
 
     #[test]
