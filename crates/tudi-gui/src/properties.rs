@@ -173,7 +173,7 @@ fn contains_text(s: &SizeStats) -> String {
         &[&crate::browser::fmt_count(s.dirs)],
     ));
     if s.errors > 0 {
-        t.push_str("\n");
+        t.push('\n');
         t.push_str(&fill(
             &ntr(
                 "{} item could not be read",

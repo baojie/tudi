@@ -637,7 +637,6 @@ msgid_plural "{} items could not be read"
 msgstr[0] "{} 项无法读取"
 
 #: crates/tudi-gui/src/properties.rs:307
-#, fuzzy
 msgid "{} item"
 msgid_plural "{} items"
-msgstr[0] "已剪切 {} 项"
+msgstr[0] "{} 项"
