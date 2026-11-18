@@ -21,6 +21,7 @@ tempfile = "3.27.0"
 async-channel = "2.5.0"
 serde = { version = "1.0.229", features = ["derive"] }
 toml = "1.2.1"
+toml_edit = "0.25.19"
 rusqlite = { version = "0.43.0", features = ["bundled"] }
 globset = "0.4.21"
 gettext-rs = { version = "0.8.0", features = ["gettext-system"] }

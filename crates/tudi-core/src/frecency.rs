@@ -289,6 +289,12 @@ impl Frecency {
         Ok(v)
     }
 
+    /// Forget all visits (exclusions are kept).
+    pub fn clear(&mut self) -> Result<(), FrecencyError> {
+        self.db.execute("DELETE FROM dirs", [])?;
+        Ok(())
+    }
+
     /// Forget one folder's history (it may be recorded again later).
     pub fn forget(&mut self, dir: &Path) -> Result<(), FrecencyError> {
         self.db
@@ -360,6 +366,11 @@ mod tests {
             }]
         );
         assert!(f.unexclude(Path::new("/w/a")).unwrap());
+        f.clear().unwrap();
+        assert!(f.top(10, NOW).unwrap().is_empty());
+        f.exclude(Path::new("/w/x"), false).unwrap();
+        f.clear().unwrap();
+        assert_eq!(f.exclusions().unwrap().len(), 1, "clear keeps exclusions");
         assert!(f.visit(Path::new("/w/a/b"), NOW).unwrap());
     }
 

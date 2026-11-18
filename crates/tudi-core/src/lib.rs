@@ -3,6 +3,7 @@
 //!
 //! This crate must not depend on GTK.
 
+pub mod bookmarks;
 pub mod config;
 pub mod frecency;
 pub mod listing;

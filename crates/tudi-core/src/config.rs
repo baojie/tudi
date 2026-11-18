@@ -184,6 +184,46 @@ impl Config {
     }
 }
 
+impl Config {
+    /// Write `self` to `path`, keeping the comments and layout of the
+    /// existing file (or of [`DEFAULT_TOML`] if there is none): changed
+    /// values are replaced in place, new keys are appended to their table.
+    pub fn save_preserving(&self, path: &Path) -> std::io::Result<()> {
+        let existing = std::fs::read_to_string(path).unwrap_or_else(|_| DEFAULT_TOML.into());
+        let mut doc: toml_edit::DocumentMut = existing
+            .parse()
+            .unwrap_or_else(|_| DEFAULT_TOML.parse().expect("default config parses"));
+        let new: toml_edit::DocumentMut = toml::to_string(self)
+            .map_err(std::io::Error::other)?
+            .parse()
+            .map_err(std::io::Error::other)?;
+        merge(doc.as_table_mut(), new.as_table());
+        if let Some(dir) = path.parent() {
+            std::fs::create_dir_all(dir)?;
+        }
+        let tmp = path.with_extension("toml.tmp");
+        std::fs::write(&tmp, doc.to_string())?;
+        std::fs::rename(&tmp, path)
+    }
+}
+
+/// Copy the values of `src` into `dst`, keeping `dst`'s decoration.
+fn merge(dst: &mut toml_edit::Table, src: &toml_edit::Table) {
+    for (key, item) in src.iter() {
+        match (dst.get_mut(key), item) {
+            (Some(toml_edit::Item::Table(d)), toml_edit::Item::Table(s)) => merge(d, s),
+            (Some(toml_edit::Item::Value(d)), toml_edit::Item::Value(s)) => {
+                let decor = d.decor().clone();
+                *d = s.clone();
+                *d.decor_mut() = decor;
+            }
+            _ => {
+                dst.insert(key, item.clone());
+            }
+        }
+    }
+}
+
 /// Expand a command template. `{dir}` is replaced inside any argument; an
 /// argument that is exactly `{path}` becomes one argument per path; `{path}`
 /// inside a longer argument uses the first path.
@@ -261,6 +301,26 @@ mod tests {
         assert_eq!(std::fs::read_to_string(&p).unwrap(), DEFAULT_TOML);
         std::fs::write(&p, "[browse]\nshow_hidden = true\n").unwrap();
         assert!(Config::load_or_init(&p).unwrap().browse.show_hidden);
+    }
+
+    #[test]
+    fn save_keeps_comments() {
+        let t = tempfile::tempdir().unwrap();
+        let p = t.path().join("config.toml");
+        std::fs::write(&p, "# mine\n[browse]\nshow_hidden = false # keep me\n").unwrap();
+        let mut c = Config::load_or_init(&p).unwrap();
+        c.browse.show_hidden = true;
+        c.ui.language = Language::System;
+        c.history.exclude = vec!["/tmp/**".into()];
+        c.save_preserving(&p).unwrap();
+        let text = std::fs::read_to_string(&p).unwrap();
+        assert!(text.contains("# mine"), "{text}");
+        assert!(text.contains("show_hidden = true # keep me"), "{text}");
+        assert_eq!(Config::load_or_init(&p).unwrap(), c);
+        // A missing file starts from the commented defaults.
+        let q = t.path().join("new/config.toml");
+        Config::default().save_preserving(&q).unwrap();
+        assert_eq!(std::fs::read_to_string(&q).unwrap(), DEFAULT_TOML);
     }
 
     #[test]
