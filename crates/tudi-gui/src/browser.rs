@@ -160,6 +160,7 @@ impl Browser {
         let pane_view = pane::build_view(&pane, &pane_sel, &wanted);
         let (col_header, sort_buttons) = pane::build_header();
         let pane_scroll = gtk::ScrolledWindow::builder()
+            .overlay_scrolling(false)
             .hscrollbar_policy(gtk::PolicyType::Never)
             .vexpand(true)
             .child(&pane_view)
@@ -261,6 +262,7 @@ impl Browser {
 
         // --- layout
         let tree_scroll = gtk::ScrolledWindow::builder()
+            .overlay_scrolling(false)
             .hscrollbar_policy(gtk::PolicyType::Never)
             .child(&b.tree_view)
             .build();
@@ -282,6 +284,7 @@ impl Browser {
         hist.append(&gtk::Separator::new(gtk::Orientation::Horizontal));
         hist.append(
             &gtk::ScrolledWindow::builder()
+                .overlay_scrolling(false)
                 .hscrollbar_policy(gtk::PolicyType::Never)
                 .vexpand(true)
                 .child(&b.hist_view)

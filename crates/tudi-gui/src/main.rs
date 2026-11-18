@@ -37,12 +37,17 @@ use browser::Browser;
 const APP_ID: &str = "io.github.baojie.tudi";
 
 const CSS: &str = "
-.tudi-column-header { padding: 0 12px; }
+/* Right padding = row padding (12px) + the always-visible scrollbar (22px),
+   so the header columns line up with the list columns. */
+.tudi-column-header { padding: 0 34px 0 12px; }
 .tudi-column-header button { padding: 2px 0; min-height: 0; font-weight: normal; }
 .tudi-details row { padding: 3px 12px; }
 .tudi-status { padding: 3px 12px; font-size: smaller; }
 .tudi-expander { opacity: 0.7; }
 .tudi-tree row { padding: 3px 6px; }
+/* Always-visible, wider scrollbars (overlay scrolling is off). */
+window.tudi-window scrollbar.vertical slider { min-width: 10px; }
+window.tudi-window scrollbar.horizontal slider { min-height: 10px; }
 ";
 
 type Loaded = (Config, Option<ConfigError>, WindowState);

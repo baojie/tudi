@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Fix: the "Frequent" tree root showed an expander and a folder icon.
+- Fix: files of unknown type showed a missing-image icon with some icon
+  themes; executables without an extension get an executable icon.
+- Always-visible, wider scrollbars.
+
 ## 0.1.0 — 2026-11-18
 
 First public preview. Usable as a daily file browser; search (index
