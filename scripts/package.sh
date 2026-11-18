@@ -11,7 +11,7 @@ cd "$ROOT"
 VERSION=$(cargo metadata --no-deps --format-version 1 \
     | python3 -c 'import json,sys; print(next(p["version"] for p in json.load(sys.stdin)["packages"] if p["name"]=="tudi-gui"))')
 
-cargo build --release -p tudi-gui
+cargo build --release -p tudi-gui -p tudi-indexd
 for po in po/*.po; do
     lang=$(basename "$po" .po)
     mkdir -p "target/locale-dist/$lang/LC_MESSAGES"
@@ -25,6 +25,7 @@ STAGE="target/tudi-$VERSION-x86_64-linux"
 rm -rf "$STAGE"
 install -Dm755 target/release/tudi "$STAGE/bin/tudi"
 install -Dm755 target/release/tudi-gui "$STAGE/bin/tudi-gui"
+install -Dm755 target/release/tudi-indexd "$STAGE/bin/tudi-indexd"
 install -Dm644 data/io.github.baojie.tudi.desktop "$STAGE/share/applications/io.github.baojie.tudi.desktop"
 install -Dm644 data/icons/hicolor/scalable/apps/io.github.baojie.tudi.svg \
     "$STAGE/share/icons/hicolor/scalable/apps/io.github.baojie.tudi.svg"

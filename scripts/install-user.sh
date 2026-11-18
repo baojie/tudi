@@ -16,7 +16,8 @@ ICONS="$PREFIX/share/icons/hicolor/scalable/apps"
 
 if [ "${1:-}" = "--uninstall" ]; then
     tudi --quit 2>/dev/null || true
-    rm -f "$PREFIX/bin/tudi" "$PREFIX/bin/tudi-gui" "$APPS/$ID.desktop" "$ICONS/$ID.svg"
+    tudi index stop 2>/dev/null || true
+    rm -f "$PREFIX/bin/tudi" "$PREFIX/bin/tudi-gui" "$PREFIX/bin/tudi-indexd" "$APPS/$ID.desktop" "$ICONS/$ID.svg"
     find "$PREFIX/share/locale" -path '*/LC_MESSAGES/tudi.mo' -delete 2>/dev/null || true
     if command -v gsettings >/dev/null; then
         favs=$(gsettings get org.gnome.shell favorite-apps)
@@ -27,13 +28,15 @@ if [ "${1:-}" = "--uninstall" ]; then
     exit 0
 fi
 
-cargo build --release -p tudi-gui --manifest-path "$ROOT/Cargo.toml"
+cargo build --release -p tudi-gui -p tudi-indexd --manifest-path "$ROOT/Cargo.toml"
 
 # A running resident instance keeps the old binary; stop it first.
 "$PREFIX/bin/tudi" --quit 2>/dev/null || true
+"$PREFIX/bin/tudi" index stop 2>/dev/null || true
 
 install -Dm755 "$ROOT/target/release/tudi" "$PREFIX/bin/tudi"
 install -Dm755 "$ROOT/target/release/tudi-gui" "$PREFIX/bin/tudi-gui"
+install -Dm755 "$ROOT/target/release/tudi-indexd" "$PREFIX/bin/tudi-indexd"
 for po in "$ROOT"/po/*.po; do
     lang=$(basename "$po" .po)
     mkdir -p "$PREFIX/share/locale/$lang/LC_MESSAGES"

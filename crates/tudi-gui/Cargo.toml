@@ -48,6 +48,7 @@ depends = "$auto"
 assets = [
     ["target/release/tudi", "usr/bin/", "755"],
     ["target/release/tudi-gui", "usr/bin/", "755"],
+    ["target/release/tudi-indexd", "usr/bin/", "755"],
     ["../../data/io.github.baojie.tudi.desktop", "usr/share/applications/", "644"],
     ["../../data/icons/hicolor/scalable/apps/io.github.baojie.tudi.svg", "usr/share/icons/hicolor/scalable/apps/", "644"],
     ["../../target/locale-dist/zh_CN/LC_MESSAGES/tudi.mo", "usr/share/locale/zh_CN/LC_MESSAGES/", "644"],
