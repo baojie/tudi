@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Properties dialog (context menu, `Alt+Enter`): type, location, dates,
+  permissions, owner, and the size of folders counted live with a spinner.
+- Finder-like look: light sidebar, blue selection in the list (grey when
+  unfocused), tighter rows.
 - Status bar: files and folders in the shown folder, and its total size
   (computed in the background, skipped if it takes over a second).
 - Context menu on folders in the tree (open, expand, terminal, copy / cut /

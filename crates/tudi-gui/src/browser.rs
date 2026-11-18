@@ -296,6 +296,7 @@ impl Browser {
             .hscrollbar_policy(gtk::PolicyType::Never)
             .child(&b.tree_view)
             .build();
+        tree_scroll.add_css_class("tudi-tree-scroll");
         let files = gtk::Box::new(gtk::Orientation::Vertical, 0);
         files.append(&col_header);
         files.append(&gtk::Separator::new(gtk::Orientation::Horizontal));
@@ -529,6 +530,7 @@ impl Browser {
         add("<Control>x", Box::new(|b| b.cut_files()));
         add("<Control>v", Box::new(|b| b.paste()));
         add("<Control>a", Box::new(|b| b.select_all()));
+        add("<Alt>Return", Box::new(|b| b.show_properties()));
         add("<Control><Shift>c", Box::new(|b| b.copy_paths()));
         add("Delete", Box::new(|b| b.trash_selected()));
         add("F2", Box::new(|b| b.rename_selected()));
@@ -1348,7 +1350,7 @@ impl Browser {
     }
 }
 
-fn fmt_count(n: u64) -> String {
+pub(crate) fn fmt_count(n: u64) -> String {
     let s = n.to_string();
     let mut out = String::new();
     for (i, c) in s.chars().enumerate() {

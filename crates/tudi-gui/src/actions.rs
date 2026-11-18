@@ -496,6 +496,10 @@ impl Browser {
         add("editor", |b| b.open_editor());
         add("select-all", |b| b.select_all());
         add("hidden", |b| b.toggle_hidden());
+        add("properties", |b| b.show_properties());
+        add("folder-properties", |b| {
+            crate::properties::show(b, vec![b.current_dir()]);
+        });
         add("bookmark", |b| b.bookmark_selected_folder());
         add("launcher", |b| {
             if let Some(f) = b.selected_launchable() {
@@ -530,6 +534,15 @@ impl Browser {
             self.navigate(&p, true);
             self.record_visit(&p);
         }
+    }
+
+    /// `Alt+Enter`: properties of the selection, or of the current folder.
+    pub(crate) fn show_properties(self: &Rc<Self>) {
+        let mut paths = self.selected_paths();
+        if paths.is_empty() {
+            paths.push(self.current_dir());
+        }
+        crate::properties::show(self, paths);
     }
 
     /// Bookmark the selected folder, or the current folder.
@@ -609,6 +622,9 @@ impl Browser {
             }
             manage.append_item(&item(tr("Move to Trash"), "file.trash", "Delete"));
             menu.append_section(None, &manage);
+            let info = gio::Menu::new();
+            info.append_item(&item(tr("Properties"), "file.properties", "<Alt>Return"));
+            menu.append_section(None, &info);
         } else {
             let edit = gio::Menu::new();
             edit.append_item(&item(tr("Paste"), "file.paste", "<Control>v"));
@@ -632,6 +648,9 @@ impl Browser {
             ));
             folder.append_item(&item(tr("Show Hidden Files"), "file.hidden", "<Control>h"));
             menu.append_section(None, &folder);
+            let info = gio::Menu::new();
+            info.append_item(&item(tr("Folder Properties"), "file.folder-properties", ""));
+            menu.append_section(None, &info);
         }
         let pop = gtk::PopoverMenu::from_model(Some(&menu));
         pop.set_parent(widget);

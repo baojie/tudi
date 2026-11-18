@@ -90,6 +90,9 @@ impl Browser {
                 b.toast(&tr("Already bookmarked"));
             }
         });
+        add("properties", |b, t| {
+            crate::properties::show(b, vec![t.path])
+        });
         add("trash", |b, t| {
             if !t.root {
                 b.trash_paths(vec![t.path]);
@@ -146,6 +149,9 @@ impl Browser {
             manage.append_item(&item(tr("Move to Trash"), "tree.trash"));
         }
         menu.append_section(None, &manage);
+        let info = gio::Menu::new();
+        info.append_item(&item(tr("Properties"), "tree.properties"));
+        menu.append_section(None, &info);
         let pop = gtk::PopoverMenu::from_model(Some(&menu));
         pop.set_parent(widget);
         pop.set_pointing_to(Some(&gdk::Rectangle::new(x as i32, y as i32, 1, 1)));

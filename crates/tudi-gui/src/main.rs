@@ -22,6 +22,7 @@ mod i18n;
 mod icons;
 mod launch;
 mod pane;
+mod properties;
 mod settings;
 mod shared;
 mod sidebar;
@@ -47,10 +48,19 @@ const CSS: &str = "
    so the header columns line up with the list columns. */
 .tudi-column-header { padding: 0 34px 0 12px; }
 .tudi-column-header button { padding: 2px 0; min-height: 0; font-weight: normal; }
-.tudi-details row { padding: 3px 12px; }
+.tudi-details > row { padding: 2px 12px; min-height: 0; }
 .tudi-status { padding: 3px 12px; font-size: smaller; }
 .tudi-expander { opacity: 0.7; }
-.tudi-tree row { padding: 3px 6px; }
+.tudi-tree > row { padding: 2px 6px; min-height: 0; }
+/* Finder-like look: a light sidebar, blue selection in the file list
+   (grey when the list does not have the focus). */
+.tudi-tree, .tudi-tree-scroll { background-color: @sidebar_bg_color; }
+.tudi-tree > row:selected { background-color: alpha(currentColor, 0.12); color: inherit; }
+.tudi-details > row:selected { background-color: #2f7de1; color: white; }
+.tudi-details > row:selected .dim-label { color: alpha(white, 0.85); opacity: 1; }
+.tudi-details:not(:focus-within) > row:selected { background-color: alpha(currentColor, 0.14); color: inherit; }
+.tudi-details:not(:focus-within) > row:selected .dim-label { color: inherit; opacity: 0.55; }
+.tudi-bar { background-color: @headerbar_bg_color; }
 .tudi-bar { padding: 2px 6px; }
 .tudi-bar-button { font-weight: normal; padding: 2px 8px; min-height: 0; }
 .tudi-bar-items separator { margin: 5px 8px; min-width: 1px; background: alpha(currentColor, 0.25); }

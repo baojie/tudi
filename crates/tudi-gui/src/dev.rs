@@ -125,6 +125,7 @@ fn step(b: Rc<Browser>, queue: Queue, delay: Duration) {
                 }
             }
             "ctrld" => b.bookmark_or_launcher(),
+            "props" => crate::properties::show(&b, vec![PathBuf::from(arg)]),
             "treemenupath" => {
                 // Dev only: find the visible row showing this path.
                 let target = PathBuf::from(arg);
