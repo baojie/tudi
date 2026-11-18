@@ -32,8 +32,7 @@ enum Target {
 }
 
 fn folder_button(label: &str, tooltip: &str) -> gtk::Button {
-    let icon = gtk::Image::from_gicon(&crate::format::folder_icon());
-    icon.add_css_class("tudi-icon");
+    let icon = crate::icons::FileIcon::default();
     let l = gtk::Label::new(Some(label));
     l.set_ellipsize(pango::EllipsizeMode::End);
     l.set_max_width_chars(20);

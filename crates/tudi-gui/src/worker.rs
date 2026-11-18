@@ -45,9 +45,6 @@ pub enum Job {
         show_hidden: bool,
         refresh: bool,
     },
-    /// Warm up GIO's MIME database so the main thread's first
-    /// `content_type_guess` does not read it.
-    WarmMime,
 }
 
 /// A display order: entry indices, and each entry's position (`u32::MAX`
@@ -184,10 +181,6 @@ fn run(jobs: async_channel::Receiver<Job>, replies: async_channel::Sender<Reply>
                 refresh,
                 result: list_subdirs(&mut lister, &path, show_hidden),
             },
-            Job::WarmMime => {
-                let _ = gtk::gio::content_type_guess(Some("warm.txt"), None);
-                continue;
-            }
         };
         if replies.send_blocking(reply).is_err() {
             return;

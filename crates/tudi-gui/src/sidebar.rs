@@ -152,6 +152,8 @@ impl TreeModel {
 
 struct Parts {
     expander: gtk::Image,
+    folder: crate::icons::FileIcon,
+    /// Shown instead of the folder on error rows.
     icon: gtk::Image,
     label: gtk::Label,
 }
@@ -161,13 +163,16 @@ fn row_widget() -> gtk::Box {
     let expander = gtk::Image::new();
     expander.add_css_class("tudi-icon");
     expander.add_css_class("tudi-expander");
+    let folder = crate::icons::FileIcon::default();
     let icon = gtk::Image::new();
     icon.add_css_class("tudi-icon");
+    icon.set_visible(false);
     let label = gtk::Label::new(None);
     label.set_xalign(0.0);
     label.set_hexpand(true);
     label.set_ellipsize(pango::EllipsizeMode::End);
     b.append(&expander);
+    b.append(&folder);
     b.append(&icon);
     b.append(&label);
     b
@@ -175,13 +180,15 @@ fn row_widget() -> gtk::Box {
 
 fn parts(b: &gtk::Box) -> Parts {
     let expander = b.first_child().and_downcast::<gtk::Image>().unwrap();
-    let icon = expander
+    let folder = expander
         .next_sibling()
-        .and_downcast::<gtk::Image>()
+        .and_downcast::<crate::icons::FileIcon>()
         .unwrap();
+    let icon = folder.next_sibling().and_downcast::<gtk::Image>().unwrap();
     let label = icon.next_sibling().and_downcast::<gtk::Label>().unwrap();
     Parts {
         expander,
+        folder,
         icon,
         label,
     }
@@ -197,6 +204,8 @@ fn fill(b: &gtk::Box, model: &TreeModel, node: NodeId, error: bool) {
     if error {
         b.set_margin_start(i32::from(depth + 1) * 16);
         p.expander.clear();
+        p.folder.set_visible(false);
+        p.icon.set_visible(true);
         p.icon.set_icon_name(Some("dialog-warning-symbolic"));
         let msg = match &children {
             Children::Failed(f) => f.message.clone(),
@@ -218,7 +227,8 @@ fn fill(b: &gtk::Box, model: &TreeModel, node: NodeId, error: bool) {
             "pan-end-symbolic"
         }));
     }
-    p.icon.set_from_gicon(&format::folder_icon());
+    p.icon.set_visible(false);
+    p.folder.set_visible(true);
     p.label.set_text(&model.label(node));
 }
 

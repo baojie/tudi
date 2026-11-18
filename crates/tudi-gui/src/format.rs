@@ -1,9 +1,5 @@
-//! Display formatting: sizes, dates, and icons guessed from file names only.
+//! Display formatting: sizes and dates.
 
-use std::cell::RefCell;
-use std::collections::HashMap;
-
-use gtk::gio;
 use gtk::glib;
 
 /// Decimal units, as GNOME shows them.
@@ -55,59 +51,6 @@ pub fn date(secs: i64, now: &glib::DateTime) -> String {
 pub fn name(bytes: &[u8]) -> String {
     String::from_utf8_lossy(bytes).into_owned()
 }
-
-thread_local! {
-    static ICONS: RefCell<HashMap<Vec<u8>, gio::Icon>> = RefCell::new(HashMap::new());
-}
-
-/// Symbolic icon for a file, guessed from its name and cached per extension.
-/// Symbolic icons avoid decoding colour icons through glycin (ADR-012).
-pub fn file_icon(name: &[u8]) -> gio::Icon {
-    let ext = match name.iter().rposition(|&c| c == b'.') {
-        Some(p) if p > 0 => name[p..].to_ascii_lowercase(),
-        _ => Vec::new(),
-    };
-    ICONS.with(|cache| {
-        cache
-            .borrow_mut()
-            .entry(ext)
-            .or_insert_with_key(|ext| {
-                let probe = format!("x{}", String::from_utf8_lossy(ext));
-                let (ctype, _) = gio::content_type_guess(Some(probe.as_str()), None);
-                with_fallback(gio::content_type_get_symbolic_icon(&ctype))
-            })
-            .clone()
-    })
-}
-
-/// Icon themes do not all have the specific symbolic icons GIO names (e.g.
-/// `application-octet-stream-symbolic`); end the fallback chain with a
-/// generic document icon that every theme has, instead of "missing image".
-fn with_fallback(icon: gio::Icon) -> gio::Icon {
-    match icon.downcast::<gio::ThemedIcon>() {
-        Ok(t) => {
-            t.append_name("text-x-generic-symbolic");
-            t.upcast()
-        }
-        Err(icon) => icon,
-    }
-}
-
-/// Icon for an executable regular file (known once metadata arrived).
-pub fn executable_icon() -> gio::Icon {
-    gio::ThemedIcon::from_names(&[
-        "application-x-executable-symbolic",
-        "system-run-symbolic",
-        "text-x-generic-symbolic",
-    ])
-    .upcast()
-}
-
-pub fn folder_icon() -> gio::Icon {
-    gio::ThemedIcon::new("folder-symbolic").upcast()
-}
-
-use gtk::prelude::Cast;
 
 #[cfg(test)]
 mod tests {

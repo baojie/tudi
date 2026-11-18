@@ -139,7 +139,6 @@ impl Browser {
         };
         let show_hidden = config.browse.show_hidden;
         let (worker, replies) = Worker::start();
-        worker.send(Job::WarmMime);
         let tx = worker.reply_sender();
         let watcher = tudi_core::watch::Watcher::start(WATCH_LIMIT, move |keys| {
             let _ = tx.send_blocking(Reply::Changed(keys));

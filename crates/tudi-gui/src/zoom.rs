@@ -10,8 +10,10 @@ use gtk::gdk;
 pub const MIN: u32 = 70;
 pub const MAX: u32 = 200;
 pub const STEP: u32 = 10;
-/// Row icon size at 100 %.
+/// Symbolic icon size at 100 %.
 const ICON_PX: u32 = 16;
+/// File icon size at 100 % (drawn icons read better a little larger).
+const FILE_ICON_PX: u32 = 18;
 
 thread_local! {
     static LEVEL: Cell<u32> = const { Cell::new(100) };
@@ -24,10 +26,12 @@ pub fn level() -> u32 {
 
 fn css(level: u32) -> String {
     let icon = (ICON_PX * level).div_ceil(100);
+    let file_icon = (FILE_ICON_PX * level).div_ceil(100);
     // Percent font sizes on the toplevel are relative to the theme's font.
     format!(
         "window.tudi-window {{ font-size: {level}%; }}\n\
-         window.tudi-window image.tudi-icon {{ -gtk-icon-size: {icon}px; }}\n"
+         window.tudi-window image.tudi-icon {{ -gtk-icon-size: {icon}px; }}\n\
+         window.tudi-window fileicon {{ min-width: {file_icon}px; min-height: {file_icon}px; }}\n"
     )
 }
 

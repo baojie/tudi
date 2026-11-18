@@ -19,6 +19,7 @@ mod dev;
 mod format;
 mod history;
 mod i18n;
+mod icons;
 mod pane;
 mod settings;
 mod shared;

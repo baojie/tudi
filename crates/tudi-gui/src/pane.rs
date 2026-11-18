@@ -291,8 +291,7 @@ fn fixed_label(chars: i32) -> gtk::Label {
 /// Row widget: icon, name, size, modified.
 fn row_widget() -> gtk::Box {
     let row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
-    let icon = gtk::Image::new();
-    icon.add_css_class("tudi-icon");
+    let icon = crate::icons::FileIcon::default();
     let name = gtk::Label::new(None);
     name.set_xalign(0.0);
     name.set_hexpand(true);
@@ -305,14 +304,17 @@ fn row_widget() -> gtk::Box {
 }
 
 struct RowParts {
-    icon: gtk::Image,
+    icon: crate::icons::FileIcon,
     name: gtk::Label,
     size: gtk::Label,
     date: gtk::Label,
 }
 
 fn parts(row: &gtk::Box) -> RowParts {
-    let icon = row.first_child().and_downcast::<gtk::Image>().unwrap();
+    let icon = row
+        .first_child()
+        .and_downcast::<crate::icons::FileIcon>()
+        .unwrap();
     let name = icon.next_sibling().and_downcast::<gtk::Label>().unwrap();
     let size = name.next_sibling().and_downcast::<gtk::Label>().unwrap();
     let date = size.next_sibling().and_downcast::<gtk::Label>().unwrap();
@@ -359,13 +361,18 @@ fn fill(row: &gtk::Box, model: &PaneModel, position: u32) {
         && m.mode & 0o170000 == 0o100000
         && m.mode & 0o111 != 0
         && !name[1..].contains(&b'.');
-    p.icon.set_from_gicon(&if dir {
-        format::folder_icon()
-    } else if executable {
-        format::executable_icon()
-    } else {
-        format::file_icon(name)
-    });
+    use crate::icons::Kind as Icon;
+    let link = d.listing.as_ref().map(|l| l.kind(entry as usize)) == Some(Kind::Symlink);
+    p.icon.set(
+        if dir {
+            Icon::Folder
+        } else if executable {
+            Icon::Executable
+        } else {
+            Icon::File(crate::icons::category(name))
+        },
+        link,
+    );
     p.name.set_text(&format::name(name));
     match m.status {
         MetaStatus::Ok => {
