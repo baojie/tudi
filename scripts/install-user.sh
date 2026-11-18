@@ -34,7 +34,9 @@ cargo build --release -p tudi-gui -p tudi-indexd --manifest-path "$ROOT/Cargo.to
 
 # A running resident instance keeps the old binary; stop it first.
 "$PREFIX/bin/tudi" --quit 2>/dev/null || true
-"$PREFIX/bin/tudi" index stop 2>/dev/null || true
+# Use the new launcher: an older one does not know `index` and would start
+# the GUI instead.
+"$ROOT/target/release/tudi" index stop 2>/dev/null || true
 
 install -Dm755 "$ROOT/target/release/tudi" "$PREFIX/bin/tudi"
 install -Dm755 "$ROOT/target/release/tudi-gui" "$PREFIX/bin/tudi-gui"
