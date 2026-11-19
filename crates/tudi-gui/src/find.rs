@@ -39,9 +39,12 @@ impl FindBar {
         let bar = gtk::Box::new(gtk::Orientation::Horizontal, 6);
         bar.add_css_class("tudi-find");
         bar.append(&entry);
+        // Hidden as well as unrevealed while closed: a collapsed revealer
+        // without a transition still takes its child's height.
         let revealer = gtk::Revealer::builder()
             .transition_type(gtk::RevealerTransitionType::None)
             .child(&bar)
+            .visible(false)
             .build();
         Self {
             revealer,
@@ -61,6 +64,7 @@ impl FindBar {
 impl Browser {
     /// `Ctrl+F`: show the find bar and focus it.
     pub(crate) fn open_find(&self) {
+        self.tab().find.revealer.set_visible(true);
         self.tab().find.revealer.set_reveal_child(true);
         self.tab().find.entry.grab_focus();
         self.tab().find.entry.select_region(0, -1);
@@ -73,6 +77,7 @@ impl Browser {
             return;
         }
         self.tab().find.revealer.set_reveal_child(false);
+        self.tab().find.revealer.set_visible(false);
         self.tab().find.entry.remove_css_class("error");
         self.tab().find.focus_after_sort.set(false);
         if !focus {
@@ -91,6 +96,7 @@ impl Browser {
     /// requested with the current filter, which is now none).
     pub(crate) fn reset_find(&self) {
         self.tab().find.revealer.set_reveal_child(false);
+        self.tab().find.revealer.set_visible(false);
         self.tab().find.focus_after_sort.set(false);
         self.tab().find.filter.replace(None);
         if !self.tab().find.entry.text().is_empty() {

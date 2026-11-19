@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fix: an empty band above the column headers (the closed find bar still
+  took its height).
 - Tabs in the file list, named after their folder, "+" after the last tab
   (`Ctrl+T`, `Ctrl+W`, `Ctrl+Tab`, middle-click a folder or "Open in New
   Tab"); two tabs can be shown side by side (tab menu or `Ctrl+\`).

@@ -339,6 +339,15 @@ fn dump(b: &Browser) {
         })
         .collect();
     println!("columns: {}", cols.join(" "));
+    let mut c = b.tab().files.first_child();
+    let mut parts = Vec::new();
+    while let Some(w) = c {
+        if let Some(r) = w.compute_bounds(&b.window) {
+            parts.push(format!("{}@{:.0}+{:.0}", w.type_().name(), r.y(), r.height()));
+        }
+        c = w.next_sibling();
+    }
+    println!("page: {}", parts.join(" "));
     let n = b.search.model.n_items();
     for i in 0..n.min(5) {
         if let Some(r) = b.search.model.get(i) {
