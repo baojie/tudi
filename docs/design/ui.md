@@ -59,6 +59,9 @@ Code: `crates/tudi-gui/src/`. Plan: `docs/PLAN.md` §5.3, §5.7.
   when bound. The drag is measured in window coordinates, since the handle
   moves with the column edge. Saved per window in `state.toml`
   (`size_column`, `date_column`, 0 = default).
+- A faint 1 px line separates the columns, in the header (drawn in the
+  handle) and in every row (the size and date labels' left border, pulled
+  1 px into the gap so the text does not move); both sit at the same x.
 
 ## Folder tree
 

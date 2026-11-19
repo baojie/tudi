@@ -54,8 +54,12 @@ const CSS: &str = "
    so the header columns line up with the list columns. */
 .tudi-column-header { padding: 0 34px 0 12px; }
 .tudi-column-header button { padding: 2px 0; min-height: 0; font-weight: normal; }
-.tudi-col-handle { margin: 3px 0; }
-.tudi-col-handle:hover { background: linear-gradient(to right, transparent 3px, alpha(currentColor, 0.35) 3px, alpha(currentColor, 0.35) 5px, transparent 5px); }
+.tudi-col-handle { margin: 3px 0; background: linear-gradient(to right, transparent 3px, alpha(currentColor, 0.12) 3px, alpha(currentColor, 0.12) 4px, transparent 4px); }
+.tudi-col-handle:hover { background: linear-gradient(to right, transparent 3px, alpha(currentColor, 0.4) 3px, alpha(currentColor, 0.4) 5px, transparent 5px); }
+/* A faint line between columns in every row, under the header's line
+   (the label's left border, pulled into the gap: content unmoved). */
+.tudi-details > row .tudi-col { margin-left: -1px; border-left: 1px solid alpha(currentColor, 0.08); }
+.tudi-details > row:selected .tudi-col { border-left-color: alpha(white, 0.25); }
 .tudi-details > row { padding: 2px 12px; min-height: 0; }
 .tudi-status { padding: 3px 12px; font-size: smaller; }
 .tudi-expander { opacity: 0.7; }

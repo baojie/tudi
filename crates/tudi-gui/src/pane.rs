@@ -330,6 +330,7 @@ fn fixed_label(chars: i32) -> gtk::Label {
     l.set_max_width_chars(chars);
     l.add_css_class("dim-label");
     l.add_css_class("numeric");
+    l.add_css_class("tudi-col");
     l
 }
 

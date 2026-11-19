@@ -10,7 +10,8 @@
   Spanish, Portuguese (Brazil), Italian and Russian, selectable in the
   settings (or `[ui] language = "de"` …) whatever the system language.
 - Drag the handles between the list's column headers to resize the size
-  and modified columns (double-click resets); remembered per window.
+  and modified columns (double-click resets); remembered per window. A
+  faint line separates the columns.
 - Fix: right-click on the list's empty space showed no menu; a context
   menu taller than the room above and below the pointer closed at once.
 - Drag files onto a folder in the list or the tree, or onto the list's
