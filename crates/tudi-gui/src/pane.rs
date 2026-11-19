@@ -296,8 +296,12 @@ fn fixed_label(chars: i32) -> gtk::Label {
 }
 
 /// Row widget: icon, name, size, modified.
+/// Marks a row widget (to tell rows from the list's empty space).
+const ROW_CLASS: &str = "tudi-row";
+
 fn row_widget() -> gtk::Box {
     let row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+    row.add_css_class(ROW_CLASS);
     let icon = crate::icons::FileIcon::default();
     let name = gtk::Label::new(None);
     name.set_xalign(0.0);
@@ -488,11 +492,19 @@ pub fn build_view(
     });
     let view = gtk::ListView::new(Some(selection.clone()), Some(factory));
     view.add_css_class("tudi-details");
-    // Right-click outside the rows (rows claim their own clicks).
+    // Right-click outside the rows. In the capture phase: GtkListView's own
+    // gestures take a press on its empty area before a bubble-phase gesture
+    // sees it. A press inside a row is left to the row's gesture.
     let click = gtk::GestureClick::new();
     click.set_button(gtk::gdk::BUTTON_SECONDARY);
+    click.set_propagation_phase(gtk::PropagationPhase::Capture);
     click.connect_pressed(move |g, _, x, y| {
-        if let Some(w) = g.widget() {
+        let Some(w) = g.widget() else { return };
+        let on_row = std::iter::successors(w.pick(x, y, gtk::PickFlags::DEFAULT), |c| c.parent())
+            .take_while(|c| c != &w)
+            .any(|c| c.has_css_class(ROW_CLASS));
+        if !on_row {
+            g.set_state(gtk::EventSequenceState::Claimed);
             on_menu(None, &w, x, y);
         }
     });

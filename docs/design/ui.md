@@ -96,7 +96,14 @@ GtkPopoverMenu puts its items in a scrolled window, and on a multi-monitor
 GNOME session menus came up shorter than their items and scrolled. The
 helper turns that scrollbar off (the items become the menu's minimum
 height) and opens the menu upwards when it does not fit below the pointer
-inside the window but does above it.
+inside the window but does above it. When it fits on neither side, scrolling
+stays on and the menu opens on the roomier side: an unscrollable popover
+taller than its room is dismissed at once. A popover is never parented to a
+`GtkListView` or `GtkScrolledWindow` (they do not present popover children,
+so it would stay invisible); the helper moves up to the first other
+ancestor. The list's empty-space right-click gesture runs in the capture
+phase (the list view's own gestures take the press otherwise) and leaves
+presses inside a row (`.tudi-row`) to the row's gesture.
 
 ## Keys
 

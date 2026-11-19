@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fix: right-click on the list's empty space showed no menu; a context
+  menu taller than the room above and below the pointer closed at once.
 - Drag files onto a folder in the list or the tree, or onto the list's
   empty space, to move them (same disk) or copy them (another disk);
   `Ctrl` copies, `Shift` moves. Works with files from other apps.
