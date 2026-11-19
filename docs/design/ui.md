@@ -106,6 +106,19 @@ double-click, type-ahead, `Ctrl+C`, `Ctrl+Shift+C`, `Ctrl+Alt+T`, `Ctrl+E`,
 `F2`, `Delete`, `Ctrl+Shift+N`. List-only keys (`Ctrl+C`, `Delete`, `F2`)
 are bound on the list so they do not take keys from the path bar.
 
+## Drop and paste (ADR-022)
+
+`drop.rs`: list rows, the list's empty space and tree rows take files
+dragged from tudi or other apps (`GdkFileList`). A folder row takes them
+into that folder; a file row or empty space, into the shown folder. With no
+modifier, each item is moved when it is on the destination's filesystem
+and copied otherwise (`fileops::Choice::Auto`, compared by `st_dev` on the
+transfer thread, never on the main thread); items already in the
+destination are skipped. `Ctrl` copies, `Shift` moves. A folder dropped on
+itself is ignored. Paste (`Ctrl+V`, menus) uses the same `transfer_into`:
+a helper thread, a status-bar task, one toast ("Moved 2, copied 1"). Rows
+under a drag are highlighted (`:drop(active)`).
+
 ## Status bar activity
 
 `activity.rs`: background work of the window — listing the folder,

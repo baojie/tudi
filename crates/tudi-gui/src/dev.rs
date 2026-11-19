@@ -12,7 +12,8 @@
 //!   `settings`, bar actions `bm N`, `freq N`, `pin N`, `barexclude N`,
 //!   `barexclude-tree N`, `forget N`, `rmbm N`, `copy`, `cut`, `paste`,
 //!   `selectall`, `menu ROW|none`, find bar `find TEXT`, `findnext`,
-//!   `findprev`, `findenter`, `findclose`, `winwidth PX`. Prefix a command with `!` to run the next one after 50 ms.
+//!   `findprev`, `findenter`, `findclose`, `winwidth PX`,
+//!   `drop ROW|- PATHS [ctrl|shift]`, `droptree ROW PATHS [ctrl|shift]`. Prefix a command with `!` to run the next one after 50 ms.
 //!   `shot FILE`, `quit`.
 
 // Script results go to stdout on purpose: they are read by test tooling.
@@ -110,6 +111,30 @@ fn step(b: Rc<Browser>, queue: Queue, delay: Duration) {
                 }
             }
             "mkdir" => b.make_folder(arg.to_string()),
+            "drop" | "droptree" => {
+                // `drop ROW|- PATH,PATH [ctrl|shift]`: as if files were dropped
+                // on a list row (`-`: empty space) or, with `droptree`, a tree row.
+                let mut it = arg.split_whitespace();
+                let row = it.next().and_then(|r| r.parse::<u32>().ok());
+                let files: Vec<PathBuf> = it
+                    .next()
+                    .unwrap_or("")
+                    .split(',')
+                    .filter(|s| !s.is_empty())
+                    .map(PathBuf::from)
+                    .collect();
+                let mods = match it.next() {
+                    Some("ctrl") => gtk::gdk::ModifierType::CONTROL_MASK,
+                    Some("shift") => gtk::gdk::ModifierType::SHIFT_MASK,
+                    _ => gtk::gdk::ModifierType::empty(),
+                };
+                let ok = if verb == "droptree" {
+                    b.drop_on_tree(row.unwrap_or(0), files, mods)
+                } else {
+                    b.drop_on_pane(row, files, mods)
+                };
+                println!("drop accepted: {ok}");
+            }
             "trash" => b.trash_selected(),
             "expand" => b.expand_tree_row(arg.parse().unwrap_or(0)),
             "collapse" => b.collapse_tree_row(arg.parse().unwrap_or(0)),

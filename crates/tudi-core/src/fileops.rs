@@ -8,6 +8,8 @@
 //! - A move is a `rename(2)`; across filesystems it falls back to copy and
 //!   delete. Moving an item into the folder it is already in does nothing.
 //! - Copying or moving a folder into itself (or below it) is refused.
+//! - Dropping files ([`Choice::Auto`]) moves them within a filesystem and
+//!   copies them to another one, like common file managers.
 
 use std::ffi::OsString;
 use std::fs;
@@ -125,18 +127,65 @@ pub fn transfer(src: &Path, dest_dir: &Path, mode: Mode) -> io::Result<PathBuf> 
 pub struct Report {
     pub done: Vec<PathBuf>,
     pub failed: Vec<(PathBuf, io::Error)>,
+    /// Of `done`: how many were moved (the rest were copied).
+    pub moved: usize,
 }
 
-/// Transfer each source into `dest_dir`, continuing after failures.
-pub fn transfer_all(srcs: &[PathBuf], dest_dir: &Path, mode: Mode) -> Report {
+/// How to transfer dropped or pasted items.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Choice {
+    Copy,
+    Move,
+    /// Move within the destination's filesystem, copy across filesystems.
+    /// Items already in the destination folder are skipped.
+    Auto,
+}
+
+/// Whether `src` (not followed if a symlink) is on the same filesystem as
+/// the folder `dest_dir`.
+pub fn same_filesystem(src: &Path, dest_dir: &Path) -> io::Result<bool> {
+    use std::os::unix::fs::MetadataExt;
+    Ok(fs::symlink_metadata(src)?.dev() == fs::metadata(dest_dir)?.dev())
+}
+
+/// Transfer each source into `dest_dir` as `choice` says, continuing after
+/// failures.
+pub fn transfer_choice(srcs: &[PathBuf], dest_dir: &Path, choice: Choice) -> Report {
     let mut r = Report::default();
     for s in srcs {
+        let mode = match choice {
+            Choice::Copy => Mode::Copy,
+            Choice::Move => Mode::Move,
+            Choice::Auto if s.parent() == Some(dest_dir) => continue,
+            Choice::Auto => match same_filesystem(s, dest_dir) {
+                Ok(true) => Mode::Move,
+                Ok(false) => Mode::Copy,
+                Err(e) => {
+                    r.failed.push((s.clone(), e));
+                    continue;
+                }
+            },
+        };
         match transfer(s, dest_dir, mode) {
-            Ok(p) => r.done.push(p),
+            Ok(p) => {
+                r.done.push(p);
+                if mode == Mode::Move {
+                    r.moved += 1;
+                }
+            }
             Err(e) => r.failed.push((s.clone(), e)),
         }
     }
     r
+}
+
+/// Transfer each source into `dest_dir`, continuing after failures.
+pub fn transfer_all(srcs: &[PathBuf], dest_dir: &Path, mode: Mode) -> Report {
+    let choice = match mode {
+        Mode::Copy => Choice::Copy,
+        Mode::Move => Choice::Move,
+    };
+    transfer_choice(srcs, dest_dir, choice)
 }
 
 #[cfg(test)]
@@ -240,5 +289,28 @@ mod tests {
         let r = transfer_all(&[a, t.path().join("missing")], &out, Mode::Copy);
         assert_eq!(r.done.len(), 1);
         assert_eq!(r.failed.len(), 1);
+    }
+
+    #[test]
+    fn auto_moves_within_a_filesystem_and_skips_same_folder() {
+        let t = tempfile::tempdir().unwrap();
+        let a = t.path().join("a.txt");
+        let b = t.path().join("b.txt");
+        write(&a, "x");
+        write(&b, "y");
+        let out = t.path().join("out");
+        fs::create_dir(&out).unwrap();
+        assert!(same_filesystem(&a, &out).unwrap());
+        let r = transfer_choice(std::slice::from_ref(&a), &out, Choice::Auto);
+        assert_eq!((r.done.len(), r.moved), (1, 1));
+        assert!(!a.exists(), "moved, not copied");
+        // Dropped onto the folder it is already in: nothing happens.
+        let r = transfer_choice(std::slice::from_ref(&b), t.path(), Choice::Auto);
+        assert!(r.done.is_empty() && r.failed.is_empty());
+        assert!(b.exists());
+        // Forced copy keeps the source.
+        let r = transfer_choice(std::slice::from_ref(&b), &out, Choice::Copy);
+        assert_eq!((r.done.len(), r.moved), (1, 0));
+        assert!(b.exists());
     }
 }

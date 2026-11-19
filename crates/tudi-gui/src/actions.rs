@@ -254,48 +254,16 @@ impl Browser {
                 }
                 return;
             };
-            let task = if mode == tudi_core::fileops::Mode::Move {
-                Task::Moving
-            } else {
-                Task::Copying
-            };
-            if let Some(b) = w.upgrade() {
-                b.begin_task(task);
-            }
-            let (tx, rx) = async_channel::bounded(1);
-            let (srcs, dir) = (paths.clone(), dest.clone());
-            // Copying can take long: off the main thread.
-            std::thread::spawn(move || {
-                let _ = tx.send_blocking(tudi_core::fileops::transfer_all(&srcs, &dir, mode));
-            });
-            let report = rx.recv().await;
             let Some(b) = w.upgrade() else { return };
-            b.end_task(task);
-            let Ok(report) = report else { return };
-            if mode == tudi_core::fileops::Mode::Move && !report.done.is_empty() {
-                // The cut files are gone from where the clipboard points.
+            let choice = if mode == tudi_core::fileops::Mode::Move {
+                // The cut files will be gone from where the clipboard
+                // points.
                 clipboard.set_content(None::<&gdk::ContentProvider>).ok();
-            }
-            let n = report.done.len() as u64;
-            if report.failed.is_empty() {
-                let msg = if mode == tudi_core::fileops::Mode::Move {
-                    ntr("Moved {} item", "Moved {} items", n)
-                } else {
-                    ntr("Pasted {} item", "Pasted {} items", n)
-                };
-                b.toast(&fill(&msg, &[&n]));
+                tudi_core::fileops::Choice::Move
             } else {
-                let (p, e) = &report.failed[0];
-                b.toast(&fill(&tr("Could not paste {}: {}"), &[&p.display(), &e]));
-            }
-            if *b.current.borrow() == dest {
-                let first = report
-                    .done
-                    .first()
-                    .and_then(|p| p.file_name())
-                    .map(|n| n.as_bytes().to_vec());
-                b.reload(first);
-            }
+                tudi_core::fileops::Choice::Copy
+            };
+            b.transfer_into(paths, dest, choice);
         });
     }
 

@@ -250,6 +250,7 @@ pub fn build_view(
     selection: &gtk::SingleSelection,
     on_toggle: impl Fn(u32) + 'static,
     on_menu: impl Fn(u32, &gtk::Widget, f64, f64) + 'static,
+    on_drop: crate::pane::RowDropFn,
 ) -> gtk::ListView {
     let factory = gtk::SignalListItemFactory::new();
     let on_toggle = std::rc::Rc::new(on_toggle);
@@ -276,6 +277,14 @@ pub fn build_view(
             }
         });
         parts(&row).expander.add_controller(click);
+        let (f, wi) = (on_drop.clone(), item.downgrade());
+        row.add_css_class("tudi-drop-row");
+        row.add_controller(crate::drop::file_drop_target(std::rc::Rc::new(
+            move |files, mods| {
+                wi.upgrade()
+                    .is_some_and(|item| f(item.position(), files, mods))
+            },
+        )));
         item.set_child(Some(&row));
     });
     let m = model.clone();

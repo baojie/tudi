@@ -202,6 +202,14 @@ impl Browser {
                     b.file_menu(pos, w, x, y);
                 }
             }),
+            {
+                let slot = menu_slot.clone();
+                Rc::new(move |pos, files, mods| {
+                    slot.borrow()
+                        .upgrade()
+                        .is_some_and(|b| b.drop_on_pane(Some(pos), files, mods))
+                })
+            },
         );
         let (col_header, sort_buttons) = pane::build_header();
         let pane_scroll = gtk::ScrolledWindow::builder()
@@ -247,6 +255,7 @@ impl Browser {
         let b = Rc::new_cyclic(|weak: &std::rc::Weak<Browser>| {
             let w = weak.clone();
             let w2 = weak.clone();
+            let w3 = weak.clone();
             let tree_view = sidebar::build_view(
                 &tree,
                 &tree_sel,
@@ -260,6 +269,10 @@ impl Browser {
                         b.tree_menu(pos as usize, row, x, y);
                     }
                 },
+                Rc::new(move |pos, files, mods| {
+                    w3.upgrade()
+                        .is_some_and(|b| b.drop_on_tree(pos, files, mods))
+                }),
             );
             let search_client = crate::search::SearchClient::start(worker.reply_sender());
             Browser {
@@ -384,6 +397,7 @@ impl Browser {
         b.connect_signals(&up);
         b.install_shortcuts();
         b.install_drag_source();
+        b.install_drop_targets();
         *menu_slot.borrow_mut() = Rc::downgrade(&b);
         b.install_file_actions();
         b.install_tree_actions();

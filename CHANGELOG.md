@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Drag files onto a folder in the list or the tree, or onto the list's
+  empty space, to move them (same disk) or copy them (another disk);
+  `Ctrl` copies, `Shift` moves. Works with files from other apps.
 - Bookmarks bar: shows as many buttons as fit the window instead of at
   most 10; long folder names are shortened to their first two words or a
   length limit (full name in the tooltip and the drop-down).

@@ -27,6 +27,8 @@ pub enum Task {
     FolderSize,
     Copying,
     Moving,
+    /// Dropped files: moved or copied depending on the filesystem.
+    Transferring,
     Trashing,
 }
 
@@ -38,6 +40,7 @@ impl Task {
             Task::FolderSize => tr("Measuring folder size…"),
             Task::Copying => tr("Copying…"),
             Task::Moving => tr("Moving…"),
+            Task::Transferring => tr("Copying and moving…"),
             Task::Trashing => tr("Moving to the trash…"),
         }
     }

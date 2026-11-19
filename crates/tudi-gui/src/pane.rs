@@ -406,11 +406,15 @@ pub type Wanted = std::rc::Rc<RefCell<Vec<u32>>>;
 /// widget clicked, and the click coordinates in it.
 pub type MenuFn = Rc<dyn Fn(Option<u32>, &gtk::Widget, f64, f64)>;
 
+/// Files dropped on a row: its position, the paths, the modifiers held.
+pub type RowDropFn = Rc<dyn Fn(u32, Vec<std::path::PathBuf>, gtk::gdk::ModifierType) -> bool>;
+
 pub fn build_view(
     model: &PaneModel,
     selection: &gtk::MultiSelection,
     wanted: &Wanted,
     on_menu: MenuFn,
+    on_drop: RowDropFn,
 ) -> gtk::ListView {
     let factory = gtk::SignalListItemFactory::new();
     let row_menu = on_menu.clone();
@@ -427,6 +431,14 @@ pub fn build_view(
             }
         });
         row.add_controller(click);
+        let (f, wi) = (on_drop.clone(), item.downgrade());
+        row.add_css_class("tudi-drop-row");
+        row.add_controller(crate::drop::file_drop_target(Rc::new(
+            move |files, mods| {
+                wi.upgrade()
+                    .is_some_and(|item| f(item.position(), files, mods))
+            },
+        )));
         item.set_child(Some(&row));
         crate::bench::ROW_WORK.with(|r| {
             let mut w = r.get();

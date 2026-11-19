@@ -321,3 +321,18 @@ through `sh` / `python3`; `.desktop` files through `gio launch`.
   `present()`. No `unsafe` class-struct patching.
 - **Consequences.** Each forwarded launch sends the launcher's environment
   (a few KB over D-Bus, local only).
+
+## ADR-022: Drop in before M9: move on the same filesystem, else copy
+
+- **Context.** PLAN put drop-in (copy/move) in M9; the maintainer asked for
+  it now, with "copy across disks, move on the same disk".
+- **Decision.** Implement drop-in now on list rows, list empty space and
+  tree rows. The default per item is move within the destination's
+  filesystem and copy across filesystems (like Nautilus and Finder);
+  `Ctrl` forces copy, `Shift` forces move. The filesystem test (`st_dev`)
+  runs on the transfer thread with the copy itself. Paste and drop share
+  one transfer path. No progress dialog yet (the status bar names the
+  task); conflicts still get `name (2)` names.
+- **Consequences.** Dragging within tudi moves files by default, which is
+  what most users expect on one disk. Large cross-disk copies show only the
+  status-bar spinner until the M9 progress UI.
