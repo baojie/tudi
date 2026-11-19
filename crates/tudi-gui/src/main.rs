@@ -98,6 +98,8 @@ struct App {
     /// Config, bookmarks and the history thread, shared by all windows;
     /// created with the first window.
     shared: RefCell<Option<Rc<shared::Shared>>>,
+    /// Activation token of a forwarded launch, for the next window shown.
+    startup_id: RefCell<Option<String>>,
 }
 
 impl App {
@@ -161,7 +163,7 @@ impl App {
             }
             glib::Propagation::Proceed
         });
-        b.window.present();
+        self.present(&b.window);
         if let Some(e) = err.filter(|_| first) {
             b.toast(&e);
         }
@@ -177,6 +179,16 @@ impl App {
         if first {
             dev::install(&b);
         }
+    }
+
+    /// Show a window, completing a forwarded launch's startup
+    /// notification (otherwise the shell shows a busy launcher until it
+    /// times out, and Wayland may refuse to focus the window).
+    fn present(&self, window: &adw::ApplicationWindow) {
+        if let Some(id) = self.startup_id.take() {
+            window.set_startup_id(&id);
+        }
+        window.present();
     }
 
     /// A window closes: remember its state and drop the browser (its
@@ -211,6 +223,15 @@ impl App {
 
     fn command_line(self: &Rc<Self>, app: &adw::Application, cl: &gio::ApplicationCommandLine) {
         let opts = cl.options_dict();
+        // A launch forwarded by `tudi` carries the launcher's environment
+        // (SEND_ENVIRONMENT), including the shell's activation token. A
+        // local launch's token was already taken by GTK itself.
+        if cl.is_remote() {
+            *self.startup_id.borrow_mut() = cl
+                .getenv("XDG_ACTIVATION_TOKEN")
+                .or_else(|| cl.getenv("DESKTOP_STARTUP_ID"))
+                .map(|s| s.to_string());
+        }
         if opts.contains("quit") {
             app.quit();
             return;
@@ -249,7 +270,7 @@ impl App {
                     b.navigate(&p, true);
                     b.record_visit(&p);
                 }
-                b.window.present();
+                self.present(&b.window);
             }
             _ => {
                 let visit = path.clone();

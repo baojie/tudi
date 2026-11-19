@@ -33,7 +33,13 @@ fn main() -> glib::ExitCode {
     if wants_help {
         return exec_gui();
     }
-    let app = gio::Application::new(Some(APP_ID), gio::ApplicationFlags::HANDLES_COMMAND_LINE);
+    // SEND_ENVIRONMENT: the primary needs our XDG_ACTIVATION_TOKEN to end
+    // the shell's startup notification (plain GApplication does not put it
+    // in the platform data the way GtkApplication does).
+    let app = gio::Application::new(
+        Some(APP_ID),
+        gio::ApplicationFlags::HANDLES_COMMAND_LINE | gio::ApplicationFlags::SEND_ENVIRONMENT,
+    );
     for (name, short, help) in [
         ("new-window", b'n', "Open a new window"),
         (

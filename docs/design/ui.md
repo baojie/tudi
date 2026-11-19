@@ -82,6 +82,12 @@ Code: `crates/tudi-gui/src/`. Plan: `docs/PLAN.md` §5.3, §5.7.
 - The process holds itself: closing the last window drops the window's
   `Browser` (models, listings, watches) and saves the window state; the
   process stays for the next window.
+- Startup notification: the launcher `tudi` is a plain `GApplication`,
+  which (unlike `GtkApplication`) does not put the shell's activation token
+  in the forwarded platform data. It sets `SEND_ENVIRONMENT`; the primary
+  reads `XDG_ACTIVATION_TOKEN` (or `DESKTOP_STARTUP_ID`) from the forwarded
+  environment and calls `set_startup_id` before presenting the window.
+  Without it the dock shows a busy launcher until the shell times out.
 
 ## Context menus
 

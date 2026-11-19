@@ -340,19 +340,19 @@ msgstr ""
 msgid "Already a launcher"
 msgstr ""
 
-#: crates/tudi-gui/src/main.rs:298
+#: crates/tudi-gui/src/main.rs:319
 msgid "Open a new window"
 msgstr ""
 
-#: crates/tudi-gui/src/main.rs:302
+#: crates/tudi-gui/src/main.rs:323
 msgid "Start the resident instance without a window"
 msgstr ""
 
-#: crates/tudi-gui/src/main.rs:304
+#: crates/tudi-gui/src/main.rs:325
 msgid "Quit the resident instance"
 msgstr ""
 
-#: crates/tudi-gui/src/main.rs:308
+#: crates/tudi-gui/src/main.rs:329
 msgid "Import bookmarks and folder history from GTK, autojump and zoxide again"
 msgstr ""
 

@@ -304,3 +304,17 @@ through `sh` / `python3`; `.desktop` files through `gio launch`.
   reloads, sorting and selection keep working; one extra lowercase pass per
   sort while a filter is set. The filter is per folder and is dropped on
   navigation.
+
+## ADR-021: Forward the activation token through the environment
+
+- **Context.** Launching from the dock while the resident instance runs
+  (ADR-012) went through the GIO-only launcher, whose forwarded command
+  line carried only `cwd` and options. The primary never got the shell's
+  activation token, so the shell kept its "starting" spinner until a
+  timeout. gio-rs cannot override `add_platform_data`.
+- **Decision.** The launcher sets `SEND_ENVIRONMENT`; the primary takes
+  `XDG_ACTIVATION_TOKEN` / `DESKTOP_STARTUP_ID` from a remote command
+  line's environment and passes it to `GtkWindow::set_startup_id` before
+  `present()`. No `unsafe` class-struct patching.
+- **Consequences.** Each forwarded launch sends the launcher's environment
+  (a few KB over D-Bus, local only).
