@@ -60,7 +60,8 @@ Shell integration: `eval "$(tudi init bash)"` (or `zsh`, or
 matching folder; add `--hook` to count every `cd` in the folder history.
 
 Settings live in `~/.config/tudi/config.toml` (written with all defaults
-on first run): UI language (`[ui] language = "en"` or `"system"`), sorting,
+on first run): UI language (`[ui] language = "en"`, `"system"`, or one of
+`zh_CN zh_TW ja ko de fr es pt_BR it ru`), sorting,
 hidden files, terminal and editor commands, history exclusions.
 
 tudi stays resident after its last window closes, so the next window opens

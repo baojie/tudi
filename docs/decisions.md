@@ -350,3 +350,22 @@ through `sh` / `python3`; `.desktop` files through `gio launch`.
 - **Consequences.** The order changes as folders are used, so `Alt+N` is
   not a fixed binding. `bookmarks.toml` keeps its order, used only for
   ties.
+
+## ADR-024: UI language: English, the system's, or a chosen translation
+
+- **Context.** Besides Simplified Chinese, the maintainer wants common
+  languages selectable in the settings: Traditional Chinese, Japanese,
+  Korean, German, French, Spanish, Portuguese, Italian, Russian.
+- **Decision.** `[ui] language` takes `"en"`, `"system"` or a catalog
+  name (`config::LANGUAGES`, stored as a plain string, so existing configs
+  stay valid). For a chosen language, `i18n::init` sets `LANGUAGE` at the
+  start of `main` (before any thread; the one `set_var`) and binds the
+  catalogs as for `"system"`; gettext consults `LANGUAGE` before the
+  locale, so GTK's own strings follow too. The settings list shows each
+  language by its own name, untranslated. The new catalogs were
+  machine-translated from `tudi.pot` with `zh_CN.po` as context and are
+  checked by `msgfmt -c` and a placeholder-count check.
+- **Consequences.** A chosen language needs a non-`C` locale (gettext
+  ignores `LANGUAGE` under `LANG=C`), which every desktop session has. The
+  translations need review by native speakers; new strings must be added
+  to every catalog (`msgmerge`), untranslated ones show in English.

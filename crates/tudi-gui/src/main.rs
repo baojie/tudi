@@ -303,7 +303,7 @@ fn main() -> glib::ExitCode {
     // The config is read first (a small file, before GTK starts): the UI
     // language must be known before any string is translated.
     let (config, err) = Config::load_user();
-    i18n::init(config.ui.language);
+    i18n::init(config.ui.language.clone());
     let me = Rc::new(App::default());
     // Read the window state on a thread while GTK initializes.
     *me.loading.borrow_mut() = Some(std::thread::spawn(move || {

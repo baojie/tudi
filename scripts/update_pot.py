@@ -3,7 +3,7 @@
 
 xgettext's C parser chokes on Rust lifetimes, so this does a simple regex
 extraction (string literals without escapes other than \\" and \\n).
-Then update catalogs with: msgmerge -U po/zh_CN.po po/tudi.pot
+Then update catalogs with: for p in po/*.po; do msgmerge -U "$p" po/tudi.pot; done
 """
 import pathlib
 import re
@@ -11,7 +11,7 @@ import re
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SRC = ROOT / "crates/tudi-gui/src"
 LIT = r'"((?:[^"\\]|\\.)*)"'
-TR = re.compile(r"\btr\(\s*&?" + LIT + r"\s*\)")
+TR = re.compile(r"\btr\(\s*&?" + LIT + r"\s*,?\s*\)")
 NTR = re.compile(r"\bntr\(\s*" + LIT + r"\s*,\s*" + LIT)
 
 

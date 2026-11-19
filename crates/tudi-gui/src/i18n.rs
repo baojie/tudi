@@ -23,10 +23,20 @@ const STACK_DOMAINS: &[&str] = &["glib20", "gtk40", "libadwaita"];
 /// Set up translations for `language`. English: tudi's strings are used as
 /// written, and the GTK stack's catalogs are pointed at a directory without
 /// catalogs so they stay English too. System: bind tudi's catalogs (see
-/// [`bind`]) and let the locale decide.
+/// [`bind`]) and let the locale decide. A specific language: the same, with
+/// `LANGUAGE` set to it, which gettext consults before the locale (also for
+/// GTK's own strings). Call before any thread is started.
 pub fn init(language: tudi_core::config::Language) {
     use tudi_core::config::Language;
     match language {
+        Language::Locale(code) => {
+            // SAFETY: called at the start of `main`, before GTK or any
+            // other thread exists, so nothing reads the environment
+            // concurrently.
+            unsafe { std::env::set_var("LANGUAGE", &code) };
+            ENGLISH.with(|e| e.set(false));
+            bind();
+        }
         Language::En => {
             ENGLISH.with(|e| e.set(true));
             for d in STACK_DOMAINS {

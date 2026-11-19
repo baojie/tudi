@@ -1,0 +1,827 @@
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: tudi\n"
+"Language: ko\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+#: crates/tudi-gui/src/actions.rs:253
+msgid "Nothing to paste"
+msgstr "붙여넣을 항목이 없습니다"
+
+#: crates/tudi-gui/src/actions.rs:310
+msgid "No command configured"
+msgstr "설정된 명령이 없습니다"
+
+#: crates/tudi-gui/src/actions.rs:337 crates/tudi-gui/src/launch.rs:108
+msgid "Cannot run {}: {}"
+msgstr "{}을(를) 실행할 수 없습니다: {}"
+
+#: crates/tudi-gui/src/actions.rs:377
+msgid "Could not trash {}"
+msgstr "휴지통으로 옮길 수 없습니다: {}"
+
+#: crates/tudi-gui/src/actions.rs:394 crates/tudi-gui/src/bar.rs:468
+#: crates/tudi-gui/src/bar.rs:784 crates/tudi-gui/src/tree_menu.rs:76
+msgid "Rename"
+msgstr "이름 바꾸기"
+
+#: crates/tudi-gui/src/actions.rs:411
+msgid "Cannot rename: {}"
+msgstr "이름을 바꿀 수 없습니다: {}"
+
+#: crates/tudi-gui/src/actions.rs:426
+msgid "New File"
+msgstr "새 파일"
+
+#: crates/tudi-gui/src/actions.rs:427 crates/tudi-gui/src/actions.rs:460
+msgid "Create"
+msgstr "만들기"
+
+#: crates/tudi-gui/src/actions.rs:428
+msgid "New File.txt"
+msgstr "새 파일.txt"
+
+#: crates/tudi-gui/src/actions.rs:450
+msgid "Cannot create file: {}"
+msgstr "파일을 만들 수 없습니다: {}"
+
+#: crates/tudi-gui/src/actions.rs:459 crates/tudi-gui/src/actions.rs:461
+msgid "New Folder"
+msgstr "새 폴더"
+
+#: crates/tudi-gui/src/actions.rs:484
+msgid "Cannot create folder: {}"
+msgstr "폴더를 만들 수 없습니다: {}"
+
+#: crates/tudi-gui/src/actions.rs:538 crates/tudi-gui/src/settings.rs:466
+msgid "Cancel"
+msgstr "취소"
+
+#: crates/tudi-gui/src/actions.rs:643 crates/tudi-gui/src/bar.rs:432
+#: crates/tudi-gui/src/tree_menu.rs:85
+msgid "Bookmarked {}"
+msgstr "{}을(를) 북마크했습니다"
+
+#: crates/tudi-gui/src/actions.rs:648 crates/tudi-gui/src/bar.rs:435
+#: crates/tudi-gui/src/tree_menu.rs:90
+msgid "Already bookmarked"
+msgstr "이미 북마크되어 있습니다"
+
+#: crates/tudi-gui/src/actions.rs:682 crates/tudi-gui/src/tree_menu.rs:125
+msgid "Open"
+msgstr "열기"
+
+#: crates/tudi-gui/src/actions.rs:683
+msgid "Open in Editor"
+msgstr "편집기에서 열기"
+
+#: crates/tudi-gui/src/actions.rs:686 crates/tudi-gui/src/tree_menu.rs:138
+msgid "Cut"
+msgstr "잘라내기"
+
+#: crates/tudi-gui/src/actions.rs:687 crates/tudi-gui/src/tree_menu.rs:139
+msgid "Copy"
+msgstr "복사"
+
+#: crates/tudi-gui/src/actions.rs:688 crates/tudi-gui/src/actions.rs:710
+msgid "Paste"
+msgstr "붙여넣기"
+
+#: crates/tudi-gui/src/actions.rs:690 crates/tudi-gui/src/tree_menu.rs:142
+msgid "Copy Path"
+msgstr "경로 복사"
+
+#: crates/tudi-gui/src/actions.rs:696 crates/tudi-gui/src/bar.rs:645
+#: crates/tudi-gui/src/bar.rs:707 crates/tudi-gui/src/tree_menu.rs:148
+msgid "Rename…"
+msgstr "이름 바꾸기…"
+
+#: crates/tudi-gui/src/actions.rs:698 crates/tudi-gui/src/tree_menu.rs:146
+msgid "Add to Bookmarks"
+msgstr "북마크에 추가"
+
+#: crates/tudi-gui/src/actions.rs:701
+msgid "Add to Launchers"
+msgstr "실행기에 추가"
+
+#: crates/tudi-gui/src/actions.rs:703 crates/tudi-gui/src/tree_menu.rs:149
+msgid "Move to Trash"
+msgstr "휴지통으로 이동"
+
+#: crates/tudi-gui/src/actions.rs:706 crates/tudi-gui/src/properties.rs:195
+#: crates/tudi-gui/src/tree_menu.rs:153
+msgid "Properties"
+msgstr "속성"
+
+#: crates/tudi-gui/src/actions.rs:711
+msgid "Select All"
+msgstr "모두 선택"
+
+#: crates/tudi-gui/src/actions.rs:715 crates/tudi-gui/src/tree_menu.rs:145
+msgid "New Folder…"
+msgstr "새 폴더…"
+
+#: crates/tudi-gui/src/actions.rs:719
+msgid "New File…"
+msgstr "새 파일…"
+
+#: crates/tudi-gui/src/actions.rs:721 crates/tudi-gui/src/tree_menu.rs:134
+msgid "Open Terminal Here"
+msgstr "여기서 터미널 열기"
+
+#: crates/tudi-gui/src/actions.rs:726
+msgid "Bookmark This Folder"
+msgstr "이 폴더 북마크"
+
+#: crates/tudi-gui/src/actions.rs:730
+msgid "Show Hidden Files"
+msgstr "숨김 파일 표시"
+
+#: crates/tudi-gui/src/actions.rs:733
+msgid "Folder Properties"
+msgstr "폴더 속성"
+
+#: crates/tudi-gui/src/activity.rs:38
+msgid "Reading folder…"
+msgstr "폴더를 읽는 중…"
+
+#: crates/tudi-gui/src/activity.rs:39
+msgid "Reading file details…"
+msgstr "파일 정보를 읽는 중…"
+
+#: crates/tudi-gui/src/activity.rs:40
+msgid "Measuring folder size…"
+msgstr "폴더 크기를 계산하는 중…"
+
+#: crates/tudi-gui/src/activity.rs:41
+msgid "Copying…"
+msgstr "복사하는 중…"
+
+#: crates/tudi-gui/src/activity.rs:42
+msgid "Moving…"
+msgstr "이동하는 중…"
+
+#: crates/tudi-gui/src/activity.rs:43
+msgid "Copying and moving…"
+msgstr "복사 및 이동하는 중…"
+
+#: crates/tudi-gui/src/activity.rs:44
+msgid "Moving to the trash…"
+msgstr "휴지통으로 옮기는 중…"
+
+#: crates/tudi-gui/src/bar.rs:195
+msgid "More bookmarks and frequent folders"
+msgstr "북마크 및 자주 사용하는 폴더 더 보기"
+
+#: crates/tudi-gui/src/bar.rs:260
+msgid "Launchers"
+msgstr "실행기"
+
+#: crates/tudi-gui/src/bar.rs:261
+msgid "Bookmarks"
+msgstr "북마크"
+
+#: crates/tudi-gui/src/bar.rs:262
+msgid "Frequent"
+msgstr "자주 사용"
+
+#: crates/tudi-gui/src/bar.rs:467
+msgid "Rename Bookmark"
+msgstr "북마크 이름 바꾸기"
+
+#: crates/tudi-gui/src/bar.rs:515
+msgid "application"
+msgstr "애플리케이션"
+
+#: crates/tudi-gui/src/bar.rs:517
+msgid "runs in a terminal"
+msgstr "터미널에서 실행"
+
+#: crates/tudi-gui/src/bar.rs:519
+msgid "runs in the background"
+msgstr "백그라운드에서 실행"
+
+#: crates/tudi-gui/src/bar.rs:524
+msgid "Click to run · drop files here to run with them"
+msgstr "클릭하여 실행 · 파일을 여기에 놓으면 해당 파일로 실행"
+
+#: crates/tudi-gui/src/bar.rs:565
+msgid "Ctrl+D bookmarks the current folder"
+msgstr "Ctrl+D를 누르면 현재 폴더를 북마크합니다"
+
+#: crates/tudi-gui/src/bar.rs:646
+msgid "Remove Bookmark"
+msgstr "북마크 제거"
+
+#: crates/tudi-gui/src/bar.rs:657
+msgid "Pin as Bookmark"
+msgstr "북마크로 고정"
+
+#: crates/tudi-gui/src/bar.rs:659
+msgid "Never show in history"
+msgstr "기록에 표시하지 않음"
+
+#: crates/tudi-gui/src/bar.rs:661
+msgid "Never show, including subfolders"
+msgstr "하위 폴더 포함 표시하지 않음"
+
+#: crates/tudi-gui/src/bar.rs:664
+msgid "Remove from history"
+msgstr "기록에서 제거"
+
+#: crates/tudi-gui/src/bar.rs:683
+msgid "Run"
+msgstr "실행"
+
+#: crates/tudi-gui/src/bar.rs:690
+msgid "Run in a Terminal"
+msgstr "터미널에서 실행"
+
+#: crates/tudi-gui/src/bar.rs:698
+msgid "Run in the Background"
+msgstr "백그라운드에서 실행"
+
+#: crates/tudi-gui/src/bar.rs:702
+msgid "Arguments…"
+msgstr "인수…"
+
+#: crates/tudi-gui/src/bar.rs:706
+msgid "Show in Folder"
+msgstr "폴더에서 보기"
+
+#: crates/tudi-gui/src/bar.rs:709
+msgid "Move Left"
+msgstr "왼쪽으로 이동"
+
+#: crates/tudi-gui/src/bar.rs:712
+msgid "Move Right"
+msgstr "오른쪽으로 이동"
+
+#: crates/tudi-gui/src/bar.rs:714
+msgid "Remove Launcher"
+msgstr "실행기 제거"
+
+#: crates/tudi-gui/src/bar.rs:760
+msgid "Arguments"
+msgstr "인수"
+
+#: crates/tudi-gui/src/bar.rs:760
+msgid "Save"
+msgstr "저장"
+
+#: crates/tudi-gui/src/bar.rs:783
+msgid "Rename Launcher"
+msgstr "실행기 이름 바꾸기"
+
+#: crates/tudi-gui/src/browser.rs:231
+msgid "Back (Alt+Left)"
+msgstr "뒤로 (Alt+←)"
+
+#: crates/tudi-gui/src/browser.rs:233
+msgid "Forward (Alt+Right)"
+msgstr "앞으로 (Alt+→)"
+
+#: crates/tudi-gui/src/browser.rs:235
+msgid "Parent folder (Alt+Up)"
+msgstr "상위 폴더 (Alt+↑)"
+
+#: crates/tudi-gui/src/browser.rs:244
+msgid "Settings (Ctrl+,)"
+msgstr "설정 (Ctrl+,)"
+
+#: crates/tudi-gui/src/browser.rs:427
+msgid "Home"
+msgstr "홈"
+
+#: crates/tudi-gui/src/browser.rs:429
+msgid "File System"
+msgstr "파일 시스템"
+
+#: crates/tudi-gui/src/browser.rs:1037
+msgid "Zoom {}%"
+msgstr "확대/축소 {}%"
+
+#: crates/tudi-gui/src/browser.rs:1210 crates/tudi-gui/src/pane.rs:577
+#: crates/tudi-gui/src/settings.rs:115
+msgid "Name"
+msgstr "이름"
+
+#: crates/tudi-gui/src/browser.rs:1210 crates/tudi-gui/src/pane.rs:579
+#: crates/tudi-gui/src/properties.rs:229 crates/tudi-gui/src/settings.rs:115
+msgid "Size"
+msgstr "크기"
+
+#: crates/tudi-gui/src/browser.rs:1210 crates/tudi-gui/src/pane.rs:580
+#: crates/tudi-gui/src/properties.rs:242 crates/tudi-gui/src/settings.rs:115
+msgid "Modified"
+msgstr "수정한 날짜"
+
+#: crates/tudi-gui/src/browser.rs:1293
+msgid "filtered by “{}”"
+msgstr "“{}”(으)로 필터링됨"
+
+#: crates/tudi-gui/src/browser.rs:1301
+msgid "{} free"
+msgstr "{} 남음"
+
+#: crates/tudi-gui/src/browser.rs:1306
+msgid "{} selected"
+msgstr "{}개 선택됨"
+
+#: crates/tudi-gui/src/drop.rs:144
+msgid "Could not paste {}: {}"
+msgstr "{}을(를) 붙여넣을 수 없습니다: {}"
+
+#: crates/tudi-gui/src/drop.rs:153
+msgid "Moved {}, copied {}"
+msgstr "{}개 이동, {}개 복사함"
+
+#: crates/tudi-gui/src/find.rs:36
+msgid "Find in this folder (Enter filters)"
+msgstr "이 폴더에서 찾기 (Enter로 필터링)"
+
+#: crates/tudi-gui/src/history.rs:192
+msgid "just now"
+msgstr "방금"
+
+#: crates/tudi-gui/src/launch.rs:107
+msgid "Started {}"
+msgstr "{}을(를) 시작했습니다"
+
+#: crates/tudi-gui/src/launch.rs:111
+msgid "{} finished"
+msgstr "{} 완료됨"
+
+#: crates/tudi-gui/src/launch.rs:112
+msgid "{} failed (exit code {})"
+msgstr "{} 실패 (종료 코드 {})"
+
+#: crates/tudi-gui/src/launch.rs:113
+msgid "{} was stopped"
+msgstr "{} 중지됨"
+
+#: crates/tudi-gui/src/launch.rs:116
+msgid "Show Log"
+msgstr "로그 보기"
+
+#: crates/tudi-gui/src/launch.rs:136
+msgid "Added {} to the launchers"
+msgstr "{}을(를) 실행기에 추가했습니다"
+
+#: crates/tudi-gui/src/launch.rs:139
+msgid "Already a launcher"
+msgstr "이미 실행기에 있습니다"
+
+#: crates/tudi-gui/src/main.rs:329
+msgid "Open a new window"
+msgstr "새 창 열기"
+
+#: crates/tudi-gui/src/main.rs:333
+msgid "Start the resident instance without a window"
+msgstr "창 없이 상주 인스턴스 시작"
+
+#: crates/tudi-gui/src/main.rs:335
+msgid "Quit the resident instance"
+msgstr "상주 인스턴스 종료"
+
+#: crates/tudi-gui/src/main.rs:339
+msgid "Import bookmarks and folder history from GTK, autojump and zoxide again"
+msgstr "GTK, autojump, zoxide에서 북마크와 폴더 기록을 다시 가져오기"
+
+#: crates/tudi-gui/src/properties.rs:120
+msgid "Folder"
+msgstr "폴더"
+
+#: crates/tudi-gui/src/properties.rs:121
+msgid "Program"
+msgstr "프로그램"
+
+#: crates/tudi-gui/src/properties.rs:123
+msgid "File"
+msgstr "파일"
+
+#: crates/tudi-gui/src/properties.rs:124
+msgid "Text"
+msgstr "텍스트"
+
+#: crates/tudi-gui/src/properties.rs:125
+msgid "PDF document"
+msgstr "PDF 문서"
+
+#: crates/tudi-gui/src/properties.rs:126
+msgid "Image"
+msgstr "이미지"
+
+#: crates/tudi-gui/src/properties.rs:127
+msgid "Video"
+msgstr "동영상"
+
+#: crates/tudi-gui/src/properties.rs:128
+msgid "Audio"
+msgstr "오디오"
+
+#: crates/tudi-gui/src/properties.rs:129
+msgid "Archive"
+msgstr "압축 파일"
+
+#: crates/tudi-gui/src/properties.rs:130
+msgid "Source code"
+msgstr "소스 코드"
+
+#: crates/tudi-gui/src/properties.rs:131
+msgid "Document"
+msgstr "문서"
+
+#: crates/tudi-gui/src/properties.rs:132
+msgid "Spreadsheet"
+msgstr "스프레드시트"
+
+#: crates/tudi-gui/src/properties.rs:133
+msgid "Presentation"
+msgstr "프레젠테이션"
+
+#: crates/tudi-gui/src/properties.rs:137
+msgid "Link to {}"
+msgstr "{}에 대한 링크"
+
+#: crates/tudi-gui/src/properties.rs:161
+msgid "bytes"
+msgstr "바이트"
+
+#: crates/tudi-gui/src/properties.rs:227
+msgid "Location"
+msgstr "위치"
+
+#: crates/tudi-gui/src/properties.rs:228
+msgid "Link target"
+msgstr "링크 대상"
+
+#: crates/tudi-gui/src/properties.rs:233
+msgid "Contains"
+msgstr "포함 항목"
+
+#: crates/tudi-gui/src/properties.rs:243
+msgid "Accessed"
+msgstr "접근한 날짜"
+
+#: crates/tudi-gui/src/properties.rs:244
+msgid "Permissions"
+msgstr "권한"
+
+#: crates/tudi-gui/src/properties.rs:245
+msgid "Owner"
+msgstr "소유자"
+
+#: crates/tudi-gui/src/properties.rs:309
+msgid "Not found"
+msgstr "찾을 수 없음"
+
+#: crates/tudi-gui/src/properties.rs:315
+msgid "Selection"
+msgstr "선택 항목"
+
+#: crates/tudi-gui/src/properties.rs:342
+msgid "Counting…"
+msgstr "세는 중…"
+
+#: crates/tudi-gui/src/search.rs:167
+msgid "This folder is not in the search index"
+msgstr "이 폴더는 검색 색인에 없습니다"
+
+#: crates/tudi-gui/src/search.rs:175
+msgid "The search index is not available"
+msgstr "검색 색인을 사용할 수 없습니다"
+
+#: crates/tudi-gui/src/search.rs:182
+msgid "Cannot start the search index (tudi-indexd)"
+msgstr "검색 색인을 시작할 수 없습니다 (tudi-indexd)"
+
+#: crates/tudi-gui/src/search.rs:332
+msgid "“in:” needs a folder name, e.g. in:acme"
+msgstr "“in:” 뒤에는 폴더 이름이 필요합니다 (예: in:acme)"
+
+#: crates/tudi-gui/src/search.rs:333
+msgid "“ext:” needs an extension, e.g. ext:pdf"
+msgstr "“ext:” 뒤에는 확장자가 필요합니다 (예: ext:pdf)"
+
+#: crates/tudi-gui/src/search.rs:335
+msgid "“{}”: dates look like 2025, 2025-06 or 2025-06-15"
+msgstr "“{}”: 날짜는 2025, 2025-06, 2025-06-15 형식입니다"
+
+#: crates/tudi-gui/src/search.rs:339
+msgid "“{}”: months are “mo” (<3mo); for sizes use size>10M"
+msgstr "“{}”: 월은 “mo”(<3mo), 크기는 size>10M을 사용하세요"
+
+#: crates/tudi-gui/src/search.rs:342
+msgid "“{}”: add a unit: h, d, w, mo or y"
+msgstr "“{}”: 단위를 붙이세요: h, d, w, mo, y"
+
+#: crates/tudi-gui/src/search.rs:343
+msgid "“{}”: write <7d, >2w or >2025-06"
+msgstr "“{}”: <7d, >2w, >2025-06 형식으로 쓰세요"
+
+#: crates/tudi-gui/src/search.rs:344
+msgid "“{}”: write size>10M or size<500k"
+msgstr "“{}”: size>10M 또는 size<500k 형식으로 쓰세요"
+
+#: crates/tudi-gui/src/search.rs:426
+msgid "Search files and folders…  (pinyin initials work too)"
+msgstr "파일 및 폴더 검색…  (병음 머리글자도 사용 가능)"
+
+#: crates/tudi-gui/src/search.rs:445
+msgid "Search everywhere"
+msgstr "모든 위치 검색"
+
+#: crates/tudi-gui/src/search.rs:525
+msgid "In {}"
+msgstr "{} 안에서"
+
+#: crates/tudi-gui/src/search.rs:691
+msgid "No matches"
+msgstr "일치하는 항목 없음"
+
+#: crates/tudi-gui/src/search.rs:699
+msgid "still indexing, results may be incomplete"
+msgstr "색인 중이므로 결과가 불완전할 수 있습니다"
+
+#: crates/tudi-gui/src/search.rs:702
+msgid "reveal"
+msgstr "위치 보기"
+
+#: crates/tudi-gui/src/search.rs:704
+msgid "open"
+msgstr "열기"
+
+#: crates/tudi-gui/src/search.rs:706
+msgid "terminal"
+msgstr "터미널"
+
+#: crates/tudi-gui/src/settings.rs:73
+msgid "Settings"
+msgstr "설정"
+
+#: crates/tudi-gui/src/settings.rs:79
+msgid "General"
+msgstr "일반"
+
+#: crates/tudi-gui/src/settings.rs:83
+msgid "Interface"
+msgstr "인터페이스"
+
+#: crates/tudi-gui/src/settings.rs:87
+msgid "System language"
+msgstr "시스템 언어"
+
+#: crates/tudi-gui/src/settings.rs:89
+msgid "Language"
+msgstr "언어"
+
+#: crates/tudi-gui/src/settings.rs:90
+msgid "Takes effect after restarting tudi"
+msgstr "tudi를 다시 시작하면 적용됩니다"
+
+#: crates/tudi-gui/src/settings.rs:97
+msgid "Zoom (%)"
+msgstr "확대/축소 (%)"
+
+#: crates/tudi-gui/src/settings.rs:104
+msgid "Browsing"
+msgstr "탐색"
+
+#: crates/tudi-gui/src/settings.rs:106
+msgid "Show hidden files"
+msgstr "숨김 파일 표시"
+
+#: crates/tudi-gui/src/settings.rs:107
+msgid "Folders before files"
+msgstr "폴더를 파일보다 먼저 표시"
+
+#: crates/tudi-gui/src/settings.rs:109
+msgid "Sort Chinese names by pinyin"
+msgstr "중국어 이름을 병음 순으로 정렬"
+
+#: crates/tudi-gui/src/settings.rs:110
+msgid "合同 sorts near “hetong”, among the h’s"
+msgstr "“合同”은 h로 시작하는 이름 사이, “hetong” 근처에 정렬됩니다"
+
+#: crates/tudi-gui/src/settings.rs:114
+msgid "Sort by"
+msgstr "정렬 기준"
+
+#: crates/tudi-gui/src/settings.rs:128
+msgid "Search index"
+msgstr "검색 색인"
+
+#: crates/tudi-gui/src/settings.rs:131
+msgid "Start the search index at login"
+msgstr "로그인할 때 검색 색인 시작"
+
+#: crates/tudi-gui/src/settings.rs:132
+msgid "Otherwise it starts the first time you search (Ctrl+P)"
+msgstr "그렇지 않으면 처음 검색할 때(Ctrl+P) 시작됩니다"
+
+#: crates/tudi-gui/src/settings.rs:169
+msgid "Commands"
+msgstr "명령"
+
+#: crates/tudi-gui/src/settings.rs:173
+msgid "External programs"
+msgstr "외부 프로그램"
+
+#: crates/tudi-gui/src/settings.rs:174
+msgid ""
+"Arguments separated by spaces. {dir} is the current folder; {path} the "
+"selected items."
+msgstr ""
+"인수는 공백으로 구분합니다. {dir}은(는) 현재 폴더, {path}은(는) 선택한 항목입"
+"니다."
+
+#: crates/tudi-gui/src/settings.rs:179
+msgid "Terminal (Ctrl+Alt+T)"
+msgstr "터미널 (Ctrl+Alt+T)"
+
+#: crates/tudi-gui/src/settings.rs:184
+msgid "Editor (Ctrl+E)"
+msgstr "편집기 (Ctrl+E)"
+
+#: crates/tudi-gui/src/settings.rs:196
+msgid "History"
+msgstr "기록"
+
+#: crates/tudi-gui/src/settings.rs:200
+msgid "Never record folders matching"
+msgstr "다음 규칙과 일치하는 폴더는 기록하지 않음"
+
+#: crates/tudi-gui/src/settings.rs:201
+msgid "Glob patterns on absolute paths, e.g. /tmp/** or **/node_modules/**"
+msgstr "절대 경로에 대한 glob 패턴 (예: /tmp/** 또는 **/node_modules/**)"
+
+#: crates/tudi-gui/src/settings.rs:206
+msgid "Add pattern"
+msgstr "패턴 추가"
+
+#: crates/tudi-gui/src/settings.rs:212
+msgid "Excluded folders"
+msgstr "제외된 폴더"
+
+#: crates/tudi-gui/src/settings.rs:213
+msgid "Folders hidden from the bar with “Never show in history”"
+msgstr "“기록에 표시하지 않음”으로 막대에서 숨긴 폴더"
+
+#: crates/tudi-gui/src/settings.rs:220
+msgid "Clear history"
+msgstr "기록 지우기"
+
+#: crates/tudi-gui/src/settings.rs:221
+msgid "Forget all folder visits; exclusions are kept"
+msgstr "모든 폴더 방문 기록을 지웁니다. 제외 항목은 유지됩니다"
+
+#: crates/tudi-gui/src/settings.rs:223
+msgid "Clear…"
+msgstr "지우기…"
+
+#: crates/tudi-gui/src/settings.rs:247
+msgid "Restart tudi to change the language (tudi --quit)"
+msgstr "언어를 바꾸려면 tudi를 다시 시작하세요 (tudi --quit)"
+
+#: crates/tudi-gui/src/settings.rs:393
+msgid "Remove pattern"
+msgstr "패턴 제거"
+
+#: crates/tudi-gui/src/settings.rs:426
+msgid "None"
+msgstr "없음"
+
+#: crates/tudi-gui/src/settings.rs:436
+msgid "with subfolders"
+msgstr "하위 폴더 포함"
+
+#: crates/tudi-gui/src/settings.rs:438
+msgid "this folder only"
+msgstr "이 폴더만"
+
+#: crates/tudi-gui/src/settings.rs:441
+msgid "Allow"
+msgstr "허용"
+
+#: crates/tudi-gui/src/settings.rs:443
+msgid "Allow in history again"
+msgstr "기록에 다시 허용"
+
+#: crates/tudi-gui/src/settings.rs:459
+msgid "Clear history?"
+msgstr "기록을 지우시겠습니까?"
+
+#: crates/tudi-gui/src/settings.rs:460
+msgid ""
+"All folder visit counts are forgotten. Exclusions and bookmarks are kept."
+msgstr "모든 폴더 방문 횟수가 삭제됩니다. 제외 항목과 북마크는 유지됩니다."
+
+#: crates/tudi-gui/src/settings.rs:466
+msgid "Clear"
+msgstr "지우기"
+
+#: crates/tudi-gui/src/tree_menu.rs:52
+msgid "Copied the path"
+msgstr "경로를 복사했습니다"
+
+#: crates/tudi-gui/src/tree_menu.rs:128
+msgid "Collapse"
+msgstr "접기"
+
+#: crates/tudi-gui/src/tree_menu.rs:130
+msgid "Expand"
+msgstr "펼치기"
+
+#: crates/tudi-gui/src/tree_menu.rs:141
+msgid "Paste Into Folder"
+msgstr "폴더에 붙여넣기"
+
+#: crates/tudi-gui/src/actions.rs:223
+msgid "Cut {} item"
+msgid_plural "Cut {} items"
+msgstr[0] "항목 {}개를 잘라냈습니다"
+
+#: crates/tudi-gui/src/actions.rs:225
+msgid "Copied {} item"
+msgid_plural "Copied {} items"
+msgstr[0] "항목 {}개를 복사했습니다"
+
+#: crates/tudi-gui/src/actions.rs:283
+msgid "Copied {} path"
+msgid_plural "Copied {} paths"
+msgstr[0] "경로 {}개를 복사했습니다"
+
+#: crates/tudi-gui/src/actions.rs:369
+msgid "Moved {} item to the trash"
+msgid_plural "Moved {} items to the trash"
+msgstr[0] "항목 {}개를 휴지통으로 옮겼습니다"
+
+#: crates/tudi-gui/src/bar.rs:287
+msgid "{} more"
+msgid_plural "{} more"
+msgstr[0] "{}개 더"
+
+#: crates/tudi-gui/src/bar.rs:546 crates/tudi-gui/src/bar.rs:590
+msgid "opened {} time"
+msgid_plural "opened {} times"
+msgstr[0] "{}회 열었음"
+
+#: crates/tudi-gui/src/bar.rs:598
+msgid "{} open"
+msgid_plural "{} opens"
+msgstr[0] "{}회"
+
+#: crates/tudi-gui/src/browser.rs:1285 crates/tudi-gui/src/properties.rs:167
+msgid "{} file"
+msgid_plural "{} files"
+msgstr[0] "파일 {}개"
+
+#: crates/tudi-gui/src/browser.rs:1288 crates/tudi-gui/src/properties.rs:172
+msgid "{} folder"
+msgid_plural "{} folders"
+msgstr[0] "폴더 {}개"
+
+#: crates/tudi-gui/src/drop.rs:151
+msgid "Moved {} item"
+msgid_plural "Moved {} items"
+msgstr[0] "항목 {}개를 옮겼습니다"
+
+#: crates/tudi-gui/src/drop.rs:152
+msgid "Pasted {} item"
+msgid_plural "Pasted {} items"
+msgstr[0] "항목 {}개를 붙여넣었습니다"
+
+#: crates/tudi-gui/src/history.rs:195
+msgid "{} minute ago"
+msgid_plural "{} minutes ago"
+msgstr[0] "{}분 전"
+
+#: crates/tudi-gui/src/history.rs:198
+msgid "{} hour ago"
+msgid_plural "{} hours ago"
+msgstr[0] "{}시간 전"
+
+#: crates/tudi-gui/src/history.rs:201
+msgid "{} day ago"
+msgid_plural "{} days ago"
+msgstr[0] "{}일 전"
+
+#: crates/tudi-gui/src/properties.rs:178
+msgid "{} item could not be read"
+msgid_plural "{} items could not be read"
+msgstr[0] "항목 {}개를 읽을 수 없습니다"
+
+#: crates/tudi-gui/src/properties.rs:314
+msgid "{} item"
+msgid_plural "{} items"
+msgstr[0] "항목 {}개"
+
+#: crates/tudi-gui/src/search.rs:693
+msgid "{} result"
+msgid_plural "{} results"
+msgstr[0] "결과 {}개"

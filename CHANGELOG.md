@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Languages: Traditional Chinese, Japanese, Korean, German, French,
+  Spanish, Portuguese (Brazil), Italian and Russian, selectable in the
+  settings (or `[ui] language = "de"` …) whatever the system language.
 - Drag the handles between the list's column headers to resize the size
   and modified columns (double-click resets); remembered per window.
 - Fix: right-click on the list's empty space showed no menu; a context

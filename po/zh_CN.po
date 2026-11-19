@@ -1,3 +1,4 @@
+#
 msgid ""
 msgstr ""
 "Project-Id-Version: tudi\n"
@@ -22,8 +23,8 @@ msgstr "无法运行 {}：{}"
 msgid "Could not trash {}"
 msgstr "无法移到回收站：{}"
 
-#: crates/tudi-gui/src/actions.rs:394 crates/tudi-gui/src/bar.rs:464
-#: crates/tudi-gui/src/bar.rs:779 crates/tudi-gui/src/tree_menu.rs:76
+#: crates/tudi-gui/src/actions.rs:394 crates/tudi-gui/src/bar.rs:468
+#: crates/tudi-gui/src/bar.rs:784 crates/tudi-gui/src/tree_menu.rs:76
 msgid "Rename"
 msgstr "重命名"
 
@@ -55,16 +56,16 @@ msgstr "新建文件夹"
 msgid "Cannot create folder: {}"
 msgstr "无法创建文件夹：{}"
 
-#: crates/tudi-gui/src/actions.rs:538 crates/tudi-gui/src/settings.rs:449
+#: crates/tudi-gui/src/actions.rs:538 crates/tudi-gui/src/settings.rs:466
 msgid "Cancel"
 msgstr "取消"
 
-#: crates/tudi-gui/src/actions.rs:643 crates/tudi-gui/src/bar.rs:428
+#: crates/tudi-gui/src/actions.rs:643 crates/tudi-gui/src/bar.rs:432
 #: crates/tudi-gui/src/tree_menu.rs:85
 msgid "Bookmarked {}"
 msgstr "已收藏 {}"
 
-#: crates/tudi-gui/src/actions.rs:648 crates/tudi-gui/src/bar.rs:431
+#: crates/tudi-gui/src/actions.rs:648 crates/tudi-gui/src/bar.rs:435
 #: crates/tudi-gui/src/tree_menu.rs:90
 msgid "Already bookmarked"
 msgstr "已在书签中"
@@ -93,8 +94,8 @@ msgstr "粘贴"
 msgid "Copy Path"
 msgstr "复制路径"
 
-#: crates/tudi-gui/src/actions.rs:696 crates/tudi-gui/src/bar.rs:634
-#: crates/tudi-gui/src/bar.rs:702 crates/tudi-gui/src/tree_menu.rs:148
+#: crates/tudi-gui/src/actions.rs:696 crates/tudi-gui/src/bar.rs:645
+#: crates/tudi-gui/src/bar.rs:707 crates/tudi-gui/src/tree_menu.rs:148
 msgid "Rename…"
 msgstr "重命名…"
 
@@ -171,162 +172,162 @@ msgstr "正在复制和移动…"
 msgid "Moving to the trash…"
 msgstr "正在移到回收站…"
 
-#: crates/tudi-gui/src/bar.rs:193
+#: crates/tudi-gui/src/bar.rs:195
 msgid "More bookmarks and frequent folders"
 msgstr "更多书签和常用文件夹"
 
-#: crates/tudi-gui/src/bar.rs:258
+#: crates/tudi-gui/src/bar.rs:260
 msgid "Launchers"
 msgstr "启动器"
 
-#: crates/tudi-gui/src/bar.rs:259
+#: crates/tudi-gui/src/bar.rs:261
 msgid "Bookmarks"
 msgstr "书签"
 
-#: crates/tudi-gui/src/bar.rs:260
+#: crates/tudi-gui/src/bar.rs:262
 msgid "Frequent"
 msgstr "常用"
 
-#: crates/tudi-gui/src/bar.rs:463
+#: crates/tudi-gui/src/bar.rs:467
 msgid "Rename Bookmark"
 msgstr "重命名书签"
 
-#: crates/tudi-gui/src/bar.rs:510
+#: crates/tudi-gui/src/bar.rs:515
 msgid "application"
 msgstr "应用程序"
 
-#: crates/tudi-gui/src/bar.rs:512
+#: crates/tudi-gui/src/bar.rs:517
 msgid "runs in a terminal"
 msgstr "在终端中运行"
 
-#: crates/tudi-gui/src/bar.rs:514
+#: crates/tudi-gui/src/bar.rs:519
 msgid "runs in the background"
 msgstr "在后台运行"
 
-#: crates/tudi-gui/src/bar.rs:519
+#: crates/tudi-gui/src/bar.rs:524
 msgid "Click to run · drop files here to run with them"
 msgstr "单击运行 · 把文件拖到这里即以其为参数运行"
 
-#: crates/tudi-gui/src/bar.rs:556
+#: crates/tudi-gui/src/bar.rs:565
 msgid "Ctrl+D bookmarks the current folder"
 msgstr "按 Ctrl+D 收藏当前文件夹"
 
-#: crates/tudi-gui/src/bar.rs:636 crates/tudi-gui/src/bar.rs:704
-msgid "Move Left"
-msgstr "左移"
-
-#: crates/tudi-gui/src/bar.rs:639 crates/tudi-gui/src/bar.rs:707
-msgid "Move Right"
-msgstr "右移"
-
-#: crates/tudi-gui/src/bar.rs:641
+#: crates/tudi-gui/src/bar.rs:646
 msgid "Remove Bookmark"
 msgstr "移除书签"
 
-#: crates/tudi-gui/src/bar.rs:652
+#: crates/tudi-gui/src/bar.rs:657
 msgid "Pin as Bookmark"
 msgstr "固定为书签"
 
-#: crates/tudi-gui/src/bar.rs:654
+#: crates/tudi-gui/src/bar.rs:659
 msgid "Never show in history"
 msgstr "永不在历史中显示"
 
-#: crates/tudi-gui/src/bar.rs:656
+#: crates/tudi-gui/src/bar.rs:661
 msgid "Never show, including subfolders"
 msgstr "连同子文件夹永不显示"
 
-#: crates/tudi-gui/src/bar.rs:659
+#: crates/tudi-gui/src/bar.rs:664
 msgid "Remove from history"
 msgstr "从历史中移除"
 
-#: crates/tudi-gui/src/bar.rs:678
+#: crates/tudi-gui/src/bar.rs:683
 msgid "Run"
 msgstr "运行"
 
-#: crates/tudi-gui/src/bar.rs:685
+#: crates/tudi-gui/src/bar.rs:690
 msgid "Run in a Terminal"
 msgstr "在终端中运行"
 
-#: crates/tudi-gui/src/bar.rs:693
+#: crates/tudi-gui/src/bar.rs:698
 msgid "Run in the Background"
 msgstr "在后台运行"
 
-#: crates/tudi-gui/src/bar.rs:697
+#: crates/tudi-gui/src/bar.rs:702
 msgid "Arguments…"
 msgstr "参数…"
 
-#: crates/tudi-gui/src/bar.rs:701
+#: crates/tudi-gui/src/bar.rs:706
 msgid "Show in Folder"
 msgstr "在文件夹中显示"
 
 #: crates/tudi-gui/src/bar.rs:709
+msgid "Move Left"
+msgstr "左移"
+
+#: crates/tudi-gui/src/bar.rs:712
+msgid "Move Right"
+msgstr "右移"
+
+#: crates/tudi-gui/src/bar.rs:714
 msgid "Remove Launcher"
 msgstr "移除启动器"
 
-#: crates/tudi-gui/src/bar.rs:755
+#: crates/tudi-gui/src/bar.rs:760
 msgid "Arguments"
 msgstr "参数"
 
-#: crates/tudi-gui/src/bar.rs:755
+#: crates/tudi-gui/src/bar.rs:760
 msgid "Save"
 msgstr "保存"
 
-#: crates/tudi-gui/src/bar.rs:778
+#: crates/tudi-gui/src/bar.rs:783
 msgid "Rename Launcher"
 msgstr "重命名启动器"
 
-#: crates/tudi-gui/src/browser.rs:224
+#: crates/tudi-gui/src/browser.rs:231
 msgid "Back (Alt+Left)"
 msgstr "后退 (Alt+←)"
 
-#: crates/tudi-gui/src/browser.rs:226
+#: crates/tudi-gui/src/browser.rs:233
 msgid "Forward (Alt+Right)"
 msgstr "前进 (Alt+→)"
 
-#: crates/tudi-gui/src/browser.rs:228
+#: crates/tudi-gui/src/browser.rs:235
 msgid "Parent folder (Alt+Up)"
 msgstr "上一级 (Alt+↑)"
 
-#: crates/tudi-gui/src/browser.rs:237
+#: crates/tudi-gui/src/browser.rs:244
 msgid "Settings (Ctrl+,)"
 msgstr "设置 (Ctrl+,)"
 
-#: crates/tudi-gui/src/browser.rs:419
+#: crates/tudi-gui/src/browser.rs:427
 msgid "Home"
 msgstr "主目录"
 
-#: crates/tudi-gui/src/browser.rs:421
+#: crates/tudi-gui/src/browser.rs:429
 msgid "File System"
 msgstr "文件系统"
 
-#: crates/tudi-gui/src/browser.rs:1029
+#: crates/tudi-gui/src/browser.rs:1037
 msgid "Zoom {}%"
 msgstr "缩放 {}%"
 
-#: crates/tudi-gui/src/browser.rs:1200 crates/tudi-gui/src/pane.rs:520
-#: crates/tudi-gui/src/settings.rs:92
+#: crates/tudi-gui/src/browser.rs:1210 crates/tudi-gui/src/pane.rs:577
+#: crates/tudi-gui/src/settings.rs:115
 msgid "Name"
 msgstr "名称"
 
-#: crates/tudi-gui/src/browser.rs:1200 crates/tudi-gui/src/pane.rs:522
-#: crates/tudi-gui/src/properties.rs:229 crates/tudi-gui/src/settings.rs:92
+#: crates/tudi-gui/src/browser.rs:1210 crates/tudi-gui/src/pane.rs:579
+#: crates/tudi-gui/src/properties.rs:229 crates/tudi-gui/src/settings.rs:115
 msgid "Size"
 msgstr "大小"
 
-#: crates/tudi-gui/src/browser.rs:1200 crates/tudi-gui/src/pane.rs:523
-#: crates/tudi-gui/src/properties.rs:242 crates/tudi-gui/src/settings.rs:92
+#: crates/tudi-gui/src/browser.rs:1210 crates/tudi-gui/src/pane.rs:580
+#: crates/tudi-gui/src/properties.rs:242 crates/tudi-gui/src/settings.rs:115
 msgid "Modified"
 msgstr "修改时间"
 
-#: crates/tudi-gui/src/browser.rs:1283
+#: crates/tudi-gui/src/browser.rs:1293
 msgid "filtered by “{}”"
 msgstr "已筛选“{}”"
 
-#: crates/tudi-gui/src/browser.rs:1291
+#: crates/tudi-gui/src/browser.rs:1301
 msgid "{} free"
 msgstr "剩余 {}"
 
-#: crates/tudi-gui/src/browser.rs:1296
+#: crates/tudi-gui/src/browser.rs:1306
 msgid "{} selected"
 msgstr "已选 {} 项"
 
@@ -342,7 +343,7 @@ msgstr "已移动 {} 项，已复制 {} 项"
 msgid "Find in this folder (Enter filters)"
 msgstr "在此文件夹中查找（回车筛选）"
 
-#: crates/tudi-gui/src/history.rs:188
+#: crates/tudi-gui/src/history.rs:192
 msgid "just now"
 msgstr "刚刚"
 
@@ -374,19 +375,19 @@ msgstr "已将 {} 加入启动器"
 msgid "Already a launcher"
 msgstr "已在启动器中"
 
-#: crates/tudi-gui/src/main.rs:327
+#: crates/tudi-gui/src/main.rs:329
 msgid "Open a new window"
 msgstr "打开新窗口"
 
-#: crates/tudi-gui/src/main.rs:331
+#: crates/tudi-gui/src/main.rs:333
 msgid "Start the resident instance without a window"
 msgstr "在后台启动常驻实例，不打开窗口"
 
-#: crates/tudi-gui/src/main.rs:333
+#: crates/tudi-gui/src/main.rs:335
 msgid "Quit the resident instance"
 msgstr "退出常驻实例"
 
-#: crates/tudi-gui/src/main.rs:337
+#: crates/tudi-gui/src/main.rs:339
 msgid "Import bookmarks and folder history from GTK, autojump and zoxide again"
 msgstr "重新从 GTK、autojump 和 zoxide 导入书签和文件夹历史"
 
@@ -526,6 +527,10 @@ msgstr "“{}”：请写成 <7d、>2w 或 >2025-06"
 msgid "“{}”: write size>10M or size<500k"
 msgstr "“{}”：请写成 size>10M 或 size<500k"
 
+#: crates/tudi-gui/src/search.rs:426
+msgid "Search files and folders…  (pinyin initials work too)"
+msgstr "搜索文件和文件夹…  （也可用拼音首字母）"
+
 #: crates/tudi-gui/src/search.rs:445
 msgid "Search everywhere"
 msgstr "在全部位置搜索"
@@ -554,151 +559,166 @@ msgstr "打开"
 msgid "terminal"
 msgstr "终端"
 
-#: crates/tudi-gui/src/settings.rs:50
+#: crates/tudi-gui/src/settings.rs:73
 msgid "Settings"
 msgstr "设置"
 
-#: crates/tudi-gui/src/settings.rs:56
+#: crates/tudi-gui/src/settings.rs:79
 msgid "General"
 msgstr "常规"
 
-#: crates/tudi-gui/src/settings.rs:60
+#: crates/tudi-gui/src/settings.rs:83
 msgid "Interface"
 msgstr "界面"
 
-#: crates/tudi-gui/src/settings.rs:63
-msgid "Language"
-msgstr "语言"
-
-#: crates/tudi-gui/src/settings.rs:64
-msgid "English"
-msgstr "英文"
-
-#: crates/tudi-gui/src/settings.rs:64
+#: crates/tudi-gui/src/settings.rs:87
 msgid "System language"
 msgstr "系统语言"
 
-#: crates/tudi-gui/src/settings.rs:67
+#: crates/tudi-gui/src/settings.rs:89
+msgid "Language"
+msgstr "语言"
+
+#: crates/tudi-gui/src/settings.rs:90
 msgid "Takes effect after restarting tudi"
 msgstr "重启 tudi 后生效"
 
-#: crates/tudi-gui/src/settings.rs:74
+#: crates/tudi-gui/src/settings.rs:97
 msgid "Zoom (%)"
 msgstr "缩放 (%)"
 
-#: crates/tudi-gui/src/settings.rs:81
+#: crates/tudi-gui/src/settings.rs:104
 msgid "Browsing"
 msgstr "浏览"
 
-#: crates/tudi-gui/src/settings.rs:83
+#: crates/tudi-gui/src/settings.rs:106
 msgid "Show hidden files"
 msgstr "显示隐藏文件"
 
-#: crates/tudi-gui/src/settings.rs:84
+#: crates/tudi-gui/src/settings.rs:107
 msgid "Folders before files"
 msgstr "文件夹排在文件前"
 
-#: crates/tudi-gui/src/settings.rs:86
+#: crates/tudi-gui/src/settings.rs:109
 msgid "Sort Chinese names by pinyin"
 msgstr "中文名按拼音排序"
 
-#: crates/tudi-gui/src/settings.rs:87
+#: crates/tudi-gui/src/settings.rs:110
 msgid "合同 sorts near “hetong”, among the h’s"
 msgstr "“合同”排在 h 开头的名字中间，靠近 “hetong”"
 
-#: crates/tudi-gui/src/settings.rs:91
+#: crates/tudi-gui/src/settings.rs:114
 msgid "Sort by"
 msgstr "排序方式"
 
-#: crates/tudi-gui/src/settings.rs:105
+#: crates/tudi-gui/src/settings.rs:128
 msgid "Search index"
 msgstr "搜索索引"
 
-#: crates/tudi-gui/src/settings.rs:108
+#: crates/tudi-gui/src/settings.rs:131
 msgid "Start the search index at login"
 msgstr "登录时启动搜索索引"
 
-#: crates/tudi-gui/src/settings.rs:109
+#: crates/tudi-gui/src/settings.rs:132
 msgid "Otherwise it starts the first time you search (Ctrl+P)"
 msgstr "否则在第一次搜索（Ctrl+P）时启动"
 
-#: crates/tudi-gui/src/settings.rs:146
+#: crates/tudi-gui/src/settings.rs:169
 msgid "Commands"
 msgstr "命令"
 
-#: crates/tudi-gui/src/settings.rs:150
+#: crates/tudi-gui/src/settings.rs:173
 msgid "External programs"
 msgstr "外部程序"
 
-#: crates/tudi-gui/src/settings.rs:156
+#: crates/tudi-gui/src/settings.rs:174
+msgid ""
+"Arguments separated by spaces. {dir} is the current folder; {path} the "
+"selected items."
+msgstr "参数以空格分隔。{dir} 为当前文件夹；{path} 为选中的项目。"
+
+#: crates/tudi-gui/src/settings.rs:179
 msgid "Terminal (Ctrl+Alt+T)"
 msgstr "终端 (Ctrl+Alt+T)"
 
-#: crates/tudi-gui/src/settings.rs:161
+#: crates/tudi-gui/src/settings.rs:184
 msgid "Editor (Ctrl+E)"
 msgstr "编辑器 (Ctrl+E)"
 
-#: crates/tudi-gui/src/settings.rs:173
+#: crates/tudi-gui/src/settings.rs:196
 msgid "History"
 msgstr "历史"
 
-#: crates/tudi-gui/src/settings.rs:177
+#: crates/tudi-gui/src/settings.rs:200
 msgid "Never record folders matching"
 msgstr "不记录匹配以下规则的文件夹"
 
-#: crates/tudi-gui/src/settings.rs:183
+#: crates/tudi-gui/src/settings.rs:201
+msgid "Glob patterns on absolute paths, e.g. /tmp/** or **/node_modules/**"
+msgstr "针对绝对路径的通配模式，例如 /tmp/** 或 **/node_modules/**"
+
+#: crates/tudi-gui/src/settings.rs:206
 msgid "Add pattern"
 msgstr "添加规则"
 
-#: crates/tudi-gui/src/settings.rs:189
+#: crates/tudi-gui/src/settings.rs:212
 msgid "Excluded folders"
 msgstr "已排除的文件夹"
 
-#: crates/tudi-gui/src/settings.rs:197
+#: crates/tudi-gui/src/settings.rs:213
+msgid "Folders hidden from the bar with “Never show in history”"
+msgstr "用“永不在历史中显示”从收藏栏隐藏的文件夹"
+
+#: crates/tudi-gui/src/settings.rs:220
 msgid "Clear history"
 msgstr "清空历史"
 
-#: crates/tudi-gui/src/settings.rs:198
+#: crates/tudi-gui/src/settings.rs:221
 msgid "Forget all folder visits; exclusions are kept"
 msgstr "忘记所有文件夹访问记录；排除项保留"
 
-#: crates/tudi-gui/src/settings.rs:200
+#: crates/tudi-gui/src/settings.rs:223
 msgid "Clear…"
 msgstr "清空…"
 
-#: crates/tudi-gui/src/settings.rs:230
+#: crates/tudi-gui/src/settings.rs:247
 msgid "Restart tudi to change the language (tudi --quit)"
 msgstr "重启 tudi 后语言生效（tudi --quit）"
 
-#: crates/tudi-gui/src/settings.rs:376
+#: crates/tudi-gui/src/settings.rs:393
 msgid "Remove pattern"
 msgstr "删除规则"
 
-#: crates/tudi-gui/src/settings.rs:409
+#: crates/tudi-gui/src/settings.rs:426
 msgid "None"
 msgstr "无"
 
-#: crates/tudi-gui/src/settings.rs:419
+#: crates/tudi-gui/src/settings.rs:436
 msgid "with subfolders"
 msgstr "含子文件夹"
 
-#: crates/tudi-gui/src/settings.rs:421
+#: crates/tudi-gui/src/settings.rs:438
 msgid "this folder only"
 msgstr "仅此文件夹"
 
-#: crates/tudi-gui/src/settings.rs:424
+#: crates/tudi-gui/src/settings.rs:441
 msgid "Allow"
 msgstr "允许"
 
-#: crates/tudi-gui/src/settings.rs:426
+#: crates/tudi-gui/src/settings.rs:443
 msgid "Allow in history again"
 msgstr "重新允许出现在历史中"
 
-#: crates/tudi-gui/src/settings.rs:442
+#: crates/tudi-gui/src/settings.rs:459
 msgid "Clear history?"
 msgstr "清空历史？"
 
-#: crates/tudi-gui/src/settings.rs:449
+#: crates/tudi-gui/src/settings.rs:460
+msgid ""
+"All folder visit counts are forgotten. Exclusions and bookmarks are kept."
+msgstr "所有文件夹的访问次数都将被清除。排除项和书签会保留。"
+
+#: crates/tudi-gui/src/settings.rs:466
 msgid "Clear"
 msgstr "清空"
 
@@ -738,27 +758,27 @@ msgid "Moved {} item to the trash"
 msgid_plural "Moved {} items to the trash"
 msgstr[0] "已将 {} 项移到回收站"
 
-#: crates/tudi-gui/src/bar.rs:285
+#: crates/tudi-gui/src/bar.rs:287
 msgid "{} more"
 msgid_plural "{} more"
 msgstr[0] "还有 {} 个"
 
-#: crates/tudi-gui/src/bar.rs:579
+#: crates/tudi-gui/src/bar.rs:546 crates/tudi-gui/src/bar.rs:590
 msgid "opened {} time"
 msgid_plural "opened {} times"
 msgstr[0] "打开过 {} 次"
 
-#: crates/tudi-gui/src/bar.rs:587
+#: crates/tudi-gui/src/bar.rs:598
 msgid "{} open"
 msgid_plural "{} opens"
 msgstr[0] "打开 {} 次"
 
-#: crates/tudi-gui/src/browser.rs:1275 crates/tudi-gui/src/properties.rs:167
+#: crates/tudi-gui/src/browser.rs:1285 crates/tudi-gui/src/properties.rs:167
 msgid "{} file"
 msgid_plural "{} files"
 msgstr[0] "{} 个文件"
 
-#: crates/tudi-gui/src/browser.rs:1278 crates/tudi-gui/src/properties.rs:172
+#: crates/tudi-gui/src/browser.rs:1288 crates/tudi-gui/src/properties.rs:172
 msgid "{} folder"
 msgid_plural "{} folders"
 msgstr[0] "{} 个文件夹"
@@ -773,17 +793,17 @@ msgid "Pasted {} item"
 msgid_plural "Pasted {} items"
 msgstr[0] "已粘贴 {} 项"
 
-#: crates/tudi-gui/src/history.rs:191
+#: crates/tudi-gui/src/history.rs:195
 msgid "{} minute ago"
 msgid_plural "{} minutes ago"
 msgstr[0] "{} 分钟前"
 
-#: crates/tudi-gui/src/history.rs:194
+#: crates/tudi-gui/src/history.rs:198
 msgid "{} hour ago"
 msgid_plural "{} hours ago"
 msgstr[0] "{} 小时前"
 
-#: crates/tudi-gui/src/history.rs:197
+#: crates/tudi-gui/src/history.rs:201
 msgid "{} day ago"
 msgid_plural "{} days ago"
 msgstr[0] "{} 天前"
@@ -802,6 +822,3 @@ msgstr[0] "{} 项"
 msgid "{} result"
 msgid_plural "{} results"
 msgstr[0] "{} 个结果"
-
-#~ msgid "All bookmarks and frequent folders"
-#~ msgstr "全部书签和常用文件夹"

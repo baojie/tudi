@@ -6,7 +6,7 @@ use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
 use adw::prelude::*;
-use tudi_core::config::{Language, SortBy};
+use tudi_core::config::{LANGUAGES, Language, SortBy};
 use tudi_core::frecency::ExcludeRules;
 
 use crate::browser::Browser;
@@ -31,6 +31,29 @@ fn switch_row(title: &str, subtitle: &str, active: bool) -> adw::SwitchRow {
         r.set_subtitle(subtitle);
     }
     r
+}
+
+/// Row of `language` in the language list (an unknown code shows as
+/// English, the fallback gettext uses for it).
+fn language_index(language: &Language) -> u32 {
+    match language {
+        Language::En => 0,
+        Language::System => 1,
+        Language::Locale(code) => LANGUAGES
+            .iter()
+            .position(|(c, _)| c == code)
+            .map_or(0, |i| i as u32 + 2),
+    }
+}
+
+fn language_at(row: u32) -> Language {
+    match row {
+        0 => Language::En,
+        1 => Language::System,
+        n => LANGUAGES
+            .get(n as usize - 2)
+            .map_or(Language::En, |(c, _)| Language::Locale((*c).into())),
+    }
 }
 
 fn combo_row(title: &str, items: &[String], selected: u32) -> adw::ComboRow {
@@ -59,11 +82,11 @@ impl Settings {
         let ui = adw::PreferencesGroup::builder()
             .title(tr("Interface"))
             .build();
-        let lang = combo_row(
-            &tr("Language"),
-            &[tr("English"), tr("System language")],
-            u32::from(cfg.ui.language == Language::System),
-        );
+        // English, the system's language, then each translation by its own
+        // name.
+        let mut names = vec!["English".to_string(), tr("System language")];
+        names.extend(LANGUAGES.iter().map(|(_, n)| (*n).to_string()));
+        let lang = combo_row(&tr("Language"), &names, language_index(&cfg.ui.language));
         lang.set_subtitle(&tr("Takes effect after restarting tudi"));
         ui.add(&lang);
         let zoom = adw::SpinRow::with_range(
@@ -220,13 +243,7 @@ impl Settings {
         let w = Rc::downgrade(&s);
         lang.connect_selected_notify(move |r| {
             if let Some(s) = w.upgrade() {
-                s.edit(|c| {
-                    c.ui.language = if r.selected() == 1 {
-                        Language::System
-                    } else {
-                        Language::En
-                    }
-                });
+                s.edit(|c| c.ui.language = language_at(r.selected()));
                 s.toast(&tr("Restart tudi to change the language (tudi --quit)"));
             }
         });

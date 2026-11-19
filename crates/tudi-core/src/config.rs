@@ -13,8 +13,9 @@ use serde::{Deserialize, Serialize};
 pub const DEFAULT_TOML: &str = r#"# tudi configuration. All keys are optional; these are the defaults.
 
 [ui]
-# "en": English. "system": follow the system language (LANG / LANGUAGE),
-# using the translations shipped with tudi (e.g. zh_CN).
+# "en": English. "system": follow the system language (LANG / LANGUAGE).
+# Or one of the shipped translations: "zh_CN", "zh_TW", "ja", "ko", "de",
+# "fr", "es", "pt_BR", "it", "ru".
 language = "en"
 
 [browse]
@@ -106,14 +107,53 @@ impl Default for Commands {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
+/// The UI language: `"en"`, `"system"`, or a catalog name such as
+/// `"zh_TW"` (stored as a plain string in `config.toml`).
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(from = "String", into = "String")]
 pub enum Language {
     /// English regardless of the system locale.
     #[default]
     En,
     /// Follow the system locale.
     System,
+    /// A shipped translation, whatever the system locale.
+    Locale(String),
+}
+
+/// Translations shipped with tudi: catalog name and the language's own
+/// name (shown untranslated in the settings).
+pub const LANGUAGES: &[(&str, &str)] = &[
+    ("zh_CN", "简体中文"),
+    ("zh_TW", "繁體中文"),
+    ("ja", "日本語"),
+    ("ko", "한국어"),
+    ("de", "Deutsch"),
+    ("fr", "Français"),
+    ("es", "Español"),
+    ("pt_BR", "Português (Brasil)"),
+    ("it", "Italiano"),
+    ("ru", "Русский"),
+];
+
+impl From<String> for Language {
+    fn from(s: String) -> Self {
+        match s.as_str() {
+            "en" | "" => Self::En,
+            "system" => Self::System,
+            _ => Self::Locale(s),
+        }
+    }
+}
+
+impl From<Language> for String {
+    fn from(l: Language) -> Self {
+        match l {
+            Language::En => "en".into(),
+            Language::System => "system".into(),
+            Language::Locale(s) => s,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -389,6 +429,8 @@ mod tests {
         assert_eq!(c.index.roots, ["~"], "defaults kept");
         let c = Config::parse("[ui]\nlanguage = \"system\"\n", Path::new("x")).unwrap();
         assert_eq!(c.ui.language, Language::System);
+        let c = Config::parse("[ui]\nlanguage = \"zh_TW\"\n", Path::new("x")).unwrap();
+        assert_eq!(c.ui.language, Language::Locale("zh_TW".into()));
     }
 
     #[test]
@@ -414,7 +456,7 @@ mod tests {
         std::fs::write(&p, "# mine\n[browse]\nshow_hidden = false # keep me\n").unwrap();
         let mut c = Config::load_or_init(&p).unwrap();
         c.browse.show_hidden = true;
-        c.ui.language = Language::System;
+        c.ui.language = Language::Locale("de".into());
         c.history.exclude = vec!["/tmp/**".into()];
         c.save_preserving(&p).unwrap();
         let text = std::fs::read_to_string(&p).unwrap();
