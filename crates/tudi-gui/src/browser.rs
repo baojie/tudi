@@ -60,6 +60,7 @@ pub struct Browser {
     /// Bookmarks bar: buttons, and the "»" menu with everything.
     pub(crate) bar_box: gtk::Box,
     pub(crate) bar_more: gtk::MenuButton,
+    pub(crate) bar: crate::bar::BarState,
     /// Latest folder history (most used folders, exclusions).
     pub(crate) hist: RefCell<Snapshot>,
     /// The settings dialog, while open.
@@ -262,6 +263,7 @@ impl Browser {
                 search_client,
                 bar_box: gtk::Box::new(gtk::Orientation::Horizontal, 2),
                 bar_more: gtk::MenuButton::new(),
+                bar: Default::default(),
                 hist: RefCell::default(),
                 settings: RefCell::default(),
                 settings_strong: RefCell::default(),
@@ -1101,6 +1103,10 @@ impl Browser {
         let mut out = Vec::new();
         let mut c = self.bar_box.first_child();
         while let Some(w) = c {
+            if !w.is_visible() {
+                c = w.next_sibling();
+                continue;
+            }
             if w.is::<gtk::Separator>() {
                 out.push("‖".into());
             } else if let Some(b) = w.downcast_ref::<gtk::Button>() {
@@ -1113,6 +1119,9 @@ impl Browser {
                 out.push(label);
             }
             c = w.next_sibling();
+        }
+        if self.bar_more.is_visible() {
+            out.push(format!("[{}]", self.bar_more.label().unwrap_or_default()));
         }
         out
     }

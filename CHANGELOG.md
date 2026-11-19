@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Bookmarks bar: shows as many buttons as fit the window instead of at
+  most 10; long folder names are shortened to their first two words or a
+  length limit (full name in the tooltip and the drop-down).
+
 ## 0.1.1 — 2026-11-20
 
 Memory search with its index daemon, the bookmarks bar, launchers and many

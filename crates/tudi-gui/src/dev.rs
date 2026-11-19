@@ -12,7 +12,7 @@
 //!   `settings`, bar actions `bm N`, `freq N`, `pin N`, `barexclude N`,
 //!   `barexclude-tree N`, `forget N`, `rmbm N`, `copy`, `cut`, `paste`,
 //!   `selectall`, `menu ROW|none`, find bar `find TEXT`, `findnext`,
-//!   `findprev`, `findenter`, `findclose`. Prefix a command with `!` to run the next one after 50 ms.
+//!   `findprev`, `findenter`, `findclose`, `winwidth PX`. Prefix a command with `!` to run the next one after 50 ms.
 //!   `shot FILE`, `quit`.
 
 // Script results go to stdout on purpose: they are read by test tooling.
@@ -93,6 +93,11 @@ fn step(b: Rc<Browser>, queue: Queue, delay: Duration) {
             "findprev" => b.find_jump(false, false),
             "findenter" => b.apply_find_filter(),
             "findclose" => b.close_find(true),
+            "winwidth" => {
+                let w: i32 = arg.parse().unwrap_or(800);
+                b.window.unmaximize();
+                b.window.set_default_size(w, b.window.default_height());
+            }
             "hidden" => b.toggle_hidden(),
             "sort" => b.click_sort(match arg {
                 "size" => 1,

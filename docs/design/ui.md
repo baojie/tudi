@@ -132,9 +132,15 @@ folder does too.
 
 ## Bookmarks bar and folder history (ADR-016)
 
-At most 10 buttons (launchers, then bookmarks, then frequent folders);
-the rest are in a drop-down at the right end, labelled "N more" and
-hidden when nothing overflows.
+As many buttons as fit the window's width (launchers, then bookmarks,
+then frequent folders); the rest are in a drop-down at the right end,
+labelled "N more" and hidden when nothing overflows. Up to 40 buttons are
+built and measured once (natural width) on each rebuild; the fit is redone
+in an idle callback when the bar's width changes (its clip's horizontal
+adjustment), never during allocation. Long names are shortened on the
+buttons to their first two words (split at spaces, `-`, `_`, `.`) or to 16
+columns (CJK counts two), with an ellipsis; tooltips and the drop-down
+show the full name.
 
 - `bar.rs`: a bar under the header, like a browser's bookmarks bar: the
   user's bookmarks (`bookmarks.toml`, `Ctrl+D`, `Alt+1..9`, right-click to
