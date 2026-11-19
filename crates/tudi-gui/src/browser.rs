@@ -13,6 +13,8 @@ use tudi_core::config::SortBy;
 use tudi_core::listing::meta::{MetaFetcher, MetaStatus};
 use tudi_core::listing::sort::{SortKey, SortSpec};
 use tudi_core::state::WindowState;
+
+use crate::activity::Task;
 use tudi_core::tree::{Expand, NodeId};
 
 use crate::history::Snapshot;
@@ -112,6 +114,8 @@ pub struct Browser {
     pub(crate) back: gtk::Button,
     pub(crate) forward: gtk::Button,
     pub(crate) status: gtk::Label,
+    pub(crate) status_spinner: gtk::Spinner,
+    pub(crate) activity: crate::activity::Activity,
 
     pub(crate) current: RefCell<PathBuf>,
     pub(crate) history: RefCell<Vec<PathBuf>>,
@@ -296,6 +300,8 @@ impl Browser {
                 back,
                 forward,
                 status,
+                status_spinner: gtk::Spinner::new(),
+                activity: Default::default(),
                 current: RefCell::default(),
                 history: RefCell::default(),
                 future: RefCell::default(),
@@ -343,7 +349,13 @@ impl Browser {
         overlay.add_overlay(&b.search.container);
         content.append(&overlay);
         content.append(&gtk::Separator::new(gtk::Orientation::Horizontal));
-        content.append(&b.status);
+        let status_row = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+        b.status_spinner.set_visible(false);
+        b.status_spinner.set_margin_start(10);
+        b.status.set_hexpand(true);
+        status_row.append(&b.status_spinner);
+        status_row.append(&b.status);
+        content.append(&status_row);
         b.toasts.set_child(Some(&content));
         b.window.set_content(Some(&b.toasts));
 
@@ -672,6 +684,9 @@ impl Browser {
         let generation = self.generation.get() + 1;
         self.generation.set(generation);
         self.fetcher.replace(None);
+        self.end_tasks(Task::Details);
+        self.end_tasks(Task::Listing);
+        self.begin_task(Task::Listing);
         self.path_entry.set_text(&path.to_string_lossy());
         self.window.set_title(Some(&format!(
             "{} — tudi",
@@ -1211,9 +1226,10 @@ impl Browser {
     }
 
     pub(crate) fn update_status(&self) {
+        let mut text = self.activity_text();
         let d = self.pane.data();
         let (files, dirs) = (u64::from(d.files), u64::from(d.dirs));
-        let mut text = fill(&ntr("{} file", "{} files", files), &[&fmt_count(files)]);
+        text += &fill(&ntr("{} file", "{} files", files), &[&fmt_count(files)]);
         text.push_str(", ");
         text.push_str(&fill(
             &ntr("{} folder", "{} folders", dirs),
@@ -1296,6 +1312,9 @@ impl Browser {
                 if p.generation != self.generation.get() {
                     return;
                 }
+                self.end_tasks(Task::Listing);
+                self.end_tasks(Task::Details);
+                self.begin_task(Task::Details);
                 let first: Vec<u32> = p.order.order.iter().take(FIRST_SCREEN).copied().collect();
                 let listing = p.listing.clone();
                 self.pane
@@ -1313,8 +1332,12 @@ impl Browser {
                 generation,
                 size,
                 available,
+                done,
             } => {
                 if generation == self.size_gen.get() {
+                    if done {
+                        self.end_tasks(Task::FolderSize);
+                    }
                     self.folder_size.set(size);
                     self.free_space.set(available);
                     self.update_status();
@@ -1325,6 +1348,7 @@ impl Browser {
                     return;
                 }
                 self.pane.clear(generation);
+                self.end_tasks(Task::Listing);
                 self.status.set_text(&error.to_string());
             }
             Reply::Sorted { generation, order } => {
@@ -1337,6 +1361,9 @@ impl Browser {
             Reply::Meta(batch) => {
                 if self.pane.apply_meta(&batch) {
                     self.request_sort();
+                }
+                if batch.complete && batch.generation == self.pane.data().generation {
+                    self.end_tasks(Task::Details);
                 }
                 if batch.complete {
                     // Free accuracy for the search index: what the user
@@ -1402,7 +1429,7 @@ impl Browser {
 
     /// Lazily compute the total size of a newly shown folder (live reloads
     /// of the same folder keep the last value).
-    fn start_folder_size(&self, generation: u64) {
+    fn start_folder_size(self: &Rc<Self>, generation: u64) {
         let cur = self.current.borrow().clone();
         if *self.size_for.borrow() == cur {
             return;
@@ -1411,6 +1438,8 @@ impl Browser {
             c.store(true, std::sync::atomic::Ordering::Relaxed);
         }
         self.folder_size.set(None);
+        self.end_tasks(Task::FolderSize);
+        self.begin_task(Task::FolderSize);
         *self.size_for.borrow_mut() = cur.clone();
         let cancel = Arc::new(std::sync::atomic::AtomicBool::new(false));
         self.size_cancel.replace(Some(cancel.clone()));
@@ -1420,7 +1449,7 @@ impl Browser {
 
     /// Re-list the current folder after it changed on disk, keeping the
     /// selection (by name) and the scroll position.
-    fn live_reload_pane(&self) {
+    fn live_reload_pane(self: &Rc<Self>) {
         let selected = self.selected_entries();
         let select = if selected.len() <= KEEP_SELECTION_LIMIT {
             let d = self.pane.data();
@@ -1432,6 +1461,8 @@ impl Browser {
             .set(Some(self.pane_scroll.vadjustment().value()));
         let generation = self.generation.get() + 1;
         self.generation.set(generation);
+        self.end_tasks(Task::Listing);
+        self.begin_task(Task::Listing);
         self.worker.send(Job::ListPane {
             path: self.current.borrow().clone(),
             generation,

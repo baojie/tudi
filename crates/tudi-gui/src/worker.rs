@@ -102,6 +102,8 @@ pub enum Reply {
         size: Option<u64>,
         /// Free space for unprivileged users on the folder's filesystem.
         available: Option<u64>,
+        /// The last reply for this computation.
+        done: bool,
     },
     /// Watched directories changed.
     Changed(Vec<WatchKey>),
@@ -174,12 +176,14 @@ impl Worker {
                 generation,
                 size: None,
                 available,
+                done: false,
             });
             let size = tudi_core::listing::meta::tree_size(&path, deadline, &cancel);
             let _ = tx.send_blocking(Reply::FolderSize {
                 generation,
                 size,
                 available,
+                done: true,
             });
         });
     }

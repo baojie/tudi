@@ -13,6 +13,7 @@ Code: `crates/tudi-gui/src/`. Plan: `docs/PLAN.md` §5.3, §5.7.
 | `worker.rs` | listing threads: `Job` in, `Reply` out over `async-channel` |
 | `actions.rs` | type-ahead, clipboard, external commands, rename, trash, new folder, drag out |
 | `find.rs` | `Ctrl+F` find bar: jump to matches, `Enter` filters the list |
+| `activity.rs` | background tasks named in the status bar, with a spinner |
 | `format.rs` | sizes, dates, icons from file names |
 | `dev.rs` | `TUDI_DEV_SCREENSHOT` and `TUDI_DEV_SCRIPT` test hooks |
 
@@ -98,6 +99,14 @@ See PLAN §5.7. Implemented in M3: history (`Alt+←/→`), up (`Alt+↑`,
 double-click, type-ahead, `Ctrl+C`, `Ctrl+Shift+C`, `Ctrl+Alt+T`, `Ctrl+E`,
 `F2`, `Delete`, `Ctrl+Shift+N`. List-only keys (`Ctrl+C`, `Delete`, `F2`)
 are bound on the list so they do not take keys from the path bar.
+
+## Status bar activity
+
+`activity.rs`: background work of the window — listing the folder,
+reading file details, measuring the folder size, copying, moving, trashing
+— registers a `Task` while it runs. Tasks running longer than 300 ms show a
+spinner and a label ("Measuring folder size…") at the start of the status
+bar, so a busy window says what it is doing; shorter ones never appear.
 
 ## Find in folder
 

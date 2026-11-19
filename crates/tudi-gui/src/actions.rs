@@ -16,6 +16,7 @@ use adw::prelude::*;
 use gtk::{gdk, gio, glib};
 use tudi_core::config::expand_command;
 
+use crate::activity::Task;
 use crate::browser::Browser;
 use crate::i18n::{fill, ntr, tr};
 
@@ -251,14 +252,24 @@ impl Browser {
                 }
                 return;
             };
+            let task = if mode == tudi_core::fileops::Mode::Move {
+                Task::Moving
+            } else {
+                Task::Copying
+            };
+            if let Some(b) = w.upgrade() {
+                b.begin_task(task);
+            }
             let (tx, rx) = async_channel::bounded(1);
             let (srcs, dir) = (paths.clone(), dest.clone());
             // Copying can take long: off the main thread.
             std::thread::spawn(move || {
                 let _ = tx.send_blocking(tudi_core::fileops::transfer_all(&srcs, &dir, mode));
             });
-            let Ok(report) = rx.recv().await else { return };
+            let report = rx.recv().await;
             let Some(b) = w.upgrade() else { return };
+            b.end_task(task);
+            let Ok(report) = report else { return };
             if mode == tudi_core::fileops::Mode::Move && !report.done.is_empty() {
                 // The cut files are gone from where the clipboard points.
                 clipboard.set_content(None::<&gdk::ContentProvider>).ok();
@@ -369,6 +380,7 @@ impl Browser {
         if paths.is_empty() {
             return;
         }
+        self.begin_task(Task::Trashing);
         let w = Rc::downgrade(self);
         glib::spawn_future_local(async move {
             let mut failed = Vec::new();
@@ -379,6 +391,7 @@ impl Browser {
                 }
             }
             let Some(b) = w.upgrade() else { return };
+            b.end_task(Task::Trashing);
             let ok = paths.len() - failed.len();
             if failed.is_empty() {
                 let ok = ok as u64;

@@ -12,6 +12,7 @@
 //! `GApplication`: a second `tudi PATH` is forwarded to the running one.
 
 mod actions;
+mod activity;
 mod bar;
 mod bench;
 mod browser;
