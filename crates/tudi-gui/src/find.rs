@@ -25,6 +25,8 @@ pub struct FindBar {
     pub filter: RefCell<Option<Arc<str>>>,
     /// Focus the list once the filtered order arrives.
     focus_after_sort: Cell<bool>,
+    /// A jump scan is running (it reports its result when it ends).
+    scanning: Cell<bool>,
 }
 
 impl FindBar {
@@ -46,6 +48,7 @@ impl FindBar {
             entry,
             filter: RefCell::default(),
             focus_after_sort: Cell::new(false),
+            scanning: Cell::new(false),
         }
     }
 
@@ -119,9 +122,11 @@ impl Browser {
     pub(crate) fn find_jump(self: &Rc<Self>, from_top: bool, forward: bool) {
         let serial = self.next_scan_serial();
         let Some(needle) = self.find_needle() else {
+            self.find.scanning.set(false);
             self.find.entry.remove_css_class("error");
             return;
         };
+        self.find.scanning.set(true);
         let n = self.pane.n_items() as usize;
         let start = match (from_top, self.focused_row()) {
             (true, _) | (_, None) => 0,
@@ -133,10 +138,19 @@ impl Browser {
 
     /// A find scan ended: mark the field when nothing matched.
     pub(crate) fn find_result(&self, found: bool) {
+        self.find.scanning.set(false);
         if found {
             self.find.entry.remove_css_class("error");
         } else {
             self.find.entry.add_css_class("error");
+        }
+    }
+
+    /// Another scan (type-ahead) replaced a running jump scan, which will
+    /// not report: the field's state is unknown, so do not show "no match".
+    pub(crate) fn find_scan_superseded(&self) {
+        if self.find.scanning.take() {
+            self.find.entry.remove_css_class("error");
         }
     }
 

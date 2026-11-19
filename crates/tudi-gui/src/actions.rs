@@ -111,6 +111,8 @@ impl Browser {
             t.serial += 1;
             (t.text.clone(), t.serial)
         };
+        // The new serial stopped any running find-bar scan.
+        self.find_scan_superseded();
         // Start at the current row when extending a match, else after it.
         let n = self.pane.n_items() as usize;
         if n == 0 {
