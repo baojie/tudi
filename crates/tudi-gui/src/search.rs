@@ -546,7 +546,7 @@ impl Browser {
 
     pub(crate) fn close_search(&self) {
         self.search.container.set_visible(false);
-        self.tab().pane_view.grab_focus();
+        self.tab().view().grab_focus();
     }
 
     pub(crate) fn connect_search(self: &Rc<Self>) {

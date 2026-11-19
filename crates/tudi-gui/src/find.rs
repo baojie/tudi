@@ -109,11 +109,10 @@ impl Browser {
         match self.focused_row() {
             Some(row) => {
                 self.tab()
-                    .pane_view
-                    .scroll_to(row as u32, gtk::ListScrollFlags::FOCUS, None);
+                    .scroll_to(row as u32, gtk::ListScrollFlags::FOCUS);
             }
             None => {
-                self.tab().pane_view.grab_focus();
+                self.tab().view().grab_focus();
             }
         }
     }

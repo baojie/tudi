@@ -190,7 +190,7 @@ impl Browser {
             } else {
                 gtk::ListScrollFlags::NONE
             };
-            self.tab().pane_view.scroll_to(row as u32, flags, None);
+            self.tab().scroll_to(row as u32, flags);
             m.done(self, true);
             return;
         }
@@ -753,7 +753,7 @@ impl Browser {
 
     // ------------------------------------------------------------ drag out
 
-    pub(crate) fn install_drag_source(self: &Rc<Self>) {
+    pub(crate) fn install_drag_source(self: &Rc<Self>, target: &gtk::Widget) {
         let src = gtk::DragSource::new();
         src.set_actions(gdk::DragAction::COPY | gdk::DragAction::MOVE | gdk::DragAction::LINK);
         let w = Rc::downgrade(self);
@@ -762,7 +762,7 @@ impl Browser {
             let paths = b.selected_paths();
             (!paths.is_empty()).then(|| files_provider(&paths, false))
         });
-        self.tab().pane_view.add_controller(src);
+        target.add_controller(src);
     }
 }
 

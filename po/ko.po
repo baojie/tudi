@@ -285,60 +285,68 @@ msgstr "저장"
 msgid "Rename Launcher"
 msgstr "실행기 이름 바꾸기"
 
-#: crates/tudi-gui/src/browser.rs:172
+#: crates/tudi-gui/src/browser.rs:178
 msgid "Back (Alt+Left)"
 msgstr "뒤로 (Alt+←)"
 
-#: crates/tudi-gui/src/browser.rs:174
+#: crates/tudi-gui/src/browser.rs:180
 msgid "Forward (Alt+Right)"
 msgstr "앞으로 (Alt+→)"
 
-#: crates/tudi-gui/src/browser.rs:176
+#: crates/tudi-gui/src/browser.rs:182
 msgid "Parent folder (Alt+Up)"
 msgstr "상위 폴더 (Alt+↑)"
 
-#: crates/tudi-gui/src/browser.rs:185
+#: crates/tudi-gui/src/browser.rs:193
 msgid "Settings (Ctrl+,)"
 msgstr "설정 (Ctrl+,)"
 
-#: crates/tudi-gui/src/browser.rs:345
+#: crates/tudi-gui/src/browser.rs:364
 msgid "Home"
 msgstr "홈"
 
-#: crates/tudi-gui/src/browser.rs:347
+#: crates/tudi-gui/src/browser.rs:366
 msgid "File System"
 msgstr "파일 시스템"
 
-#: crates/tudi-gui/src/browser.rs:1080
+#: crates/tudi-gui/src/browser.rs:1116
 msgid "Zoom {}%"
 msgstr "확대/축소 {}%"
 
-#: crates/tudi-gui/src/browser.rs:1263 crates/tudi-gui/src/pane.rs:593
+#: crates/tudi-gui/src/browser.rs:1299 crates/tudi-gui/src/pane.rs:597
 #: crates/tudi-gui/src/settings.rs:115
 msgid "Name"
 msgstr "이름"
 
-#: crates/tudi-gui/src/browser.rs:1263 crates/tudi-gui/src/pane.rs:595
+#: crates/tudi-gui/src/browser.rs:1299 crates/tudi-gui/src/pane.rs:599
 #: crates/tudi-gui/src/properties.rs:229 crates/tudi-gui/src/settings.rs:115
 msgid "Size"
 msgstr "크기"
 
-#: crates/tudi-gui/src/browser.rs:1263 crates/tudi-gui/src/pane.rs:596
+#: crates/tudi-gui/src/browser.rs:1299 crates/tudi-gui/src/pane.rs:600
 #: crates/tudi-gui/src/properties.rs:242 crates/tudi-gui/src/settings.rs:115
 msgid "Modified"
 msgstr "수정한 날짜"
 
-#: crates/tudi-gui/src/browser.rs:1357
+#: crates/tudi-gui/src/browser.rs:1394
 msgid "filtered by “{}”"
 msgstr "“{}”(으)로 필터링됨"
 
-#: crates/tudi-gui/src/browser.rs:1365
+#: crates/tudi-gui/src/browser.rs:1402
 msgid "{} free"
 msgstr "{} 남음"
 
-#: crates/tudi-gui/src/browser.rs:1370
+#: crates/tudi-gui/src/browser.rs:1407
 msgid "{} selected"
 msgstr "{}개 선택됨"
+
+#: crates/tudi-gui/src/browser.rs:1772
+msgid "List (Ctrl+1)"
+msgstr "목록 (Ctrl+1)"
+
+#: crates/tudi-gui/src/browser.rs:1774
+msgid "Thumbnails (Ctrl+2)"
+msgstr "미리보기 (Ctrl+2)"
 
 #: crates/tudi-gui/src/drop.rs:145
 msgid "Could not paste {}: {}"
@@ -384,19 +392,19 @@ msgstr "{}을(를) 실행기에 추가했습니다"
 msgid "Already a launcher"
 msgstr "이미 실행기에 있습니다"
 
-#: crates/tudi-gui/src/main.rs:351
+#: crates/tudi-gui/src/main.rs:354
 msgid "Open a new window"
 msgstr "새 창 열기"
 
-#: crates/tudi-gui/src/main.rs:355
+#: crates/tudi-gui/src/main.rs:358
 msgid "Start the resident instance without a window"
 msgstr "창 없이 상주 인스턴스 시작"
 
-#: crates/tudi-gui/src/main.rs:357
+#: crates/tudi-gui/src/main.rs:360
 msgid "Quit the resident instance"
 msgstr "상주 인스턴스 종료"
 
-#: crates/tudi-gui/src/main.rs:361
+#: crates/tudi-gui/src/main.rs:364
 msgid "Import bookmarks and folder history from GTK, autojump and zoxide again"
 msgstr "GTK, autojump, zoxide에서 북마크와 폴더 기록을 다시 가져오기"
 
@@ -733,35 +741,35 @@ msgstr "모든 폴더 방문 횟수가 삭제됩니다. 제외 항목과 북마�
 msgid "Clear"
 msgstr "지우기"
 
-#: crates/tudi-gui/src/tabs.rs:263
+#: crates/tudi-gui/src/tabs.rs:322
 msgid "Close Tab (Ctrl+W)"
 msgstr "탭 닫기 (Ctrl+W)"
 
-#: crates/tudi-gui/src/tabs.rs:287
+#: crates/tudi-gui/src/tabs.rs:346
 msgid "New Tab (Ctrl+T)"
 msgstr "새 탭 (Ctrl+T)"
 
-#: crates/tudi-gui/src/tabs.rs:800
+#: crates/tudi-gui/src/tabs.rs:863
 msgid "New Tab"
 msgstr "새 탭"
 
-#: crates/tudi-gui/src/tabs.rs:802
+#: crates/tudi-gui/src/tabs.rs:865
 msgid "Move to Other Side"
 msgstr "다른 쪽으로 이동"
 
-#: crates/tudi-gui/src/tabs.rs:803
+#: crates/tudi-gui/src/tabs.rs:866
 msgid "Stop Side by Side"
 msgstr "나란히 보기 끝내기"
 
-#: crates/tudi-gui/src/tabs.rs:805
+#: crates/tudi-gui/src/tabs.rs:868
 msgid "Open Side by Side"
 msgstr "나란히 열기"
 
-#: crates/tudi-gui/src/tabs.rs:809
+#: crates/tudi-gui/src/tabs.rs:872
 msgid "Close Tab"
 msgstr "탭 닫기"
 
-#: crates/tudi-gui/src/tabs.rs:811
+#: crates/tudi-gui/src/tabs.rs:874
 msgid "Close Other Tabs"
 msgstr "다른 탭 닫기"
 
@@ -816,12 +824,12 @@ msgid "{} open"
 msgid_plural "{} opens"
 msgstr[0] "{}회"
 
-#: crates/tudi-gui/src/browser.rs:1349 crates/tudi-gui/src/properties.rs:167
+#: crates/tudi-gui/src/browser.rs:1386 crates/tudi-gui/src/properties.rs:167
 msgid "{} file"
 msgid_plural "{} files"
 msgstr[0] "파일 {}개"
 
-#: crates/tudi-gui/src/browser.rs:1352 crates/tudi-gui/src/properties.rs:172
+#: crates/tudi-gui/src/browser.rs:1389 crates/tudi-gui/src/properties.rs:172
 msgid "{} folder"
 msgid_plural "{} folders"
 msgstr[0] "폴더 {}개"

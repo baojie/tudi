@@ -14,6 +14,7 @@ Code: `crates/tudi-gui/src/`. Plan: `docs/PLAN.md` §5.3, §5.7.
 | `actions.rs` | type-ahead, clipboard, external commands, rename, trash, new folder, drag out |
 | `find.rs` | `Ctrl+F` find bar: jump to matches, `Enter` filters the list |
 | `tabs.rs` | tabs of the list, the tab strip, side-by-side tiles |
+| `thumbs.rs` | thumbnail view: grid cells, thumbnail loader threads, texture cache |
 | `activity.rs` | background tasks named in the status bar, with a spinner |
 | `format.rs` | sizes, dates, icons from file names |
 | `dev.rs` | `TUDI_DEV_SCREENSHOT` and `TUDI_DEV_SCRIPT` test hooks |
@@ -197,6 +198,25 @@ status. Hidden files and column widths are per window.
   restored in the
   first window when no folder was given; tabs other than the active one
   are listed when first shown.
+
+## Thumbnail view (ADR-026)
+
+When the shown folder has images (counted by extension on the listing
+worker, with the order: `Order::images`), a header-bar button switches the
+tab between the list and a `GtkGridView` of thumbnails (`Ctrl+1` /
+`Ctrl+2`). Both views share the tab's model and selection, so the
+selection, sort, find filter, keys, menus, drag and drop carry over; the
+column header is hidden in the grid. Grid cells show a 128 px thumbnail
+for images and the file icon otherwise.
+
+`thumbs.rs`: two `tudi-thumb-*` threads per window serve requests newest
+first (cells just scrolled into view), at most 400 pending. A request
+loads the freedesktop large thumbnail (`~/.cache/thumbnails/large`, MD5 of
+the URI) when it is not older than the file, else decodes the image with
+gdk-pixbuf at 256 px (EXIF orientation applied). Pixels go to the main
+thread, which makes a `GdkMemoryTexture`, keeps up to 3,000 per window,
+and refills the bound cells. Undecodable files are remembered and keep
+their icon. A live reload of the folder drops its textures.
 
 ## Find in folder
 

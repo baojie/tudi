@@ -99,6 +99,10 @@ pub struct Browser {
     pub(crate) next_tab_id: Cell<u64>,
     /// Listing generations, unique across tabs.
     pub(crate) generations: Cell<u64>,
+    /// Image thumbnails for the tabs' thumbnail view.
+    pub(crate) thumbs: Rc<crate::thumbs::Thumbnailer>,
+    /// List / thumbnails switch (shown when the folder has images).
+    pub(crate) view_toggle: gtk::Button,
 
     pub(crate) path_entry: gtk::Entry,
     pub(crate) back: gtk::Button,
@@ -148,6 +152,8 @@ impl Browser {
             std::sync::atomic::Ordering::Relaxed,
         );
         let (worker, replies) = Worker::start();
+        let (thumbs, thumb_rx) = crate::thumbs::Thumbnailer::start();
+        let thumbs = Rc::new(thumbs);
         let tx = worker.reply_sender();
         let watcher = tudi_core::watch::Watcher::start(WATCH_LIMIT, move |keys| {
             let _ = tx.send_blocking(Reply::Changed(keys));
@@ -181,9 +187,12 @@ impl Browser {
         header.pack_start(&back);
         header.pack_start(&forward);
         header.pack_start(&up);
+        let view_toggle = gtk::Button::from_icon_name("view-grid-symbolic");
+        view_toggle.set_visible(false);
         let gear = gtk::Button::from_icon_name("emblem-system-symbolic");
         gear.set_tooltip_text(Some(&tr("Settings (Ctrl+,)")));
         header.pack_end(&gear);
+        header.pack_end(&view_toggle);
         header.set_title_widget(Some(&path_entry));
 
         let status = gtk::Label::new(None);
@@ -223,7 +232,7 @@ impl Browser {
                 }),
             );
             let search_client = crate::search::SearchClient::start(worker.reply_sender());
-            let first_tab = Tab::new(weak, 1, &columns, spec);
+            let first_tab = Tab::new(weak, 1, &columns, spec, &thumbs);
             Browser {
                 window: window.clone(),
                 shared,
@@ -257,6 +266,8 @@ impl Browser {
                 strip: crate::tabs::TabStrip::new(),
                 next_tab_id: Cell::new(1),
                 generations: Cell::new(0),
+                thumbs: thumbs.clone(),
+                view_toggle: view_toggle.clone(),
                 path_entry,
                 back,
                 forward,
@@ -335,6 +346,14 @@ impl Browser {
             }
         });
         b.spawn_reply_loop(replies);
+        b.spawn_thumb_loop(thumb_rx);
+        let w = Rc::downgrade(&b);
+        b.view_toggle.connect_clicked(move |_| {
+            if let Some(b) = w.upgrade() {
+                let on = !b.tab().thumbs_mode.get();
+                b.set_thumbnails(on);
+            }
+        });
         b.init_tabs(start, state, restore_tabs);
         b
     }
@@ -432,7 +451,7 @@ impl Browser {
                 let p = expand_tilde(e.text().trim());
                 b.navigate(&p, true);
                 b.record_visit(&p);
-                b.tab().pane_view.grab_focus();
+                b.tab().view().grab_focus();
             }
         });
 
@@ -540,6 +559,8 @@ impl Browser {
         );
         add("<Control>Page_Up", Box::new(|b| b.cycle_tab(-1)));
         add("<Control>backslash", Box::new(|b| b.toggle_tile()));
+        add("<Control>1", Box::new(|b| b.set_thumbnails(false)));
+        add("<Control>2", Box::new(|b| b.set_thumbnails(true)));
         self.window.add_controller(ctl);
     }
 
@@ -584,9 +605,23 @@ impl Browser {
         });
         tab.pane_view.add_controller(middle);
         self.connect_find();
-        self.install_list_keys();
-        self.install_drag_source();
-        self.install_drop_targets();
+        // The list and the thumbnail grid take the same keys, drags and
+        // drops.
+        let views: [gtk::Widget; 2] = [
+            tab.pane_view.clone().upcast(),
+            tab.grid_view.clone().upcast(),
+        ];
+        for v in &views {
+            self.install_list_keys(v);
+            self.install_drag_source(v);
+            self.install_drop_targets(v);
+        }
+        let (w, t) = (Rc::downgrade(self), Rc::downgrade(&tab));
+        tab.grid_view.connect_activate(move |_, pos| {
+            if let (Some(b), Some(t)) = (w.upgrade(), t.upgrade()) {
+                b.with_tab(&t, |b| b.activate_entry(pos));
+            }
+        });
         // Bound rows push pending entries into `wanted`; forward them to
         // the fetcher after each frame's binds.
         let (w, t) = (Rc::downgrade(self), Rc::downgrade(&tab));
@@ -664,7 +699,7 @@ impl Browser {
     }
 
     /// List-only shortcuts, so they do not steal keys from the path bar.
-    fn install_list_keys(self: &Rc<Self>) {
+    fn install_list_keys(self: &Rc<Self>, target: &gtk::Widget) {
         let ctl = gtk::ShortcutController::new();
         let add = |accel: &str, f: Handler| {
             let w = Rc::downgrade(self);
@@ -687,7 +722,7 @@ impl Browser {
         add("<Control><Shift>c", Box::new(|b| b.copy_paths()));
         add("Delete", Box::new(|b| b.trash_selected()));
         add("F2", Box::new(|b| b.rename_selected()));
-        self.tab().pane_view.add_controller(ctl);
+        target.add_controller(ctl);
 
         // Backspace goes up only from the panes, not while editing the path.
         let keys = gtk::EventControllerKey::new();
@@ -720,7 +755,7 @@ impl Browser {
             }
             glib::Propagation::Proceed
         });
-        self.tab().pane_view.add_controller(keys);
+        target.add_controller(keys);
     }
 
     // --------------------------------------------------------- navigation
@@ -821,10 +856,11 @@ impl Browser {
     }
 
     fn switch_pane_focus(&self) {
-        if self.tab().pane_view.has_focus() || self.tab().pane_view.focus_child().is_some() {
+        let view = self.tab().view();
+        if view.has_focus() || view.focus_child().is_some() {
             self.tree_view.grab_focus();
         } else {
-            self.tab().pane_view.grab_focus();
+            self.tab().view().grab_focus();
         }
     }
 
@@ -1337,6 +1373,7 @@ impl Browser {
         if !self.is_active(&self.tab()) {
             return;
         }
+        self.update_view_toggle();
         let mut text = self.activity_text();
         if let Some(e) = self.tab().pane_error.borrow().as_deref() {
             text.push_str(e);
@@ -1616,6 +1653,8 @@ impl Browser {
     /// Re-list the current folder after it changed on disk, keeping the
     /// selection (by name) and the scroll position.
     fn live_reload_pane(self: &Rc<Self>) {
+        // Changed images get new thumbnails.
+        self.thumbs.forget_dir(&self.tab().current.borrow());
         let selected = self.selected_entries();
         let select = if selected.len() <= KEEP_SELECTION_LIMIT {
             let tab = self.tab();
@@ -1660,9 +1699,7 @@ impl Browser {
                 .pane_sel
                 .set_selection(&bits, &gtk::Bitset::new_range(0, self.tab().pane.n_items()));
             if scroll.is_none() {
-                self.tab()
-                    .pane_view
-                    .scroll_to(select[0], gtk::ListScrollFlags::FOCUS, None);
+                self.tab().scroll_to(select[0], gtk::ListScrollFlags::FOCUS);
             }
         } else if !keep.is_empty() {
             self.select_entries(&keep);
@@ -1678,7 +1715,7 @@ impl Browser {
             // Wait for the new rows' layout before restoring the position.
             let sw = self.tab().pane_scroll.downgrade();
             let frames = Cell::new(0);
-            self.tab().pane_view.add_tick_callback(move |_, _| {
+            self.tab().pane_scroll.add_tick_callback(move |_, _| {
                 if let Some(sw) = sw.upgrade() {
                     sw.vadjustment().set_value(v);
                 }
@@ -1691,6 +1728,73 @@ impl Browser {
             });
         }
         self.update_status();
+    }
+}
+
+impl Browser {
+    /// Ctrl+2 / Ctrl+1: show the active tab as thumbnails or as the list.
+    pub(crate) fn set_thumbnails(self: &Rc<Self>, on: bool) {
+        let tab = self.tab();
+        if tab.thumbs_mode.replace(on) == on {
+            return;
+        }
+        let had_focus = {
+            let v = if on {
+                tab.pane_view.clone().upcast::<gtk::Widget>()
+            } else {
+                tab.grid_view.clone().upcast()
+            };
+            v.has_focus() || v.focus_child().is_some()
+        };
+        let v = tab.view();
+        tab.grid_view.set_model(on.then_some(&tab.pane_sel));
+        tab.pane_scroll.set_child(Some(&v));
+        // The column header sorts both views but its columns are the
+        // list's.
+        if let Some(h) = tab.sort_buttons[0].parent() {
+            h.set_visible(!on);
+        }
+        tab.refresh_grid(&self.thumbs);
+        if let Some(row) = self.focused_row() {
+            tab.scroll_to(row as u32, gtk::ListScrollFlags::FOCUS);
+        } else if had_focus || on {
+            v.grab_focus();
+        }
+        self.update_view_toggle();
+    }
+
+    /// The switch shows while the folder has images (or thumbnails are on).
+    pub(crate) fn update_view_toggle(&self) {
+        let tab = self.active.borrow().clone();
+        let on = tab.thumbs_mode.get();
+        let images = tab.pane.data().images;
+        self.view_toggle.set_visible(on || images > 0);
+        let (icon, tip) = if on {
+            ("view-list-symbolic", tr("List (Ctrl+1)"))
+        } else {
+            ("view-grid-symbolic", tr("Thumbnails (Ctrl+2)"))
+        };
+        self.view_toggle.set_icon_name(icon);
+        self.view_toggle.set_tooltip_text(Some(&tip));
+    }
+
+    /// Thumbnails arrive from the loader threads: keep them and refill the
+    /// grids that show them.
+    fn spawn_thumb_loop(self: &Rc<Self>, rx: async_channel::Receiver<crate::thumbs::Loaded>) {
+        let w = Rc::downgrade(self);
+        glib::spawn_future_local(async move {
+            while let Ok(first) = rx.recv().await {
+                let Some(b) = w.upgrade() else { break };
+                b.thumbs.store(first);
+                // Refill once for everything already queued.
+                while let Ok(more) = rx.try_recv() {
+                    b.thumbs.store(more);
+                }
+                for t in b.tabs.borrow().iter() {
+                    t.refresh_grid(&b.thumbs);
+                }
+            }
+        });
     }
 }
 

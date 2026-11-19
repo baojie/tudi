@@ -285,60 +285,68 @@ msgstr "Salvar"
 msgid "Rename Launcher"
 msgstr "Renomear lançador"
 
-#: crates/tudi-gui/src/browser.rs:172
+#: crates/tudi-gui/src/browser.rs:178
 msgid "Back (Alt+Left)"
 msgstr "Voltar (Alt+Left)"
 
-#: crates/tudi-gui/src/browser.rs:174
+#: crates/tudi-gui/src/browser.rs:180
 msgid "Forward (Alt+Right)"
 msgstr "Avançar (Alt+Right)"
 
-#: crates/tudi-gui/src/browser.rs:176
+#: crates/tudi-gui/src/browser.rs:182
 msgid "Parent folder (Alt+Up)"
 msgstr "Pasta superior (Alt+Up)"
 
-#: crates/tudi-gui/src/browser.rs:185
+#: crates/tudi-gui/src/browser.rs:193
 msgid "Settings (Ctrl+,)"
 msgstr "Configurações (Ctrl+,)"
 
-#: crates/tudi-gui/src/browser.rs:345
+#: crates/tudi-gui/src/browser.rs:364
 msgid "Home"
 msgstr "Pasta pessoal"
 
-#: crates/tudi-gui/src/browser.rs:347
+#: crates/tudi-gui/src/browser.rs:366
 msgid "File System"
 msgstr "Sistema de arquivos"
 
-#: crates/tudi-gui/src/browser.rs:1080
+#: crates/tudi-gui/src/browser.rs:1116
 msgid "Zoom {}%"
 msgstr "Zoom {}%"
 
-#: crates/tudi-gui/src/browser.rs:1263 crates/tudi-gui/src/pane.rs:593
+#: crates/tudi-gui/src/browser.rs:1299 crates/tudi-gui/src/pane.rs:597
 #: crates/tudi-gui/src/settings.rs:115
 msgid "Name"
 msgstr "Nome"
 
-#: crates/tudi-gui/src/browser.rs:1263 crates/tudi-gui/src/pane.rs:595
+#: crates/tudi-gui/src/browser.rs:1299 crates/tudi-gui/src/pane.rs:599
 #: crates/tudi-gui/src/properties.rs:229 crates/tudi-gui/src/settings.rs:115
 msgid "Size"
 msgstr "Tamanho"
 
-#: crates/tudi-gui/src/browser.rs:1263 crates/tudi-gui/src/pane.rs:596
+#: crates/tudi-gui/src/browser.rs:1299 crates/tudi-gui/src/pane.rs:600
 #: crates/tudi-gui/src/properties.rs:242 crates/tudi-gui/src/settings.rs:115
 msgid "Modified"
 msgstr "Modificado"
 
-#: crates/tudi-gui/src/browser.rs:1357
+#: crates/tudi-gui/src/browser.rs:1394
 msgid "filtered by “{}”"
 msgstr "filtrado por “{}”"
 
-#: crates/tudi-gui/src/browser.rs:1365
+#: crates/tudi-gui/src/browser.rs:1402
 msgid "{} free"
 msgstr "{} livres"
 
-#: crates/tudi-gui/src/browser.rs:1370
+#: crates/tudi-gui/src/browser.rs:1407
 msgid "{} selected"
 msgstr "selecionados: {}"
+
+#: crates/tudi-gui/src/browser.rs:1772
+msgid "List (Ctrl+1)"
+msgstr "Lista (Ctrl+1)"
+
+#: crates/tudi-gui/src/browser.rs:1774
+msgid "Thumbnails (Ctrl+2)"
+msgstr "Miniaturas (Ctrl+2)"
 
 #: crates/tudi-gui/src/drop.rs:145
 msgid "Could not paste {}: {}"
@@ -384,19 +392,19 @@ msgstr "Adicionado aos lançadores: {}"
 msgid "Already a launcher"
 msgstr "Já é um lançador"
 
-#: crates/tudi-gui/src/main.rs:351
+#: crates/tudi-gui/src/main.rs:354
 msgid "Open a new window"
 msgstr "Abrir uma nova janela"
 
-#: crates/tudi-gui/src/main.rs:355
+#: crates/tudi-gui/src/main.rs:358
 msgid "Start the resident instance without a window"
 msgstr "Iniciar a instância residente sem janela"
 
-#: crates/tudi-gui/src/main.rs:357
+#: crates/tudi-gui/src/main.rs:360
 msgid "Quit the resident instance"
 msgstr "Encerrar a instância residente"
 
-#: crates/tudi-gui/src/main.rs:361
+#: crates/tudi-gui/src/main.rs:364
 msgid "Import bookmarks and folder history from GTK, autojump and zoxide again"
 msgstr ""
 "Importar novamente marcadores e histórico de pastas do GTK, autojump e zoxide"
@@ -737,35 +745,35 @@ msgstr ""
 msgid "Clear"
 msgstr "Limpar"
 
-#: crates/tudi-gui/src/tabs.rs:263
+#: crates/tudi-gui/src/tabs.rs:322
 msgid "Close Tab (Ctrl+W)"
 msgstr "Fechar aba (Ctrl+W)"
 
-#: crates/tudi-gui/src/tabs.rs:287
+#: crates/tudi-gui/src/tabs.rs:346
 msgid "New Tab (Ctrl+T)"
 msgstr "Nova aba (Ctrl+T)"
 
-#: crates/tudi-gui/src/tabs.rs:800
+#: crates/tudi-gui/src/tabs.rs:863
 msgid "New Tab"
 msgstr "Nova aba"
 
-#: crates/tudi-gui/src/tabs.rs:802
+#: crates/tudi-gui/src/tabs.rs:865
 msgid "Move to Other Side"
 msgstr "Mover para o outro lado"
 
-#: crates/tudi-gui/src/tabs.rs:803
+#: crates/tudi-gui/src/tabs.rs:866
 msgid "Stop Side by Side"
 msgstr "Parar lado a lado"
 
-#: crates/tudi-gui/src/tabs.rs:805
+#: crates/tudi-gui/src/tabs.rs:868
 msgid "Open Side by Side"
 msgstr "Abrir lado a lado"
 
-#: crates/tudi-gui/src/tabs.rs:809
+#: crates/tudi-gui/src/tabs.rs:872
 msgid "Close Tab"
 msgstr "Fechar aba"
 
-#: crates/tudi-gui/src/tabs.rs:811
+#: crates/tudi-gui/src/tabs.rs:874
 msgid "Close Other Tabs"
 msgstr "Fechar outras abas"
 
@@ -827,13 +835,13 @@ msgid_plural "{} opens"
 msgstr[0] "{} abertura"
 msgstr[1] "{} aberturas"
 
-#: crates/tudi-gui/src/browser.rs:1349 crates/tudi-gui/src/properties.rs:167
+#: crates/tudi-gui/src/browser.rs:1386 crates/tudi-gui/src/properties.rs:167
 msgid "{} file"
 msgid_plural "{} files"
 msgstr[0] "{} arquivo"
 msgstr[1] "{} arquivos"
 
-#: crates/tudi-gui/src/browser.rs:1352 crates/tudi-gui/src/properties.rs:172
+#: crates/tudi-gui/src/browser.rs:1389 crates/tudi-gui/src/properties.rs:172
 msgid "{} folder"
 msgid_plural "{} folders"
 msgstr[0] "{} pasta"

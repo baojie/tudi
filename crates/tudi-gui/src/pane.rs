@@ -80,6 +80,8 @@ pub struct PaneData {
     /// Shown folders and other entries.
     pub dirs: u32,
     pub files: u32,
+    /// Shown image files.
+    pub images: u32,
     /// Unknown entry types were resolved since the order was computed.
     pub resort_pending: bool,
 }
@@ -184,6 +186,7 @@ impl PaneModel {
             d.pos_of = order.pos_of;
             d.dirs = order.dirs;
             d.files = order.files;
+            d.images = order.images;
             d.spec = spec;
             d.meta_complete = false;
             d.resort_pending = false;
@@ -213,6 +216,7 @@ impl PaneModel {
             d.pos_of = order.pos_of;
             d.dirs = order.dirs;
             d.files = order.files;
+            d.images = order.images;
             d.spec = spec;
             d.resort_pending = false;
         }

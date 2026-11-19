@@ -398,3 +398,20 @@ through `sh` / `python3`; `.desktop` files through `gio launch`.
   on its folder (within the window's 512 watches). Window-level settings
   (hidden files, column widths) apply to all tabs. Status-bar tasks of a
   background tab are not shown.
+
+## ADR-026: Thumbnail view, thumbnails decoded off the main thread
+
+- **Context.** The maintainer wants to browse folders with images as
+  thumbnails.
+- **Decision.** A per-tab `GtkGridView` over the same `PaneModel` and
+  selection as the list (GridView is a recycling view like ListView; the
+  model stays ours, AGENTS.md rule 3). It is offered when the folder has
+  image files by extension (`icons::category`, counted on the listing
+  worker). Thumbnails are loaded only for bound cells, on two loader
+  threads (freedesktop cache first, else gdk-pixbuf at 256 px); the main
+  thread only builds textures. Reading file contents here is the purpose
+  of the view, not part of listing (rule 5 is about listing).
+- **Consequences.** tudi does not write the freedesktop cache, so folders
+  never opened by another file manager are decoded each session (once per
+  window, then cached in memory). Formats gdk-pixbuf cannot load (e.g.
+  HEIC without its loader, RAW) show their icon.

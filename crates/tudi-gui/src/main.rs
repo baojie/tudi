@@ -32,6 +32,7 @@ mod settings;
 mod shared;
 mod sidebar;
 mod tabs;
+mod thumbs;
 mod tree_menu;
 mod worker;
 mod zoom;
@@ -87,6 +88,8 @@ const CSS: &str = "
 .tudi-tab.shown { background-color: @view_bg_color; opacity: 1; }
 .tudi-tab-page.tudi-tile { box-shadow: inset 0 2px alpha(currentColor, 0.08); }
 .tudi-tab-page.tudi-tile.active { box-shadow: inset 0 2px @accent_bg_color; }
+.tudi-grid > child { padding: 8px; border-radius: 8px; }
+.tudi-grid > child:selected { background-color: alpha(@accent_bg_color, 0.25); color: inherit; }
 .tudi-tab-close { min-width: 20px; min-height: 20px; padding: 0; }
 .tudi-tab-add { min-width: 24px; min-height: 24px; padding: 0 4px; margin-bottom: 2px; }
 .tudi-search { padding: 10px; box-shadow: 0 8px 28px alpha(black, 0.25); }

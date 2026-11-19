@@ -35,6 +35,11 @@ pub struct Tab {
     pub(crate) pane: PaneModel,
     pub(crate) pane_sel: gtk::MultiSelection,
     pub(crate) pane_view: gtk::ListView,
+    /// The thumbnail view of the same rows (shown instead of the list in
+    /// thumbnail mode).
+    pub(crate) grid_view: gtk::GridView,
+    pub(crate) grid_bound: crate::thumbs::GridBound,
+    pub(crate) thumbs_mode: Cell<bool>,
     pub(crate) pane_scroll: gtk::ScrolledWindow,
     pub(crate) sort_buttons: [gtk::Button; 3],
     /// What the tab shows: `page` (find bar, column header, list) in a
@@ -96,6 +101,7 @@ impl Tab {
         id: u64,
         columns: &Rc<pane::Columns>,
         spec: SortSpec,
+        thumbs: &Rc<crate::thumbs::Thumbnailer>,
     ) -> Rc<Tab> {
         Rc::new_cyclic(|me: &Weak<Tab>| {
             let pane = PaneModel::default();
@@ -117,6 +123,21 @@ impl Tab {
             });
             let pane_view = pane::build_view(&pane, &pane_sel, &wanted, columns, on_menu, on_drop);
             let (col_header, sort_buttons) = pane::build_header(&pane, columns);
+            let grid_bound = crate::thumbs::GridBound::default();
+            let (bw, tw) = (b.clone(), me.clone());
+            let grid_menu: pane::MenuFn = Rc::new(move |pos, w, x, y| {
+                if let (Some(b), Some(t)) = (bw.upgrade(), tw.upgrade()) {
+                    b.with_tab(&t, |b| b.file_menu(pos, w, x, y));
+                }
+            });
+            let tw = me.clone();
+            let dir: Rc<dyn Fn() -> PathBuf> = Rc::new(move || {
+                tw.upgrade()
+                    .map(|t| t.current.borrow().clone())
+                    .unwrap_or_default()
+            });
+            let grid_view =
+                crate::thumbs::build_grid(&pane, &pane_sel, thumbs, dir, &grid_bound, grid_menu);
             let pane_scroll = gtk::ScrolledWindow::builder()
                 .overlay_scrolling(false)
                 .hscrollbar_policy(gtk::PolicyType::Never)
@@ -145,6 +166,9 @@ impl Tab {
                 pane,
                 pane_sel,
                 pane_view,
+                grid_view,
+                grid_bound,
+                thumbs_mode: Cell::new(false),
                 pane_scroll,
                 sort_buttons,
                 files,
@@ -200,6 +224,41 @@ impl Tab {
             self.pending.borrow().clone().unwrap_or_default()
         } else {
             cur.clone()
+        }
+    }
+
+    /// The view showing the rows: the list or the thumbnail grid.
+    pub(crate) fn view(&self) -> gtk::Widget {
+        if self.thumbs_mode.get() {
+            self.grid_view.clone().upcast()
+        } else {
+            self.pane_view.clone().upcast()
+        }
+    }
+
+    /// Scroll the shown view to row `pos` (and focus it, with `FOCUS`).
+    pub(crate) fn scroll_to(&self, pos: u32, flags: gtk::ListScrollFlags) {
+        if self.thumbs_mode.get() {
+            self.grid_view.scroll_to(pos, flags, None);
+        } else {
+            self.pane_view.scroll_to(pos, flags, None);
+        }
+    }
+
+    /// Re-fill the bound grid cells (thumbnails arrived).
+    pub(crate) fn refresh_grid(&self, thumbs: &crate::thumbs::Thumbnailer) {
+        if !self.thumbs_mode.get() {
+            return;
+        }
+        let dir = self.current.borrow().clone();
+        let cells: Vec<(u32, gtk::Box)> = self
+            .grid_bound
+            .borrow()
+            .iter()
+            .filter_map(|(&p, w)| w.upgrade().map(|c| (p, c)))
+            .collect();
+        for (p, c) in cells {
+            crate::thumbs::fill_cell(&c, &self.pane, p, &dir, thumbs);
         }
     }
 
@@ -410,7 +469,12 @@ impl Browser {
             let a = self.active.borrow();
             (a.spec.get(), a.side.get())
         };
-        let tab = Tab::new(&Rc::downgrade(self), id, &self.columns, spec);
+        let tab = Tab::new(&Rc::downgrade(self), id, &self.columns, spec, &self.thumbs);
+        if self.active.borrow().thumbs_mode.get() {
+            tab.thumbs_mode.set(true);
+            tab.grid_view.set_model(Some(&tab.pane_sel));
+            tab.pane_scroll.set_child(Some(&tab.grid_view));
+        }
         tab.side.set(side);
         tab.pending.replace(Some(path.to_path_buf()));
         self.with_tab(&tab, |b| b.wire_tab());
@@ -435,7 +499,7 @@ impl Browser {
     pub(crate) fn new_tab_here(self: &Rc<Self>) {
         let cur = self.tab().current.borrow().clone();
         let tab = self.new_tab(&cur, true);
-        tab.pane_view.grab_focus();
+        tab.view().grab_focus();
     }
 
     /// Open `path` in a new tab without switching to it (middle-click,
@@ -643,7 +707,7 @@ impl Browser {
         } else {
             self.show_stage();
         }
-        self.active.borrow().pane_view.grab_focus();
+        self.active.borrow().view().grab_focus();
     }
 
     /// A split with one side empty becomes one side.
@@ -678,7 +742,7 @@ impl Browser {
             tabs[((i + step).rem_euclid(n)) as usize].clone()
         };
         self.activate_tab(&next);
-        next.pane_view.grab_focus();
+        next.view().grab_focus();
     }
 
     /// Move `tab` to the other side (splitting the list area); a tab alone
@@ -709,7 +773,7 @@ impl Browser {
         } else {
             self.activate_tab(&tab);
         }
-        tab.pane_view.grab_focus();
+        tab.view().grab_focus();
     }
 
     /// Back to one side: every tab on the left.
@@ -753,7 +817,7 @@ impl Browser {
                 }
                 _ => {
                     b.activate_tab(&tab);
-                    tab.pane_view.grab_focus();
+                    tab.view().grab_focus();
                 }
             }
         });

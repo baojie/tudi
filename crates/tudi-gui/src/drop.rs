@@ -158,7 +158,7 @@ impl Browser {
 
     /// Accept files dropped on the list's empty space (rows have their own
     /// targets, see `pane::build_view`).
-    pub(crate) fn install_drop_targets(self: &Rc<Self>) {
+    pub(crate) fn install_drop_targets(self: &Rc<Self>, view: &gtk::Widget) {
         let tab = self.tab();
         let (w, t) = (Rc::downgrade(self), Rc::downgrade(&tab));
         let target = file_drop_target(Rc::new(move |files, mods| {
@@ -169,6 +169,6 @@ impl Browser {
             b.activate_tab(&t);
             b.drop_on_pane(None, files, mods)
         }));
-        tab.pane_view.add_controller(target);
+        view.add_controller(target);
     }
 }

@@ -69,6 +69,8 @@ pub struct Order {
     /// Shown folders and other entries (for the status bar).
     pub dirs: u32,
     pub files: u32,
+    /// Shown files that are images (offers the thumbnail view).
+    pub images: u32,
 }
 
 pub struct PaneListing {
@@ -308,11 +310,13 @@ fn filtered_order(
         order.retain(|&i| name_contains(listing.name(i as usize), needle));
     }
     let mut pos_of = vec![u32::MAX; listing.len()];
-    let mut dirs = 0;
+    let (mut dirs, mut images) = (0, 0);
     for (p, &i) in order.iter().enumerate() {
         pos_of[i as usize] = p as u32;
         if metas.kind(listing, i as usize) == Kind::Dir {
             dirs += 1;
+        } else if crate::thumbs::is_image(listing.name(i as usize)) {
+            images += 1;
         }
     }
     let files = order.len() as u32 - dirs;
@@ -321,6 +325,7 @@ fn filtered_order(
         pos_of,
         dirs,
         files,
+        images,
     }
 }
 

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Thumbnail view: in a folder with images, a header-bar button (or
+  `Ctrl+2` / `Ctrl+1`) switches between thumbnails and the list.
 - Fix: an empty band above the column headers (the closed find bar still
   took its height).
 - Tabs in the file list, named after their folder, "+" after the last tab
