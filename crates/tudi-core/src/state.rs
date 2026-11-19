@@ -28,6 +28,8 @@ pub struct WindowState {
     /// Folders of the open tabs, in order, and the active one.
     pub tabs: Vec<String>,
     pub active_tab: usize,
+    /// Indices of the tabs on the right side of a split list area.
+    pub right_tabs: Vec<usize>,
 }
 
 impl Default for WindowState {
@@ -44,6 +46,7 @@ impl Default for WindowState {
             date_column: 0,
             tabs: Vec::new(),
             active_tab: 0,
+            right_tabs: Vec::new(),
         }
     }
 }

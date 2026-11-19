@@ -285,58 +285,58 @@ msgstr "儲存"
 msgid "Rename Launcher"
 msgstr "重新命名啟動器"
 
-#: crates/tudi-gui/src/browser.rs:173
+#: crates/tudi-gui/src/browser.rs:172
 msgid "Back (Alt+Left)"
 msgstr "上一頁 (Alt+←)"
 
-#: crates/tudi-gui/src/browser.rs:175
+#: crates/tudi-gui/src/browser.rs:174
 msgid "Forward (Alt+Right)"
 msgstr "下一頁 (Alt+→)"
 
-#: crates/tudi-gui/src/browser.rs:177
+#: crates/tudi-gui/src/browser.rs:176
 msgid "Parent folder (Alt+Up)"
 msgstr "上一層 (Alt+↑)"
 
-#: crates/tudi-gui/src/browser.rs:186
+#: crates/tudi-gui/src/browser.rs:185
 msgid "Settings (Ctrl+,)"
 msgstr "設定 (Ctrl+,)"
 
-#: crates/tudi-gui/src/browser.rs:347
+#: crates/tudi-gui/src/browser.rs:345
 msgid "Home"
 msgstr "家目錄"
 
-#: crates/tudi-gui/src/browser.rs:349
+#: crates/tudi-gui/src/browser.rs:347
 msgid "File System"
 msgstr "檔案系統"
 
-#: crates/tudi-gui/src/browser.rs:1072
+#: crates/tudi-gui/src/browser.rs:1080
 msgid "Zoom {}%"
 msgstr "縮放 {}%"
 
-#: crates/tudi-gui/src/browser.rs:1256 crates/tudi-gui/src/pane.rs:593
+#: crates/tudi-gui/src/browser.rs:1263 crates/tudi-gui/src/pane.rs:593
 #: crates/tudi-gui/src/settings.rs:115
 msgid "Name"
 msgstr "名稱"
 
-#: crates/tudi-gui/src/browser.rs:1256 crates/tudi-gui/src/pane.rs:595
+#: crates/tudi-gui/src/browser.rs:1263 crates/tudi-gui/src/pane.rs:595
 #: crates/tudi-gui/src/properties.rs:229 crates/tudi-gui/src/settings.rs:115
 msgid "Size"
 msgstr "大小"
 
-#: crates/tudi-gui/src/browser.rs:1256 crates/tudi-gui/src/pane.rs:596
+#: crates/tudi-gui/src/browser.rs:1263 crates/tudi-gui/src/pane.rs:596
 #: crates/tudi-gui/src/properties.rs:242 crates/tudi-gui/src/settings.rs:115
 msgid "Modified"
 msgstr "修改時間"
 
-#: crates/tudi-gui/src/browser.rs:1350
+#: crates/tudi-gui/src/browser.rs:1357
 msgid "filtered by “{}”"
 msgstr "已篩選「{}」"
 
-#: crates/tudi-gui/src/browser.rs:1358
+#: crates/tudi-gui/src/browser.rs:1365
 msgid "{} free"
 msgstr "剩餘 {}"
 
-#: crates/tudi-gui/src/browser.rs:1363
+#: crates/tudi-gui/src/browser.rs:1370
 msgid "{} selected"
 msgstr "已選取 {} 項"
 
@@ -384,19 +384,19 @@ msgstr "已將 {} 加入啟動器"
 msgid "Already a launcher"
 msgstr "已在啟動器中"
 
-#: crates/tudi-gui/src/main.rs:352
+#: crates/tudi-gui/src/main.rs:351
 msgid "Open a new window"
 msgstr "開啟新視窗"
 
-#: crates/tudi-gui/src/main.rs:356
+#: crates/tudi-gui/src/main.rs:355
 msgid "Start the resident instance without a window"
 msgstr "在背景啟動常駐執行個體，不開啟視窗"
 
-#: crates/tudi-gui/src/main.rs:358
+#: crates/tudi-gui/src/main.rs:357
 msgid "Quit the resident instance"
 msgstr "結束常駐執行個體"
 
-#: crates/tudi-gui/src/main.rs:362
+#: crates/tudi-gui/src/main.rs:361
 msgid "Import bookmarks and folder history from GTK, autojump and zoxide again"
 msgstr "重新從 GTK、autojump 和 zoxide 匯入書籤和資料夾歷史記錄"
 
@@ -731,35 +731,35 @@ msgstr "所有資料夾的造訪次數都會被清除。排除項目和書籤會
 msgid "Clear"
 msgstr "清除"
 
-#: crates/tudi-gui/src/tabs.rs:248
+#: crates/tudi-gui/src/tabs.rs:263
 msgid "Close Tab (Ctrl+W)"
 msgstr "關閉分頁 (Ctrl+W)"
 
-#: crates/tudi-gui/src/tabs.rs:271
+#: crates/tudi-gui/src/tabs.rs:287
 msgid "New Tab (Ctrl+T)"
 msgstr "新增分頁 (Ctrl+T)"
 
-#: crates/tudi-gui/src/tabs.rs:692
+#: crates/tudi-gui/src/tabs.rs:800
 msgid "New Tab"
 msgstr "新增分頁"
 
-#: crates/tudi-gui/src/tabs.rs:694
+#: crates/tudi-gui/src/tabs.rs:802
+msgid "Move to Other Side"
+msgstr "移到另一側"
+
+#: crates/tudi-gui/src/tabs.rs:803
 msgid "Stop Side by Side"
 msgstr "取消並排顯示"
 
-#: crates/tudi-gui/src/tabs.rs:697
-msgid "Side by Side with Next Tab"
-msgstr "與下一個分頁並排"
+#: crates/tudi-gui/src/tabs.rs:805
+msgid "Open Side by Side"
+msgstr "並排開啟"
 
-#: crates/tudi-gui/src/tabs.rs:699
-msgid "Side by Side with Current Tab"
-msgstr "與目前分頁並排"
-
-#: crates/tudi-gui/src/tabs.rs:705
+#: crates/tudi-gui/src/tabs.rs:809
 msgid "Close Tab"
 msgstr "關閉分頁"
 
-#: crates/tudi-gui/src/tabs.rs:707
+#: crates/tudi-gui/src/tabs.rs:811
 msgid "Close Other Tabs"
 msgstr "關閉其他分頁"
 
@@ -814,12 +814,12 @@ msgid "{} open"
 msgid_plural "{} opens"
 msgstr[0] "開啟 {} 次"
 
-#: crates/tudi-gui/src/browser.rs:1342 crates/tudi-gui/src/properties.rs:167
+#: crates/tudi-gui/src/browser.rs:1349 crates/tudi-gui/src/properties.rs:167
 msgid "{} file"
 msgid_plural "{} files"
 msgstr[0] "{} 個檔案"
 
-#: crates/tudi-gui/src/browser.rs:1345 crates/tudi-gui/src/properties.rs:172
+#: crates/tudi-gui/src/browser.rs:1352 crates/tudi-gui/src/properties.rs:172
 msgid "{} folder"
 msgid_plural "{} folders"
 msgstr[0] "{} 個資料夾"

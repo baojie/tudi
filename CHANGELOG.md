@@ -6,7 +6,8 @@
   took its height).
 - Tabs in the file list, named after their folder, "+" after the last tab
   (`Ctrl+T`, `Ctrl+W`, `Ctrl+Tab`, middle-click a folder or "Open in New
-  Tab"); two tabs can be shown side by side (tab menu or `Ctrl+\`).
+  Tab"); the list can be split in two sides, each with its own tabs
+  (tab menu "Open Side by Side" or `Ctrl+\`).
   Tabs are restored on the next start.
 - Languages: Traditional Chinese, Japanese, Korean, German, French,
   Spanish, Portuguese (Brazil), Italian and Russian, selectable in the

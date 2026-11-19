@@ -387,8 +387,11 @@ through `sh` / `python3`; `.desktop` files through `gio launch`.
   `Browser::tab()`, which is the active tab unless `with_tab` set the tab
   of the reply or event being handled; generations are unique per window
   so replies are routed by them. The strip is our own widgets (not
-  `AdwTabBar`, whose "+" sits at the far end). Tiling is one pair side by
-  side in a `GtkPaned`, shown while the active tab belongs to it. Tabs
+  `AdwTabBar`, whose "+" sits at the far end). Side by side is two sides
+  in a `GtkPaned`, each with its own strip and tabs (like an editor's
+  split groups), not a pair of tabs under one strip: the maintainer
+  wanted the tabs to follow the split, and a pair under one strip widened
+  the window with wide columns. Tabs
   are restored in the first window; inactive ones are listed when first
   shown, so startup lists one folder as before.
 - **Consequences.** Every tab keeps its listing in memory and a live watch

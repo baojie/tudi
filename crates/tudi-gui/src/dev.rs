@@ -313,16 +313,12 @@ fn dump(b: &Browser) {
         .iter()
         .map(|t| {
             let mark = if b.is_active(t) { "*" } else { "" };
-            format!("{mark}{}", t.label.text())
+            let side = if t.side.get() == 1 { ">" } else { "" };
+            format!("{side}{mark}{}", t.label.text())
         })
         .collect();
-    let tiled = b
-        .tiled
-        .borrow()
-        .as_ref()
-        .map(|(l, r)| format!(" tiled {}+{}", l.label.text(), r.label.text()))
-        .unwrap_or_default();
-    println!("tabs: {}{tiled}", tabs.join(" | "));
+    println!("tabs: {}", tabs.join(" | "));
+    println!("window: {}x{}", b.window.width(), b.window.height());
     // Column header: each button's x range in window coordinates.
     let cols: Vec<String> = b
         .tab()
@@ -339,11 +335,16 @@ fn dump(b: &Browser) {
         })
         .collect();
     println!("columns: {}", cols.join(" "));
-    let mut c = b.tab().files.first_child();
+    let mut c = b.tab().page.first_child();
     let mut parts = Vec::new();
     while let Some(w) = c {
         if let Some(r) = w.compute_bounds(&b.window) {
-            parts.push(format!("{}@{:.0}+{:.0}", w.type_().name(), r.y(), r.height()));
+            parts.push(format!(
+                "{}@{:.0}+{:.0}",
+                w.type_().name(),
+                r.y(),
+                r.height()
+            ));
         }
         c = w.next_sibling();
     }

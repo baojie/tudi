@@ -4,9 +4,9 @@
 //! find bar, sort order and folder size; the window's folder tree, path
 //! bar and status bar follow the active tab. Tabs sit in a strip above the
 //! list, labelled with their folder's name, with a "+" right after the
-//! last one. Two tabs can be tiled side by side: while the active tab is
-//! one of the pair, both are shown; clicking or focusing one makes it the
-//! active tab.
+//! last one. The list area can be split in two sides, each with its own
+//! tabs and strip; clicking or focusing in a side makes its tab the active
+//! one.
 //!
 //! Code written for one list keeps using `Browser::tab()`, which is the
 //! active tab — or, while a worker reply or a tab's own widget event is
@@ -37,8 +37,12 @@ pub struct Tab {
     pub(crate) pane_view: gtk::ListView,
     pub(crate) pane_scroll: gtk::ScrolledWindow,
     pub(crate) sort_buttons: [gtk::Button; 3],
-    /// Find bar, column header and list: what the tab shows.
-    pub(crate) files: gtk::Box,
+    /// What the tab shows: `page` (find bar, column header, list) in a
+    /// scroller without scrollbars that does not ask for the page's
+    /// minimum width, so wide columns are cut off on the right of a
+    /// narrow side instead of widening the window or sliding the side.
+    pub(crate) files: gtk::ScrolledWindow,
+    pub(crate) page: gtk::Box,
     pub(crate) fetcher: RefCell<Option<MetaFetcher>>,
     pub(crate) wanted: Wanted,
     pub(crate) wanted_scheduled: Cell<bool>,
@@ -77,6 +81,8 @@ pub struct Tab {
     /// The generation the size computation was started with.
     pub(crate) size_gen: Cell<u64>,
 
+    /// The side of the list area it is on (0 left, 1 right).
+    pub(crate) side: Cell<usize>,
     /// The tab's button in the strip, and its label.
     pub(crate) button: gtk::Box,
     pub(crate) label: gtk::Label,
@@ -119,13 +125,20 @@ impl Tab {
                 .build();
             keep_header_aligned(&col_header, &pane_scroll);
             let find = crate::find::FindBar::new();
-            let files = gtk::Box::new(gtk::Orientation::Vertical, 0);
+            let page = gtk::Box::new(gtk::Orientation::Vertical, 0);
+            page.set_hexpand(true);
+            page.append(&find.revealer);
+            page.append(&col_header);
+            page.append(&gtk::Separator::new(gtk::Orientation::Horizontal));
+            page.append(&pane_scroll);
+            let files = gtk::ScrolledWindow::builder()
+                .hscrollbar_policy(gtk::PolicyType::External)
+                .vscrollbar_policy(gtk::PolicyType::Never)
+                .hexpand(true)
+                .vexpand(true)
+                .child(&page)
+                .build();
             files.add_css_class("tudi-tab-page");
-            files.set_hexpand(true);
-            files.append(&find.revealer);
-            files.append(&col_header);
-            files.append(&gtk::Separator::new(gtk::Orientation::Horizontal));
-            files.append(&pane_scroll);
             let (button, label) = tab_button();
             Tab {
                 id,
@@ -135,6 +148,7 @@ impl Tab {
                 pane_scroll,
                 sort_buttons,
                 files,
+                page,
                 fetcher: RefCell::default(),
                 wanted,
                 wanted_scheduled: Cell::new(false),
@@ -155,6 +169,7 @@ impl Tab {
                 size_cancel: RefCell::default(),
                 size_for: RefCell::default(),
                 size_gen: Cell::new(0),
+                side: Cell::new(0),
                 button,
                 label,
             }
@@ -251,19 +266,20 @@ fn tab_button() -> (gtk::Box, gtk::Label) {
     (b, label)
 }
 
-/// The window's tab strip and the area that shows the active tab (or the
-/// tiled pair).
-pub struct TabStrip {
-    pub(crate) bar: gtk::Box,
+/// One side of the list area: its tab strip ("+" after the last tab) and
+/// the page of the tab it shows. Without a split only the left side is
+/// shown.
+pub struct Side {
+    pub(crate) column: gtk::Box,
     pub(crate) tabs_box: gtk::Box,
-    pub(crate) stage: gtk::Box,
     pub(crate) add: gtk::Button,
-    /// The split shown while the active tab is tiled.
-    pub(crate) split: RefCell<Option<gtk::Paned>>,
+    pub(crate) page: gtk::Box,
+    /// The tab this side shows.
+    pub(crate) shown: RefCell<Option<Rc<Tab>>>,
 }
 
-impl TabStrip {
-    pub(crate) fn new() -> Self {
+impl Side {
+    fn new() -> Self {
         let tabs_box = gtk::Box::new(gtk::Orientation::Horizontal, 2);
         let add = gtk::Button::from_icon_name("list-add-symbolic");
         add.add_css_class("flat");
@@ -284,14 +300,46 @@ impl TabStrip {
         let bar = gtk::Box::new(gtk::Orientation::Horizontal, 0);
         bar.add_css_class("tudi-tabs");
         bar.append(&scroll);
+        let page = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+        page.set_vexpand(true);
+        let column = gtk::Box::new(gtk::Orientation::Vertical, 0);
+        column.set_hexpand(true);
+        column.append(&bar);
+        column.append(&page);
+        Self {
+            column,
+            tabs_box,
+            add,
+            page,
+            shown: RefCell::default(),
+        }
+    }
+}
+
+/// The list area: one side, or two side by side (ADR-025).
+pub struct TabStrip {
+    /// Holds the left side's column, or the split.
+    pub(crate) stage: gtk::Box,
+    pub(crate) sides: [Side; 2],
+    /// The two sides; shrinkable, so wide columns never widen the window.
+    pub(crate) split: gtk::Paned,
+}
+
+impl TabStrip {
+    pub(crate) fn new() -> Self {
         let stage = gtk::Box::new(gtk::Orientation::Horizontal, 0);
         stage.set_vexpand(true);
+        let split = gtk::Paned::builder()
+            .orientation(gtk::Orientation::Horizontal)
+            .wide_handle(true)
+            .hexpand(true)
+            .shrink_start_child(true)
+            .shrink_end_child(true)
+            .build();
         Self {
-            bar,
-            tabs_box,
             stage,
-            add,
-            split: RefCell::default(),
+            sides: [Side::new(), Side::new()],
+            split,
         }
     }
 }
@@ -348,13 +396,22 @@ impl Browser {
         self.tabs.borrow().iter().find(|t| t.id == id).cloned()
     }
 
+    /// Whether the list area is split in two.
+    pub(crate) fn is_split(&self) -> bool {
+        self.tabs.borrow().iter().any(|t| t.side.get() == 1)
+    }
+
     /// Create a tab showing `path` (listed now if `activate`, else when
-    /// first shown), after the active one.
+    /// first shown), after the active one and on its side.
     pub(crate) fn new_tab(self: &Rc<Self>, path: &Path, activate: bool) -> Rc<Tab> {
         let id = self.next_tab_id.get() + 1;
         self.next_tab_id.set(id);
-        let spec = self.active.borrow().spec.get();
+        let (spec, side) = {
+            let a = self.active.borrow();
+            (a.spec.get(), a.side.get())
+        };
         let tab = Tab::new(&Rc::downgrade(self), id, &self.columns, spec);
+        tab.side.set(side);
         tab.pending.replace(Some(path.to_path_buf()));
         self.with_tab(&tab, |b| b.wire_tab());
         self.wire_tab_button(&tab);
@@ -388,8 +445,8 @@ impl Browser {
         self.record_visit(path);
     }
 
-    /// Make `tab` the active tab: the tree, path bar, title and status
-    /// bar follow it.
+    /// Make `tab` the active tab (and the one its side shows): the tree,
+    /// path bar, title and status bar follow it.
     pub(crate) fn activate_tab(self: &Rc<Self>, tab: &Rc<Tab>) {
         let changed = !self.is_active(tab);
         if changed {
@@ -398,20 +455,16 @@ impl Browser {
         if let Some(p) = tab.pending.take() {
             self.with_tab(tab, |b| b.navigate(&p, false));
         }
-        if !changed {
+        let side = &self.strip.sides[tab.side.get()];
+        let shown = side.shown.borrow().as_ref().map(|t| t.id);
+        if !changed && shown == Some(tab.id) {
             return;
         }
+        side.shown.replace(Some(tab.clone()));
         self.show_stage();
-        for t in self.tabs.borrow().iter() {
-            if t.id == tab.id {
-                t.button.add_css_class("active");
-                t.files.add_css_class("active");
-            } else {
-                t.button.remove_css_class("active");
-                t.files.remove_css_class("active");
-            }
+        if changed {
+            self.sync_chrome();
         }
-        self.sync_chrome();
     }
 
     /// Path bar, title, history buttons, tree and status bar for the
@@ -430,77 +483,121 @@ impl Browser {
         self.update_status();
     }
 
-    /// Put the active tab (or its tiled pair) in the stage.
-    pub(crate) fn show_stage(&self) {
-        let stage = &self.strip.stage;
-        while let Some(c) = stage.first_child() {
-            stage.remove(&c);
-        }
-        if let Some(p) = self.strip.split.take() {
-            p.set_start_child(gtk::Widget::NONE);
-            p.set_end_child(gtk::Widget::NONE);
-        }
+    /// Lay out the sides and put each side's shown tab in its page.
+    pub(crate) fn show_stage(self: &Rc<Self>) {
+        let st = &self.strip;
+        let split = self.is_split();
         let active = self.active.borrow().clone();
-        let pair = self.tiled.borrow().clone();
-        match pair.clone() {
-            Some((l, r)) if l.id == active.id || r.id == active.id => {
-                let p = gtk::Paned::builder()
-                    .orientation(gtk::Orientation::Horizontal)
-                    .start_child(&l.files)
-                    .end_child(&r.files)
-                    .wide_handle(true)
-                    .hexpand(true)
-                    .shrink_start_child(false)
-                    .shrink_end_child(false)
-                    .build();
-                l.files.add_css_class("tudi-tile");
-                r.files.add_css_class("tudi-tile");
-                stage.append(&p);
-                // Half and half once the split has its width.
-                let pw = p.downgrade();
-                glib::idle_add_local_once(move || {
-                    if let Some(p) = pw.upgrade() {
-                        p.set_position(p.width() / 2);
-                    }
-                });
-                self.strip.split.replace(Some(p));
-            }
-            _ => {
-                stage.append(&active.files);
-            }
-        }
-        for t in self.tabs.borrow().iter() {
-            let tiled = pair
+        for (i, side) in st.sides.iter().enumerate() {
+            // The shown tab must be on this side: the active tab if it is,
+            // else the one shown before, else the first.
+            let tabs = self.tabs.borrow();
+            let mine: Vec<&Rc<Tab>> = tabs.iter().filter(|t| t.side.get() == i).collect();
+            let keep = side
+                .shown
+                .borrow()
                 .as_ref()
-                .is_some_and(|(l, r)| l.id == t.id || r.id == t.id);
-            if tiled {
-                t.button.add_css_class("tiled");
+                .filter(|t| mine.iter().any(|m| m.id == t.id))
+                .cloned();
+            let shown = if active.side.get() == i {
+                Some(active.clone())
             } else {
-                t.button.remove_css_class("tiled");
-                t.files.remove_css_class("tudi-tile");
-            }
-            if !tiled
-                || pair
-                    .as_ref()
-                    .is_some_and(|(l, r)| l.id != active.id && r.id != active.id)
+                keep.or_else(|| mine.first().map(|t| (*t).clone()))
+            };
+            drop(tabs);
+            if let Some(t) = &shown
+                && let Some(p) = t.pending.take()
             {
-                t.files.remove_css_class("tudi-tile");
+                // A side shows it: list it now.
+                self.with_tab(t, |b| b.navigate(&p, false));
             }
+            let current = side.page.first_child();
+            let want = shown
+                .as_ref()
+                .map(|t| t.files.clone().upcast::<gtk::Widget>());
+            if current != want {
+                if let Some(c) = current {
+                    side.page.remove(&c);
+                }
+                if let Some(w) = &want {
+                    if let Some(p) = w.parent().and_downcast::<gtk::Box>() {
+                        p.remove(w);
+                    }
+                    side.page.append(w);
+                }
+            }
+            side.shown.replace(shown);
         }
-    }
-
-    /// Re-fill the strip in tab order.
-    pub(crate) fn rebuild_strip(&self) {
-        let bx = &self.strip.tabs_box;
-        while let Some(c) = bx.first_child() {
-            bx.remove(&c);
+        // Left column alone, or both in the split.
+        let left = st.sides[0].column.clone().upcast::<gtk::Widget>();
+        let in_split = st.split.start_child().as_ref() == Some(&left);
+        if split && !in_split {
+            if left.parent().is_some() {
+                st.stage.remove(&left);
+            }
+            st.split.set_start_child(Some(&left));
+            st.split.set_end_child(Some(&st.sides[1].column));
+            st.stage.append(&st.split);
+            // Half and half once the split has its width (after layout).
+            st.split.add_tick_callback(|p, _| {
+                if p.width() > 0 {
+                    p.set_position(p.width() / 2);
+                    glib::ControlFlow::Break
+                } else {
+                    glib::ControlFlow::Continue
+                }
+            });
+        } else if !split && (in_split || left.parent().is_none()) {
+            if st.split.parent().is_some() {
+                st.stage.remove(&st.split);
+            }
+            st.split.set_start_child(gtk::Widget::NONE);
+            st.split.set_end_child(gtk::Widget::NONE);
+            st.stage.append(&left);
         }
         for t in self.tabs.borrow().iter() {
-            bx.append(&t.button);
+            let on = |c: &str, yes: bool| {
+                if yes {
+                    t.button.add_css_class(c);
+                } else {
+                    t.button.remove_css_class(c);
+                }
+            };
+            let shown = st.sides[t.side.get()]
+                .shown
+                .borrow()
+                .as_ref()
+                .is_some_and(|s| s.id == t.id);
+            on("active", t.id == active.id);
+            on("shown", shown);
+            if split && t.id == active.id {
+                t.files.add_css_class("active");
+            } else {
+                t.files.remove_css_class("active");
+            }
+            if split {
+                t.files.add_css_class("tudi-tile");
+            } else {
+                t.files.remove_css_class("tudi-tile");
+            }
         }
     }
 
-    /// Close `tab`; closing the last tab closes the window.
+    /// Re-fill each side's strip in tab order.
+    pub(crate) fn rebuild_strip(&self) {
+        for (i, side) in self.strip.sides.iter().enumerate() {
+            let bx = &side.tabs_box;
+            while let Some(c) = bx.first_child() {
+                bx.remove(&c);
+            }
+            for t in self.tabs.borrow().iter().filter(|t| t.side.get() == i) {
+                bx.append(&t.button);
+            }
+        }
+    }
+
+    /// Close `tab`; closing the last tab closes the window. A side left
+    /// without tabs ends the split.
     pub(crate) fn close_tab(self: &Rc<Self>, tab: &Rc<Tab>) {
         let (index, next) = {
             let tabs = self.tabs.borrow();
@@ -510,29 +607,38 @@ impl Browser {
                 return;
             }
             let i = tabs.iter().position(|t| t.id == tab.id).unwrap_or(0);
-            let next = if i + 1 < tabs.len() {
-                tabs[i + 1].clone()
-            } else {
-                tabs[i - 1].clone()
-            };
+            // The neighbour on the same side, else any other tab.
+            let same: Vec<&Rc<Tab>> = tabs
+                .iter()
+                .filter(|t| t.side.get() == tab.side.get() && t.id != tab.id)
+                .collect();
+            let next = same
+                .iter()
+                .find(|t| tabs.iter().position(|x| x.id == t.id) > Some(i))
+                .or(same.last())
+                .map(|t| (*t).clone())
+                .unwrap_or_else(|| {
+                    tabs.iter()
+                        .find(|t| t.id != tab.id)
+                        .cloned()
+                        .expect("another tab")
+                });
             (i, next)
         };
-        let untile = self
-            .tiled
-            .borrow()
-            .as_ref()
-            .is_some_and(|(l, r)| l.id == tab.id || r.id == tab.id);
-        if untile {
-            self.tiled.replace(None);
-        }
         self.tabs.borrow_mut().remove(index);
         tab.cancel_work();
         if let Some(w) = &self.watcher {
             w.unwatch(crate::worker::WatchKey::Pane(tab.id));
         }
+        for side in &self.strip.sides {
+            let is = side.shown.borrow().as_ref().is_some_and(|s| s.id == tab.id);
+            if is {
+                side.shown.replace(None);
+            }
+        }
+        self.collapse_empty_side();
         self.rebuild_strip();
         if self.is_active(tab) {
-            // Not the closed tab's pair partner by surprise: the neighbour.
             self.activate_tab(&next);
         } else {
             self.show_stage();
@@ -540,15 +646,33 @@ impl Browser {
         self.active.borrow().pane_view.grab_focus();
     }
 
+    /// A split with one side empty becomes one side.
+    pub(crate) fn collapse_empty_side(&self) {
+        let tabs = self.tabs.borrow();
+        if !tabs.iter().any(|t| t.side.get() == 0) || !tabs.iter().any(|t| t.side.get() == 1) {
+            for t in tabs.iter() {
+                t.side.set(0);
+            }
+        }
+    }
+
     pub(crate) fn close_active_tab(self: &Rc<Self>) {
         let t = self.active.borrow().clone();
         self.close_tab(&t);
     }
 
-    /// Ctrl+Tab / Ctrl+PageDown (`step` 1) and back (-1), wrapping.
+    /// Ctrl+Tab / Ctrl+PageDown (`step` 1) and back (-1), wrapping, among
+    /// the active side's tabs.
     pub(crate) fn cycle_tab(self: &Rc<Self>, step: isize) {
         let next = {
-            let tabs = self.tabs.borrow();
+            let side = self.active.borrow().side.get();
+            let tabs: Vec<Rc<Tab>> = self
+                .tabs
+                .borrow()
+                .iter()
+                .filter(|t| t.side.get() == side)
+                .cloned()
+                .collect();
             let n = tabs.len() as isize;
             let i = tabs.iter().position(|t| self.is_active(t)).unwrap_or(0) as isize;
             tabs[((i + step).rem_euclid(n)) as usize].clone()
@@ -557,65 +681,54 @@ impl Browser {
         next.pane_view.grab_focus();
     }
 
-    /// Show `tab` side by side with the active tab (or `tab` and its
-    /// right neighbour when it is the active one).
-    pub(crate) fn tile_with_active(self: &Rc<Self>, tab: &Rc<Tab>) {
-        let active = self.active.borrow().clone();
-        let other = if active.id != tab.id {
-            active.clone()
+    /// Move `tab` to the other side (splitting the list area); a tab alone
+    /// in an unsplit window gets a copy on the right instead.
+    pub(crate) fn move_to_other_side(self: &Rc<Self>, tab: &Rc<Tab>) {
+        let tab = if self.tabs.borrow().len() == 1 {
+            let cur = tab.current.borrow().clone();
+            self.new_tab(&cur, false)
         } else {
-            let tabs = self.tabs.borrow();
-            let i = tabs.iter().position(|t| t.id == tab.id).unwrap_or(0);
-            match tabs
-                .get(i + 1)
-                .or_else(|| i.checked_sub(1).and_then(|j| tabs.get(j)))
-            {
-                Some(t) => t.clone(),
-                None => return,
-            }
+            tab.clone()
         };
-        // Left and right in strip order.
-        let (l, r) = {
-            let tabs = self.tabs.borrow();
-            let pos = |t: &Rc<Tab>| tabs.iter().position(|x| x.id == t.id).unwrap_or(0);
-            if pos(&other) < pos(tab) {
-                (other, tab.clone())
-            } else {
-                (tab.clone(), other)
+        tab.side.set(1 - tab.side.get());
+        // A tab taken from the side another side shows: that side shows
+        // its next tab.
+        for side in &self.strip.sides {
+            let is = side.shown.borrow().as_ref().is_some_and(|s| s.id == tab.id);
+            if is {
+                side.shown.replace(None);
             }
-        };
-        if let Some(p) = l.pending.take() {
-            self.with_tab(&l, |b| b.navigate(&p, false));
         }
-        if let Some(p) = r.pending.take() {
-            self.with_tab(&r, |b| b.navigate(&p, false));
+        self.collapse_empty_side();
+        self.rebuild_strip();
+        self.strip.sides[tab.side.get()]
+            .shown
+            .replace(Some(tab.clone()));
+        if self.is_active(&tab) {
+            self.show_stage();
+        } else {
+            self.activate_tab(&tab);
         }
-        self.tiled.replace(Some((l, r)));
+        tab.pane_view.grab_focus();
+    }
+
+    /// Back to one side: every tab on the left.
+    pub(crate) fn unsplit(self: &Rc<Self>) {
+        for t in self.tabs.borrow().iter() {
+            t.side.set(0);
+        }
+        self.strip.sides[1].shown.replace(None);
+        self.rebuild_strip();
         self.show_stage();
     }
 
-    pub(crate) fn untile(self: &Rc<Self>) {
-        self.tiled.replace(None);
-        self.show_stage();
-    }
-
-    /// Ctrl+\: tile the active tab with its neighbour, or untile.
+    /// Ctrl+\: show the active tab on the other side, or end the split.
     pub(crate) fn toggle_tile(self: &Rc<Self>) {
-        let active = self.active.borrow().clone();
-        let tiled = self
-            .tiled
-            .borrow()
-            .as_ref()
-            .is_some_and(|(l, r)| l.id == active.id || r.id == active.id);
-        if tiled {
-            self.untile();
-        } else if self.tabs.borrow().len() > 1 {
-            self.tile_with_active(&active);
+        if self.is_split() {
+            self.unsplit();
         } else {
-            // One tab: split it into two on the same folder.
-            let cur = active.current.borrow().clone();
-            let t = self.new_tab(&cur, false);
-            self.tile_with_active(&t);
+            let t = self.active.borrow().clone();
+            self.move_to_other_side(&t);
         }
     }
 
@@ -653,7 +766,7 @@ impl Browser {
                 }
             });
         }
-        // Any press or focus inside the tab's page activates it (a tile).
+        // Any press or focus inside the tab's page activates it (a side).
         let press = gtk::GestureClick::new();
         press.set_button(0);
         press.set_propagation_phase(gtk::PropagationPhase::Capture);
@@ -683,22 +796,13 @@ impl Browser {
             it
         };
         let n = self.tabs.borrow().len();
-        let tiled = self
-            .tiled
-            .borrow()
-            .as_ref()
-            .is_some_and(|(l, r)| l.id == tab.id || r.id == tab.id);
         let first = gio::Menu::new();
         first.append_item(&item(tr("New Tab"), "tab.new"));
-        if tiled {
+        if self.is_split() {
+            first.append_item(&item(tr("Move to Other Side"), "tab.tile"));
             first.append_item(&item(tr("Stop Side by Side"), "tab.untile"));
-        } else if n > 1 {
-            let label = if self.is_active(tab) {
-                tr("Side by Side with Next Tab")
-            } else {
-                tr("Side by Side with Current Tab")
-            };
-            first.append_item(&item(label, "tab.tile"));
+        } else {
+            first.append_item(&item(tr("Open Side by Side"), "tab.tile"));
         }
         menu.append_section(None, &first);
         let close = gio::Menu::new();
@@ -710,7 +814,7 @@ impl Browser {
         crate::menu::popup_at(&tab.button, menu.upcast_ref(), x, y);
     }
 
-    /// The "tab." actions used by the tab menu.
+    /// The "tab." actions used by the tab menu, and each side's "+".
     pub(crate) fn install_tab_actions(self: &Rc<Self>) {
         let group = gio::SimpleActionGroup::new();
         let add = |name: &str, f: TabAction| {
@@ -733,8 +837,8 @@ impl Browser {
                 b.new_tab_here();
             }),
         );
-        add("tile", Box::new(|b, t| b.tile_with_active(&t)));
-        add("untile", Box::new(|b, _| b.untile()));
+        add("tile", Box::new(|b, t| b.move_to_other_side(&t)));
+        add("untile", Box::new(|b, _| b.unsplit()));
         add("close", Box::new(|b, t| b.close_tab(&t)));
         add(
             "close-others",
@@ -753,19 +857,32 @@ impl Browser {
             }),
         );
         self.window.insert_action_group("tab", Some(&group));
-        let w = Rc::downgrade(self);
-        self.strip.add.connect_clicked(move |_| {
-            if let Some(b) = w.upgrade() {
+        for i in 0..2 {
+            let w = Rc::downgrade(self);
+            self.strip.sides[i].add.connect_clicked(move |_| {
+                let Some(b) = w.upgrade() else { return };
+                // A new tab on this side.
+                let shown = b.strip.sides[i].shown.borrow().clone();
+                if let Some(t) = shown {
+                    b.activate_tab(&t);
+                }
                 b.new_tab_here();
-            }
-        });
+            });
+        }
     }
 
-    /// Tabs to remember: folders in strip order and the active one.
-    pub(crate) fn tab_paths(&self) -> (Vec<PathBuf>, usize) {
+    /// Tabs to remember: folders in strip order, the active one, and the
+    /// ones on the right side.
+    pub(crate) fn tab_paths(&self) -> (Vec<PathBuf>, usize, Vec<usize>) {
         let tabs = self.tabs.borrow();
         let paths = tabs.iter().map(|t| t.shown_path()).collect();
         let active = tabs.iter().position(|t| self.is_active(t)).unwrap_or(0);
-        (paths, active)
+        let right = tabs
+            .iter()
+            .enumerate()
+            .filter(|(_, t)| t.side.get() == 1)
+            .map(|(i, _)| i)
+            .collect();
+        (paths, active, right)
     }
 }

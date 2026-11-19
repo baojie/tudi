@@ -95,7 +95,6 @@ pub struct Browser {
     pub(crate) tabs: RefCell<Vec<Rc<Tab>>>,
     pub(crate) active: RefCell<Rc<Tab>>,
     pub(crate) tab_ctx: RefCell<Vec<Rc<Tab>>>,
-    pub(crate) tiled: RefCell<Option<(Rc<Tab>, Rc<Tab>)>>,
     pub(crate) strip: crate::tabs::TabStrip,
     pub(crate) next_tab_id: Cell<u64>,
     /// Listing generations, unique across tabs.
@@ -255,7 +254,6 @@ impl Browser {
                 tabs: RefCell::new(vec![first_tab.clone()]),
                 active: RefCell::new(first_tab),
                 tab_ctx: RefCell::default(),
-                tiled: RefCell::default(),
                 strip: crate::tabs::TabStrip::new(),
                 next_tab_id: Cell::new(1),
                 generations: Cell::new(0),
@@ -277,7 +275,6 @@ impl Browser {
             .build();
         tree_scroll.add_css_class("tudi-tree-scroll");
         let files = gtk::Box::new(gtk::Orientation::Vertical, 0);
-        files.append(&b.strip.bar);
         files.append(&b.strip.stage);
         let right = &files;
         // The divider between the panes is draggable; a wide handle makes it
@@ -290,7 +287,8 @@ impl Browser {
             .position(state.tree_width.max(120))
             .shrink_start_child(false)
             .resize_start_child(false)
-            .shrink_end_child(false)
+            // Shrinkable: wide columns clip instead of widening the window.
+            .shrink_end_child(true)
             .wide_handle(true)
             .vexpand(true)
             .build();
@@ -630,8 +628,7 @@ impl Browser {
         self.with_tab(&first, |b| b.wire_tab());
         self.wire_tab_button(&first);
         self.rebuild_strip();
-        first.button.add_css_class("active");
-        first.files.add_css_class("active");
+        self.strip.sides[0].shown.replace(Some(first.clone()));
         self.show_stage();
         let saved: Vec<PathBuf> = state.tabs.iter().map(PathBuf::from).collect();
         let active = state.active_tab.min(saved.len().saturating_sub(1));
@@ -642,14 +639,25 @@ impl Browser {
             for p in saved[1..].iter().rev() {
                 self.new_tab(p, false);
             }
-            let target = self.tabs.borrow()[active].clone();
-            if active == 0 {
-                if let Some(p) = first.pending.take() {
-                    self.with_tab(&first, |b| b.navigate(&p, true));
+            // Tabs on the right side, as saved.
+            {
+                let tabs = self.tabs.borrow();
+                for &i in &state.right_tabs {
+                    if let Some(t) = tabs.get(i) {
+                        t.side.set(1);
+                    }
                 }
-            } else {
-                self.activate_tab(&target);
             }
+            self.collapse_empty_side();
+            self.rebuild_strip();
+            let target = self.tabs.borrow()[active].clone();
+            if active == 0
+                && let Some(p) = first.pending.take()
+            {
+                self.with_tab(&first, |b| b.navigate(&p, true));
+            }
+            self.activate_tab(&target);
+            self.show_stage();
         } else {
             self.with_tab(&first, |b| b.navigate(start, true));
         }
@@ -1098,16 +1106,15 @@ impl Browser {
         // Parents first, so restoring expands top-down; stable file order.
         expanded.sort();
         st.set_paths(&self.active.borrow().current.borrow(), &expanded);
-        let (tabs, active) = self.tab_paths();
+        let (tabs, active, right) = self.tab_paths();
         st.tabs = tabs
             .iter()
             .filter_map(|p| p.to_str().map(String::from))
             .collect();
-        st.active_tab = if st.tabs.len() == tabs.len() {
-            active
-        } else {
-            0
-        };
+        if st.tabs.len() == tabs.len() {
+            st.active_tab = active;
+            st.right_tabs = right;
+        }
         st
     }
 

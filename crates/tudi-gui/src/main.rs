@@ -84,8 +84,7 @@ const CSS: &str = "
 .tudi-tab { padding: 1px 2px 1px 10px; border-radius: 6px 6px 0 0; min-width: 80px; opacity: 0.75; }
 .tudi-tab:hover { background-color: alpha(currentColor, 0.06); opacity: 1; }
 .tudi-tab.active { background-color: @view_bg_color; opacity: 1; box-shadow: inset 0 2px @accent_bg_color; }
-.tudi-tab.tiled { box-shadow: inset 0 -2px alpha(@accent_bg_color, 0.6); }
-.tudi-tab.active.tiled { box-shadow: inset 0 2px @accent_bg_color, inset 0 -2px alpha(@accent_bg_color, 0.6); }
+.tudi-tab.shown { background-color: @view_bg_color; opacity: 1; }
 .tudi-tab-page.tudi-tile { box-shadow: inset 0 2px alpha(currentColor, 0.08); }
 .tudi-tab-page.tudi-tile.active { box-shadow: inset 0 2px @accent_bg_color; }
 .tudi-tab-close { min-width: 20px; min-height: 20px; padding: 0; }

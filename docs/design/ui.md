@@ -179,13 +179,22 @@ status. Hidden files and column widths are per window.
   selects, middle-click closes, right-click: New Tab, side by side, Close
   Tab, Close Other Tabs. Middle-click on a folder in the list, or "Open in
   New Tab" in the list and tree menus, opens it in a background tab.
-- Side by side: one pair of tabs (`Browser::tiled`) is shown in a
-  `GtkPaned` while the active tab is one of them; selecting another tab
-  shows it alone, selecting either of the pair shows both again. A press
-  or focus anywhere in a tab's page makes it active, so menus, keys and
-  drops act on the tile they happen in. The active tile has an accent line
-  on top.
-- Tabs are saved in `state.toml` (`tabs`, `active_tab`) and restored in the
+- Side by side: the list area has two sides (`TabStrip::sides`), each with
+  its own tab strip, "+" and shown tab; a tab's `side` says where it is.
+  Without tabs on the right only the left side is shown; with them, both
+  sit in a `GtkPaned` split in the middle. "Open Side by Side" (tab menu,
+  `Ctrl+\`) moves a tab to the right (a lone tab is copied), "Move to
+  Other Side" moves it back and forth, "Stop Side by Side" puts every tab
+  on the left; a side left without tabs ends the split. New tabs open on
+  the active tab's side, `Ctrl+Tab` cycles within it. A press or focus in
+  a side makes its tab active, so menus, keys and drops act on the side
+  they happen in; the active side has an accent line on top.
+- Each tab page sits in a `GtkScrolledWindow` with an external (hidden)
+  horizontal scrollbar, which does not ask for the page's minimum width:
+  wide dragged columns are cut off on the right of a narrow side, instead
+  of widening the window (or GtkPaned sliding the side out of view).
+- Tabs are saved in `state.toml` (`tabs`, `active_tab`, `right_tabs`) and
+  restored in the
   first window when no folder was given; tabs other than the active one
   are listed when first shown.
 
