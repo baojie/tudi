@@ -225,13 +225,17 @@ impl App {
         let opts = cl.options_dict();
         // A launch forwarded by `tudi` carries the launcher's environment
         // (SEND_ENVIRONMENT), including the shell's activation token. A
-        // local launch's token was already taken by GTK itself.
-        if cl.is_remote() {
-            *self.startup_id.borrow_mut() = cl
-                .getenv("XDG_ACTIVATION_TOKEN")
-                .or_else(|| cl.getenv("DESKTOP_STARTUP_ID"))
-                .map(|s| s.to_string());
-        }
+        // local launch's token was already taken by GTK itself. The token
+        // is kept only on the paths that present a window, so a stale one
+        // never reaches a window opened later by other means.
+        let token = cl
+            .is_remote()
+            .then(|| {
+                cl.getenv("XDG_ACTIVATION_TOKEN")
+                    .or_else(|| cl.getenv("DESKTOP_STARTUP_ID"))
+                    .map(|s| s.to_string())
+            })
+            .flatten();
         if opts.contains("quit") {
             app.quit();
             return;
@@ -239,6 +243,7 @@ impl App {
         if opts.contains("reimport") {
             // Make sure the shared state exists, then import again.
             if self.shared.borrow().is_none() {
+                *self.startup_id.borrow_mut() = token;
                 self.open_window(app, None);
             }
             if let Some(s) = self.shared.borrow().clone() {
@@ -263,6 +268,7 @@ impl App {
                 _ => p,
             }
         });
+        *self.startup_id.borrow_mut() = token;
         let last = self.browsers.borrow().last().cloned();
         match last {
             Some(b) if !opts.contains("new-window") => {
