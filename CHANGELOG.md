@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Preview pane (`Alt+P` or the header-bar button): shows the selected
+  image, the start of a text file, or the item's details.
 ## 0.1.2 — 2026-11-20
 
 Tabs and a side-by-side view, thumbnails, drag and drop, resizable

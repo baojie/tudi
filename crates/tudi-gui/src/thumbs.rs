@@ -32,6 +32,33 @@ pub struct Pixels {
     alpha: bool,
 }
 
+impl Pixels {
+    /// The pixels of an 8-bit RGB(A) pixbuf (the formats a memory texture
+    /// takes directly). Any thread.
+    pub fn from_pixbuf(p: &gdk_pixbuf::Pixbuf) -> Option<Self> {
+        if p.bits_per_sample() != 8 || !(3..=4).contains(&p.n_channels()) {
+            return None;
+        }
+        Some(Self {
+            bytes: p.read_pixel_bytes(),
+            width: p.width(),
+            height: p.height(),
+            stride: p.rowstride() as usize,
+            alpha: p.has_alpha(),
+        })
+    }
+
+    /// A texture of the pixels (main thread).
+    pub fn texture(&self) -> gdk::Texture {
+        let format = if self.alpha {
+            gdk::MemoryFormat::R8g8b8a8
+        } else {
+            gdk::MemoryFormat::R8g8b8
+        };
+        gdk::MemoryTexture::new(self.width, self.height, format, &self.bytes, self.stride).upcast()
+    }
+}
+
 /// A loaded thumbnail, or `None` when the file could not be decoded.
 pub struct Loaded {
     pub path: PathBuf,
@@ -101,14 +128,7 @@ impl Thumbnailer {
     /// A thumbnail arrived: keep its texture.
     pub fn store(&self, loaded: Loaded) -> Option<gdk::Texture> {
         self.asked.borrow_mut().remove(&loaded.path);
-        let texture = loaded.pixels.map(|p| {
-            let format = if p.alpha {
-                gdk::MemoryFormat::R8g8b8a8
-            } else {
-                gdk::MemoryFormat::R8g8b8
-            };
-            gdk::MemoryTexture::new(p.width, p.height, format, &p.bytes, p.stride).upcast()
-        });
+        let texture = loaded.pixels.map(|p| p.texture());
         let mut cache = self.cache.borrow_mut();
         if cache.len() >= CACHE_LIMIT {
             cache.clear();
@@ -186,17 +206,7 @@ fn load(path: &Path) -> Option<Pixels> {
             .ok()
             .and_then(|p| p.apply_embedded_orientation()),
     }?;
-    // Keep 8-bit RGB(A), the formats a memory texture takes directly.
-    if pixbuf.bits_per_sample() != 8 || !(3..=4).contains(&pixbuf.n_channels()) {
-        return None;
-    }
-    Some(Pixels {
-        bytes: pixbuf.read_pixel_bytes(),
-        width: pixbuf.width(),
-        height: pixbuf.height(),
-        stride: pixbuf.rowstride() as usize,
-        alpha: pixbuf.has_alpha(),
-    })
+    Pixels::from_pixbuf(&pixbuf)
 }
 
 /// Image extensions (as in `icons::category`).

@@ -14,6 +14,7 @@ Code: `crates/tudi-gui/src/`. Plan: `docs/PLAN.md` §5.3, §5.7.
 | `actions.rs` | type-ahead, clipboard, external commands, rename, trash, new folder, drag out |
 | `find.rs` | `Ctrl+F` find bar: jump to matches, `Enter` filters the list |
 | `tabs.rs` | tabs of the list, the tab strip, side-by-side tiles |
+| `preview.rs` | optional preview pane: image, start of a text file, or details |
 | `thumbs.rs` | thumbnail view: grid cells, thumbnail loader threads, texture cache |
 | `activity.rs` | background tasks named in the status bar, with a spinner |
 | `format.rs` | sizes, dates, icons from file names |
@@ -223,6 +224,19 @@ gdk-pixbuf at 256 px (EXIF orientation applied). Pixels go to the main
 thread, which makes a `GdkMemoryTexture`, keeps up to 3,000 per window,
 and refills the bound cells. Undecodable files are remembered and keep
 their icon. A live reload of the folder drops its textures.
+
+## Preview pane (ADR-027)
+
+`preview.rs`: `Alt+P` or a header-bar toggle shows a pane right of the
+list area (a `GtkPaned`; its width is saved, 0 = hidden). It follows the
+active tab: one selected image is shown whole (decoded at up to 1600 px),
+a text or code file shows its first 64 KB (monospace; NUL bytes mean
+binary, shown as details), anything else its icon, name, size and date;
+several selected items show their count and size, none the shown folder.
+Files are read on a short-lived thread; a serial number drops results of
+an older selection. The pane is refreshed from `update_status` (every
+selection change) and skips the work when the item (path, size, mtime)
+is unchanged.
 
 ## Find in folder
 

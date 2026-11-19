@@ -287,70 +287,70 @@ msgstr "Guardar"
 msgid "Rename Launcher"
 msgstr "Renombrar lanzador"
 
-#: crates/tudi-gui/src/browser.rs:180
+#: crates/tudi-gui/src/browser.rs:186
 msgid "Back (Alt+Left)"
 msgstr "Atrás (Alt+Left)"
 
-#: crates/tudi-gui/src/browser.rs:182
+#: crates/tudi-gui/src/browser.rs:188
 msgid "Forward (Alt+Right)"
 msgstr "Adelante (Alt+Right)"
 
-#: crates/tudi-gui/src/browser.rs:184
+#: crates/tudi-gui/src/browser.rs:190
 msgid "Parent folder (Alt+Up)"
 msgstr "Carpeta superior (Alt+Up)"
 
-#: crates/tudi-gui/src/browser.rs:194
+#: crates/tudi-gui/src/browser.rs:200
 msgid "Show Hidden Files (Ctrl+H)"
 msgstr "Mostrar archivos ocultos (Ctrl+H)"
 
-#: crates/tudi-gui/src/browser.rs:200
+#: crates/tudi-gui/src/browser.rs:213
 msgid "Settings (Ctrl+,)"
 msgstr "Configuración (Ctrl+,)"
 
-#: crates/tudi-gui/src/browser.rs:381
+#: crates/tudi-gui/src/browser.rs:407
 msgid "Home"
 msgstr "Carpeta personal"
 
-#: crates/tudi-gui/src/browser.rs:383
+#: crates/tudi-gui/src/browser.rs:409
 msgid "File System"
 msgstr "Sistema de archivos"
 
-#: crates/tudi-gui/src/browser.rs:1139
+#: crates/tudi-gui/src/browser.rs:1166
 msgid "Zoom {}%"
 msgstr "Zoom {}%"
 
-#: crates/tudi-gui/src/browser.rs:1322 crates/tudi-gui/src/pane.rs:649
+#: crates/tudi-gui/src/browser.rs:1350 crates/tudi-gui/src/pane.rs:649
 #: crates/tudi-gui/src/settings.rs:115
 msgid "Name"
 msgstr "Nombre"
 
-#: crates/tudi-gui/src/browser.rs:1322 crates/tudi-gui/src/pane.rs:651
+#: crates/tudi-gui/src/browser.rs:1350 crates/tudi-gui/src/pane.rs:651
 #: crates/tudi-gui/src/properties.rs:229 crates/tudi-gui/src/settings.rs:115
 msgid "Size"
 msgstr "Tamaño"
 
-#: crates/tudi-gui/src/browser.rs:1322 crates/tudi-gui/src/pane.rs:652
+#: crates/tudi-gui/src/browser.rs:1350 crates/tudi-gui/src/pane.rs:652
 #: crates/tudi-gui/src/properties.rs:242 crates/tudi-gui/src/settings.rs:115
 msgid "Modified"
 msgstr "Modificado"
 
-#: crates/tudi-gui/src/browser.rs:1417
+#: crates/tudi-gui/src/browser.rs:1446
 msgid "filtered by “{}”"
 msgstr "filtrado por «{}»"
 
-#: crates/tudi-gui/src/browser.rs:1425
+#: crates/tudi-gui/src/browser.rs:1454
 msgid "{} free"
 msgstr "{} libres"
 
-#: crates/tudi-gui/src/browser.rs:1430
+#: crates/tudi-gui/src/browser.rs:1459
 msgid "{} selected"
 msgstr "Seleccionados: {}"
 
-#: crates/tudi-gui/src/browser.rs:1796
+#: crates/tudi-gui/src/browser.rs:1825
 msgid "List (Ctrl+1)"
 msgstr "Lista (Ctrl+1)"
 
-#: crates/tudi-gui/src/browser.rs:1798
+#: crates/tudi-gui/src/browser.rs:1827
 msgid "Thumbnails (Ctrl+2)"
 msgstr "Miniaturas (Ctrl+2)"
 
@@ -398,23 +398,27 @@ msgstr "{} añadido a los lanzadores"
 msgid "Already a launcher"
 msgstr "Ya es un lanzador"
 
-#: crates/tudi-gui/src/main.rs:354
+#: crates/tudi-gui/src/main.rs:356
 msgid "Open a new window"
 msgstr "Abrir una ventana nueva"
 
-#: crates/tudi-gui/src/main.rs:358
+#: crates/tudi-gui/src/main.rs:360
 msgid "Start the resident instance without a window"
 msgstr "Iniciar la instancia residente sin ventana"
 
-#: crates/tudi-gui/src/main.rs:360
+#: crates/tudi-gui/src/main.rs:362
 msgid "Quit the resident instance"
 msgstr "Salir de la instancia residente"
 
-#: crates/tudi-gui/src/main.rs:364
+#: crates/tudi-gui/src/main.rs:366
 msgid "Import bookmarks and folder history from GTK, autojump and zoxide again"
 msgstr ""
 "Volver a importar marcadores e historial de carpetas de GTK, autojump y "
 "zoxide"
+
+#: crates/tudi-gui/src/preview.rs:292
+msgid "Preview (Alt+P)"
+msgstr "Vista previa (Alt+P)"
 
 #: crates/tudi-gui/src/properties.rs:120
 msgid "Folder"
@@ -842,13 +846,13 @@ msgid_plural "{} opens"
 msgstr[0] "{} apertura"
 msgstr[1] "{} aperturas"
 
-#: crates/tudi-gui/src/browser.rs:1409 crates/tudi-gui/src/properties.rs:167
+#: crates/tudi-gui/src/browser.rs:1438 crates/tudi-gui/src/properties.rs:167
 msgid "{} file"
 msgid_plural "{} files"
 msgstr[0] "{} archivo"
 msgstr[1] "{} archivos"
 
-#: crates/tudi-gui/src/browser.rs:1412 crates/tudi-gui/src/properties.rs:172
+#: crates/tudi-gui/src/browser.rs:1441 crates/tudi-gui/src/properties.rs:172
 msgid "{} folder"
 msgid_plural "{} folders"
 msgstr[0] "{} carpeta"
@@ -884,17 +888,23 @@ msgid_plural "{} days ago"
 msgstr[0] "hace {} día"
 msgstr[1] "hace {} días"
 
+#: crates/tudi-gui/src/preview.rs:194 crates/tudi-gui/src/properties.rs:314
+msgid "{} item"
+msgid_plural "{} items"
+msgstr[0] "{} elemento"
+msgstr[1] "{} elementos"
+
+#: crates/tudi-gui/src/preview.rs:206
+msgid "{} item selected"
+msgid_plural "{} items selected"
+msgstr[0] "{} elemento seleccionado"
+msgstr[1] "{} elementos seleccionados"
+
 #: crates/tudi-gui/src/properties.rs:178
 msgid "{} item could not be read"
 msgid_plural "{} items could not be read"
 msgstr[0] "{} elemento no se pudo leer"
 msgstr[1] "{} elementos no se pudieron leer"
-
-#: crates/tudi-gui/src/properties.rs:314
-msgid "{} item"
-msgid_plural "{} items"
-msgstr[0] "{} elemento"
-msgstr[1] "{} elementos"
 
 #: crates/tudi-gui/src/search.rs:694
 msgid "{} result"

@@ -415,3 +415,16 @@ through `sh` / `python3`; `.desktop` files through `gio launch`.
   never opened by another file manager are decoded each session (once per
   window, then cached in memory). Formats gdk-pixbuf cannot load (e.g.
   HEIC without its loader, RAW) show their icon.
+
+## ADR-027: An optional preview pane
+
+- **Context.** The maintainer wants an optional pane that previews files
+  and images.
+- **Decision.** One pane per window, right of the list area (both sides
+  of a split), following the active tab's selection. Images go through
+  gdk-pixbuf at up to 1600 px, text through a 64 KB read, both on a
+  short-lived thread per selection; other types show details only (no
+  external thumbnailers or document renderers). Hidden by default.
+- **Consequences.** Moving through a list with the pane open starts a read
+  per selected file; only the newest result is shown. PDF, video and
+  office documents show no content preview.

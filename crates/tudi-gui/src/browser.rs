@@ -103,6 +103,12 @@ pub struct Browser {
     pub(crate) thumbs: Rc<crate::thumbs::Thumbnailer>,
     /// List / thumbnails switch (shown when the folder has images).
     pub(crate) view_toggle: gtk::Button,
+    /// This window (for code that holds only `&self`).
+    pub(crate) me: std::rc::Weak<Browser>,
+    /// The preview pane right of the list area, its split and its toggle.
+    pub(crate) preview: crate::preview::Preview,
+    pub(crate) preview_paned: gtk::Paned,
+    pub(crate) preview_toggle: gtk::ToggleButton,
     /// Show / hide hidden files (follows `Ctrl+H` and the settings).
     pub(crate) hidden_toggle: gtk::ToggleButton,
 
@@ -194,6 +200,13 @@ impl Browser {
             .tooltip_text(tr("Show Hidden Files (Ctrl+H)"))
             .active(show_hidden)
             .build();
+        let strip = crate::tabs::TabStrip::new();
+        let preview = crate::preview::Preview::new();
+        let (preview_paned, preview_toggle) =
+            Browser::build_preview(strip.stage.upcast_ref(), state.preview_width);
+        preview_paned.set_end_child(Some(&preview.widget));
+        preview.widget.set_visible(state.preview_width > 0);
+        preview_toggle.set_active(state.preview_width > 0);
         let view_toggle = gtk::Button::from_icon_name("view-grid-symbolic");
         view_toggle.set_visible(false);
         let gear = gtk::Button::from_icon_name("emblem-system-symbolic");
@@ -201,6 +214,7 @@ impl Browser {
         header.pack_end(&gear);
         header.pack_end(&view_toggle);
         header.pack_end(&hidden_toggle);
+        header.pack_end(&preview_toggle);
         header.set_title_widget(Some(&path_entry));
 
         let status = gtk::Label::new(None);
@@ -271,12 +285,16 @@ impl Browser {
                 tabs: RefCell::new(vec![first_tab.clone()]),
                 active: RefCell::new(first_tab),
                 tab_ctx: RefCell::default(),
-                strip: crate::tabs::TabStrip::new(),
+                strip,
                 next_tab_id: Cell::new(1),
                 generations: Cell::new(0),
                 thumbs: thumbs.clone(),
                 view_toggle: view_toggle.clone(),
                 hidden_toggle: hidden_toggle.clone(),
+                me: weak.clone(),
+                preview,
+                preview_paned: preview_paned.clone(),
+                preview_toggle: preview_toggle.clone(),
                 path_entry,
                 back,
                 forward,
@@ -295,7 +313,7 @@ impl Browser {
             .build();
         tree_scroll.add_css_class("tudi-tree-scroll");
         let files = gtk::Box::new(gtk::Orientation::Vertical, 0);
-        files.append(&b.strip.stage);
+        files.append(&b.preview_paned);
         let right = &files;
         // The divider between the panes is draggable; a wide handle makes it
         // easy to grab (the theme's default is a 1 px line).
@@ -356,6 +374,14 @@ impl Browser {
         });
         b.spawn_reply_loop(replies);
         b.spawn_thumb_loop(thumb_rx);
+        let w = Rc::downgrade(&b);
+        b.preview_toggle.connect_toggled(move |t| {
+            if let Some(b) = w.upgrade()
+                && t.is_active() != b.preview_shown()
+            {
+                b.set_preview(t.is_active());
+            }
+        });
         let w = Rc::downgrade(&b);
         b.hidden_toggle.connect_toggled(move |t| {
             if let Some(b) = w.upgrade()
@@ -576,6 +602,7 @@ impl Browser {
         );
         add("<Control>Page_Up", Box::new(|b| b.cycle_tab(-1)));
         add("<Control>backslash", Box::new(|b| b.toggle_tile()));
+        add("<Alt>p", Box::new(|b| b.toggle_preview()));
         add("<Control>1", Box::new(|b| b.set_thumbnails(false)));
         add("<Control>2", Box::new(|b| b.set_thumbnails(true)));
         self.window.add_controller(ctl);
@@ -1148,6 +1175,7 @@ impl Browser {
             zoom: crate::zoom::level(),
             tree_width: self.paned.borrow().as_ref().map_or(280, |p| p.position()),
             size_column: self.columns.size.get().unwrap_or(0),
+            preview_width: self.preview_width(),
             date_column: self.columns.date.get().unwrap_or(0),
             width: self.window.default_width(),
             height: self.window.default_height(),
@@ -1397,6 +1425,7 @@ impl Browser {
             return;
         }
         self.update_view_toggle();
+        self.update_preview();
         let mut text = self.activity_text();
         if let Some(e) = self.tab().pane_error.borrow().as_deref() {
             text.push_str(e);

@@ -243,6 +243,7 @@ fn step(b: Rc<Browser>, queue: Queue, delay: Duration) {
             }
             "closetab" => b.close_active_tab(),
             "thumbs" => b.set_thumbnails(arg != "off"),
+            "preview" => b.set_preview(arg != "off"),
             "tile" => b.toggle_tile(),
             "shot" => screenshot(&b, Path::new(arg)),
             "quit" => {
