@@ -122,6 +122,10 @@ pub struct Browser {
     pub(crate) history: RefCell<Vec<PathBuf>>,
     pub(crate) future: RefCell<Vec<PathBuf>>,
     pub(crate) generation: Cell<u64>,
+    /// The order parameters (sort, hidden, find filter) changed while a
+    /// newer listing was in flight or before the first one arrived: re-sort
+    /// when it arrives (it was computed with the old parameters).
+    resort_pending: Cell<bool>,
     pub(crate) spec: Cell<SortSpec>,
     pub(crate) show_hidden: Cell<bool>,
     /// Entry name to select once the next listing arrives (e.g. the folder
@@ -308,6 +312,7 @@ impl Browser {
                 history: RefCell::default(),
                 future: RefCell::default(),
                 generation: Cell::new(0),
+                resort_pending: Cell::new(false),
                 spec: Cell::new(spec),
                 show_hidden: Cell::new(show_hidden),
                 select_after_load: RefCell::default(),
@@ -671,9 +676,8 @@ impl Browser {
     pub fn navigate(self: &Rc<Self>, path: &Path, push_history: bool) {
         let path = path.to_path_buf();
         if *self.current.borrow() != path {
-            // The filter belongs to the folder it was typed in.
-            self.find.revealer.set_reveal_child(false);
-            self.find.filter.replace(None);
+            // The find text and filter belong to the folder they were typed in.
+            self.reset_find();
         }
         {
             let mut cur = self.current.borrow_mut();
@@ -697,6 +701,8 @@ impl Browser {
         )));
         self.back.set_sensitive(!self.history.borrow().is_empty());
         self.forward.set_sensitive(!self.future.borrow().is_empty());
+        // The new listing is ordered with the current parameters.
+        self.resort_pending.set(false);
         self.worker.send(Job::ListPane {
             path: path.clone(),
             generation,
@@ -1151,6 +1157,11 @@ impl Browser {
 
     pub(crate) fn request_sort(&self) {
         let d = self.pane.data();
+        if d.listing.is_none() || d.generation != self.generation.get() {
+            // A newer listing is on its way, ordered with the old
+            // parameters; its Sorted reply would also reject this one.
+            self.resort_pending.set(true);
+        }
         let (Some(listing), Some(rank)) = (d.listing.clone(), d.rank.clone()) else {
             return;
         };
@@ -1335,6 +1346,9 @@ impl Browser {
                     self.worker.meta_sink(),
                 )));
                 self.after_order_change(Vec::new(), p.select);
+                if self.resort_pending.take() {
+                    self.request_sort();
+                }
                 self.start_folder_size(p.generation);
             }
             Reply::FolderSize {
@@ -1357,6 +1371,8 @@ impl Browser {
                     return;
                 }
                 self.pane.clear(generation);
+                self.resort_pending.set(false);
+                self.find.cancel_focus_after_sort();
                 self.end_tasks(Task::Listing);
                 self.status.set_text(&error.to_string());
             }
@@ -1472,6 +1488,8 @@ impl Browser {
         self.generation.set(generation);
         self.end_tasks(Task::Listing);
         self.begin_task(Task::Listing);
+        // The new listing is ordered with the current parameters.
+        self.resort_pending.set(false);
         self.worker.send(Job::ListPane {
             path: self.current.borrow().clone(),
             generation,

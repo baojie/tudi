@@ -216,7 +216,9 @@ fn step(b: Rc<Browser>, queue: Queue, delay: Duration) {
     });
 }
 
-/// Print the current folder, the rows of both panes, and the selection.
+/// Print the current folder, the rows of both panes, the selection, the
+/// status bar, the find bar, the focused widget and the list's scroll
+/// position.
 fn dump(b: &Browser) {
     println!("dir: {}", b.current_dir().display());
     let d = b.pane.data();
@@ -234,6 +236,16 @@ fn dump(b: &Browser) {
         .map(|p| String::from_utf8_lossy(p.file_name().unwrap().as_bytes()).into_owned())
         .collect();
     println!("selected: {}", sel.join(" | "));
+    println!("status: {}", b.status.text());
+    println!(
+        "find: shown={} text={:?} error={} filter={:?}",
+        b.find.revealer.reveals_child(),
+        b.find.entry.text(),
+        b.find.entry.has_css_class("error"),
+        b.find.filter.borrow().as_deref()
+    );
+    println!("focus: {}", focus_desc(b));
+    println!("scroll: {:.0}", b.pane_scroll.vadjustment().value());
     let t = b.tree.tree();
     let rows: Vec<String> = t
         .rows()
@@ -283,4 +295,26 @@ fn screenshot(b: &Browser, out: &Path) {
     {
         tracing::error!("screenshot: {e}");
     }
+}
+
+/// The focused widget's type, and the first label text inside it (for a
+/// list row: its name column).
+fn focus_desc(b: &Browser) -> String {
+    let Some(w) = gtk::prelude::GtkWindowExt::focus(&b.window) else {
+        return "none".into();
+    };
+    fn first_label(w: &gtk::Widget) -> Option<String> {
+        if let Some(l) = w.downcast_ref::<gtk::Label>() {
+            return Some(l.text().to_string());
+        }
+        let mut c = w.first_child();
+        while let Some(child) = c {
+            if let Some(t) = first_label(&child) {
+                return Some(t);
+            }
+            c = child.next_sibling();
+        }
+        None
+    }
+    format!("{} {:?}", w.type_().name(), first_label(&w))
 }

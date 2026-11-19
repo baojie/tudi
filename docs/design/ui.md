@@ -127,8 +127,16 @@ and the worker drops non-matching rows after the hidden-file filter, so
 counts, selection and live reloads all see the filtered order; the status
 bar says "filtered by …" and focus moves to the list (the jumped-to row
 stays selected). `Enter` on an empty field removes the filter. `Esc` in the
-field or in the list hides the bar and removes the filter; showing another
-folder does too.
+field or in the list hides the bar and removes the filter, and focuses the
+selected row once the unfiltered order arrives (rows are positions, so the
+row cannot be focused before). Showing another folder hides the bar and
+clears its text, red state and filter.
+
+A filter (or sort, or hidden toggle) change while a newer listing is in
+flight, or before the first one arrived, sets `resort_pending`: that listing
+was ordered with the old parameters and its arrival rejects the older
+`Sorted` reply, so the order is recomputed when it arrives. Sending a new
+`ListPane` clears the flag (it carries the current parameters).
 
 ## Bookmarks bar and folder history (ADR-016)
 

@@ -48,6 +48,11 @@ impl FindBar {
             focus_after_sort: Cell::new(false),
         }
     }
+
+    /// Forget a pending "focus the list after the filtered order arrives".
+    pub fn cancel_focus_after_sort(&self) {
+        self.focus_after_sort.set(false);
+    }
 }
 
 impl Browser {
@@ -67,10 +72,28 @@ impl Browser {
         self.find.revealer.set_reveal_child(false);
         self.find.entry.remove_css_class("error");
         self.find.focus_after_sort.set(false);
-        self.set_find_filter(None);
-        if focus {
+        if !focus {
+            self.set_find_filter(None);
+        } else if self.set_find_filter(None) {
+            // Rows are positions: focus once the unfiltered order is in,
+            // where the selected entry has its new position.
+            self.find.focus_after_sort.set(true);
+        } else {
             self.focus_list_at_selection();
         }
+    }
+
+    /// Another folder is shown: hide the bar and forget its text, state and
+    /// filter (no re-sort: the new folder's listing is about to be
+    /// requested with the current filter, which is now none).
+    pub(crate) fn reset_find(&self) {
+        self.find.revealer.set_reveal_child(false);
+        self.find.focus_after_sort.set(false);
+        self.find.filter.replace(None);
+        if !self.find.entry.text().is_empty() {
+            self.find.entry.set_text("");
+        }
+        self.find.entry.remove_css_class("error");
     }
 
     fn focus_list_at_selection(&self) {
