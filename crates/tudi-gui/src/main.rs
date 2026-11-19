@@ -57,8 +57,9 @@ const CSS: &str = "
 .tudi-col-handle { margin: 3px 0; background: linear-gradient(to right, transparent 3px, alpha(currentColor, 0.12) 3px, alpha(currentColor, 0.12) 4px, transparent 4px); }
 .tudi-col-handle:hover { background: linear-gradient(to right, transparent 3px, alpha(currentColor, 0.4) 3px, alpha(currentColor, 0.4) 5px, transparent 5px); }
 /* A faint line between columns in every row, under the header's line
-   (the label's left border, pulled into the gap: content unmoved). */
-.tudi-details > row .tudi-col { margin-left: -1px; border-left: 1px solid alpha(currentColor, 0.08); }
+   (the label's left border, pulled into the gap: content unmoved; the
+   dim-label opacity halves it, hence the stronger alpha). */
+.tudi-details > row .tudi-col { margin: -2px 0 -2px -1px; padding: 2px 0; border-left: 1px solid alpha(currentColor, 0.22); }
 .tudi-details > row:selected .tudi-col { border-left-color: alpha(white, 0.25); }
 .tudi-details > row { padding: 2px 12px; min-height: 0; }
 .tudi-status { padding: 3px 12px; font-size: smaller; }

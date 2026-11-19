@@ -61,7 +61,9 @@ Code: `crates/tudi-gui/src/`. Plan: `docs/PLAN.md` §5.3, §5.7.
   (`size_column`, `date_column`, 0 = default).
 - A faint 1 px line separates the columns, in the header (drawn in the
   handle) and in every row (the size and date labels' left border, pulled
-  1 px into the gap so the text does not move); both sit at the same x.
+  1 px into the gap and 2 px into the row padding above and below so the
+  line is continuous and the text does not move; its alpha is higher
+  because `dim-label` halves it); both sit at the same x.
 
 ## Folder tree
 
