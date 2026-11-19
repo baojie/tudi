@@ -22,6 +22,9 @@ pub struct WindowState {
     pub zoom: u32,
     /// Width of the folder tree pane in pixels.
     pub tree_width: i32,
+    /// Widths of the list's size and date columns in pixels (0: default).
+    pub size_column: i32,
+    pub date_column: i32,
 }
 
 impl Default for WindowState {
@@ -34,6 +37,8 @@ impl Default for WindowState {
             expanded: Vec::new(),
             zoom: 100,
             tree_width: 280,
+            size_column: 0,
+            date_column: 0,
         }
     }
 }

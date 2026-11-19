@@ -284,6 +284,44 @@ impl PaneModel {
 
 const COL_SIZE_CHARS: i32 = 9;
 const COL_DATE_CHARS: i32 = 11;
+/// Narrowest and widest a dragged column gets, in pixels.
+const COL_MIN: i32 = 24;
+const COL_MAX: i32 = 800;
+
+/// Widths of the size and date columns in pixels, set by dragging the
+/// handles in the column header; `None` is the default width in characters
+/// (which follows the zoom). The name column takes the rest. Shared by the
+/// header and the rows (applied to a row when it is bound).
+#[derive(Default)]
+pub struct Columns {
+    pub size: Cell<Option<i32>>,
+    pub date: Cell<Option<i32>>,
+}
+
+/// Give a size or date label (row or header) its column width.
+fn apply_width(label: &gtk::Label, px: Option<i32>, chars: i32) {
+    match px {
+        Some(px) => {
+            // Narrow natural width, so the size request is the width.
+            label.set_width_chars(-1);
+            label.set_max_width_chars(1);
+            label.set_ellipsize(pango::EllipsizeMode::End);
+            label.set_size_request(px, -1);
+        }
+        None => {
+            label.set_width_chars(chars);
+            label.set_max_width_chars(-1);
+            label.set_ellipsize(pango::EllipsizeMode::None);
+            label.set_size_request(-1, -1);
+        }
+    }
+}
+
+fn apply_row_widths(row: &gtk::Box, cols: &Columns) {
+    let p = parts(row);
+    apply_width(&p.size, cols.size.get(), COL_SIZE_CHARS);
+    apply_width(&p.date, cols.date.get(), COL_DATE_CHARS);
+}
 
 fn fixed_label(chars: i32) -> gtk::Label {
     let l = gtk::Label::new(None);
@@ -417,6 +455,7 @@ pub fn build_view(
     model: &PaneModel,
     selection: &gtk::MultiSelection,
     wanted: &Wanted,
+    columns: &Rc<Columns>,
     on_menu: MenuFn,
     on_drop: RowDropFn,
 ) -> gtk::ListView {
@@ -450,12 +489,14 @@ pub fn build_view(
             r.set(w);
         });
     });
-    let (m, w) = (model.clone(), wanted.clone());
+    let (m, w, cols) = (model.clone(), wanted.clone(), columns.clone());
     factory.connect_bind(move |_, item| {
         let item = item.downcast_ref::<gtk::ListItem>().unwrap();
         let row = item.child().and_downcast::<gtk::Box>().unwrap();
         let pos = item.item().and_downcast::<PaneRow>().unwrap().position();
         let t0 = std::time::Instant::now();
+        // Unchanged widths are no-ops (GTK setters compare first).
+        apply_row_widths(&row, &cols);
         fill(&row, &m, pos);
         crate::bench::ROW_WORK.with(|r| {
             let mut w = r.get();
@@ -513,9 +554,13 @@ pub fn build_view(
 }
 
 /// Column header row matching the row layout. Returns the box and the three
-/// buttons (name, size, modified).
-pub fn build_header() -> (gtk::Box, [gtk::Button; 3]) {
-    let header = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+/// buttons (name, size, modified). Between the buttons are drag handles:
+/// the one left of a column sets that column's width (dragging left widens
+/// it; the name column takes the rest); a double-click restores the
+/// default. The widths are saved with the window state.
+pub fn build_header(model: &PaneModel, columns: &Rc<Columns>) -> (gtk::Box, [gtk::Button; 3]) {
+    // No spacing: the handles fill the gaps the rows have between columns.
+    let header = gtk::Box::new(gtk::Orientation::Horizontal, 0);
     header.add_css_class("tudi-column-header");
     // Widths in characters, like the row labels, so the columns stay
     // aligned at any zoom level.
@@ -533,8 +578,79 @@ pub fn build_header() -> (gtk::Box, [gtk::Button; 3]) {
     name.set_hexpand(true);
     let size = mk(&tr("Size"), 1.0, COL_SIZE_CHARS);
     let date = mk(&tr("Modified"), 1.0, COL_DATE_CHARS);
+    let label_of = |b: &gtk::Button| b.child().and_downcast::<gtk::Label>().unwrap();
+    let (size_label, date_label) = (label_of(&size), label_of(&date));
+    apply_width(&size_label, columns.size.get(), COL_SIZE_CHARS);
+    apply_width(&date_label, columns.date.get(), COL_DATE_CHARS);
+    // Re-apply the widths to the header label and the bound rows.
+    let refresh: Rc<dyn Fn()> = {
+        let (m, cols) = (model.clone(), columns.clone());
+        let (sl, dl) = (size_label.clone(), date_label.clone());
+        Rc::new(move || {
+            apply_width(&sl, cols.size.get(), COL_SIZE_CHARS);
+            apply_width(&dl, cols.date.get(), COL_DATE_CHARS);
+            // Only bound rows (on screen, a few dozen); the others get the
+            // widths when bound.
+            for row in m.imp().bound.borrow().values().filter_map(|w| w.upgrade()) {
+                apply_row_widths(&row, &cols);
+            }
+        })
+    };
+    let handle = |column: gtk::Button, is_size: bool| {
+        let h = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+        h.set_size_request(8, -1);
+        h.add_css_class("tudi-col-handle");
+        h.set_cursor_from_name(Some("col-resize"));
+        let drag = gtk::GestureDrag::new();
+        // The handle moves with the column edge, so its own coordinates are
+        // not a fixed frame: measure the pointer in the window's.
+        let in_window = |w: &gtk::Widget, x: f64| {
+            let root = w.root()?;
+            w.compute_point(&root, &gtk::graphene::Point::new(x as f32, 0.0))
+                .map(|p| f64::from(p.x()))
+        };
+        // (column width, pointer x in the window) at the press.
+        let start = Rc::new(Cell::new((0, 0.0)));
+        let (st, col) = (start.clone(), column.clone());
+        drag.connect_drag_begin(move |g, x, _| {
+            g.set_state(gtk::EventSequenceState::Claimed);
+            let Some(w) = g.widget() else { return };
+            // The label's width: the button has no horizontal padding.
+            st.set((col.width(), in_window(&w, x).unwrap_or(0.0)));
+        });
+        let (st, cols, r) = (start.clone(), columns.clone(), refresh.clone());
+        drag.connect_drag_update(move |g, dx, _| {
+            let (Some(w), Some((sx, _))) = (g.widget(), g.start_point()) else {
+                return;
+            };
+            let Some(now) = in_window(&w, sx + dx) else {
+                return;
+            };
+            let (width, x0) = st.get();
+            let px = (width - (now - x0).round() as i32).clamp(COL_MIN, COL_MAX);
+            let c = if is_size { &cols.size } else { &cols.date };
+            if c.get() != Some(px) {
+                c.set(Some(px));
+                r();
+            }
+        });
+        h.add_controller(drag);
+        let reset = gtk::GestureClick::new();
+        let (cols, r) = (columns.clone(), refresh.clone());
+        reset.connect_pressed(move |_, n, _, _| {
+            if n == 2 {
+                let c = if is_size { &cols.size } else { &cols.date };
+                c.set(None);
+                r();
+            }
+        });
+        h.add_controller(reset);
+        h
+    };
     header.append(&name);
+    header.append(&handle(size.clone(), true));
     header.append(&size);
+    header.append(&handle(date.clone(), false));
     header.append(&date);
     (header, [name, size, date])
 }

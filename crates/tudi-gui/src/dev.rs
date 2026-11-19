@@ -294,6 +294,21 @@ fn dump(b: &Browser) {
         );
     }
     println!("bar: {}", b.dev_bar_labels().join(" | "));
+    // Column header: each button's x range in window coordinates.
+    let cols: Vec<String> = b
+        .sort_buttons
+        .iter()
+        .filter_map(|btn| btn.compute_bounds(&b.window))
+        .map(|r| {
+            format!(
+                "{:.0}-{:.0}@{:.0}",
+                r.x(),
+                r.x() + r.width(),
+                r.y() + r.height() / 2.0
+            )
+        })
+        .collect();
+    println!("columns: {}", cols.join(" "));
     let n = b.search.model.n_items();
     for i in 0..n.min(5) {
         if let Some(r) = b.search.model.get(i) {

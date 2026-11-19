@@ -49,6 +49,15 @@ Code: `crates/tudi-gui/src/`. Plan: `docs/PLAN.md` §5.3, §5.7.
 - Type-ahead scans at most 4,096 rows per main-loop turn and continues in
   idle callbacks; a newer keystroke cancels an older scan.
 - The status bar sums sizes only for selections of ≤ 5,000 entries.
+- Column widths: the header has an 8 px drag handle left of the size and
+  date columns (the gaps the rows have between columns). Dragging sets that
+  column's width in pixels (24–800; the name column takes the rest);
+  double-click restores the default width in characters, which follows
+  the zoom. Widths live in `pane::Columns`, shared by the header and the
+  rows; a drag re-applies them to the bound rows only, and a row gets them
+  when bound. The drag is measured in window coordinates, since the handle
+  moves with the column edge. Saved per window in `state.toml`
+  (`size_column`, `date_column`, 0 = default).
 
 ## Folder tree
 

@@ -53,6 +53,8 @@ const CSS: &str = "
    so the header columns line up with the list columns. */
 .tudi-column-header { padding: 0 34px 0 12px; }
 .tudi-column-header button { padding: 2px 0; min-height: 0; font-weight: normal; }
+.tudi-col-handle { margin: 3px 0; }
+.tudi-col-handle:hover { background: linear-gradient(to right, transparent 3px, alpha(currentColor, 0.35) 3px, alpha(currentColor, 0.35) 5px, transparent 5px); }
 .tudi-details > row { padding: 2px 12px; min-height: 0; }
 .tudi-status { padding: 3px 12px; font-size: smaller; }
 .tudi-expander { opacity: 0.7; }

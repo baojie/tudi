@@ -104,6 +104,8 @@ pub struct Browser {
     pub(crate) pane: PaneModel,
     pub(crate) pane_sel: gtk::MultiSelection,
     pub(crate) pane_view: gtk::ListView,
+    /// Size and date column widths (dragged in the header).
+    pub(crate) columns: Rc<pane::Columns>,
     pub(crate) pane_scroll: gtk::ScrolledWindow,
     pub(crate) sort_buttons: [gtk::Button; 3],
     pub(crate) fetcher: RefCell<Option<MetaFetcher>>,
@@ -189,6 +191,10 @@ impl Browser {
         let pane = PaneModel::default();
         let pane_sel = gtk::MultiSelection::new(Some(pane.clone()));
         let wanted: Wanted = Rc::default();
+        let columns = Rc::new(pane::Columns::default());
+        let px = |w: i32| (w > 0).then_some(w);
+        columns.size.set(px(state.size_column));
+        columns.date.set(px(state.date_column));
         // The list is built before the browser; its menu handler finds the
         // browser through this slot, filled in below.
         let menu_slot: Rc<RefCell<std::rc::Weak<Browser>>> = Rc::default();
@@ -197,6 +203,7 @@ impl Browser {
             &pane,
             &pane_sel,
             &wanted,
+            &columns,
             Rc::new(move |pos, w, x, y| {
                 if let Some(b) = slot.borrow().upgrade() {
                     b.file_menu(pos, w, x, y);
@@ -211,7 +218,7 @@ impl Browser {
                 })
             },
         );
-        let (col_header, sort_buttons) = pane::build_header();
+        let (col_header, sort_buttons) = pane::build_header(&pane, &columns);
         let pane_scroll = gtk::ScrolledWindow::builder()
             .overlay_scrolling(false)
             .hscrollbar_policy(gtk::PolicyType::Never)
@@ -312,6 +319,7 @@ impl Browser {
                 pane,
                 pane_sel,
                 pane_view,
+                columns,
                 pane_scroll,
                 sort_buttons,
                 fetcher: RefCell::default(),
@@ -1037,6 +1045,8 @@ impl Browser {
         let mut st = WindowState {
             zoom: crate::zoom::level(),
             tree_width: self.paned.borrow().as_ref().map_or(280, |p| p.position()),
+            size_column: self.columns.size.get().unwrap_or(0),
+            date_column: self.columns.date.get().unwrap_or(0),
             width: self.window.default_width(),
             height: self.window.default_height(),
             maximized: self.window.is_maximized(),
