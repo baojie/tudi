@@ -10,8 +10,10 @@
 //! script or app; dropping files on one runs it with them; right-click
 //! switches terminal / background, edits arguments, shows it in its folder.
 //!
-//! Bookmarks: `Ctrl+D` adds the current folder, `Alt+1..9` opens them,
-//! right-click renames / moves / removes, drag and drop reorders.
+//! Bookmarks: `Ctrl+D` adds the current folder, `Alt+1..9` opens them (in
+//! the shown order), right-click renames / removes. Bookmarks and frequent
+//! folders are each ordered by how often they were opened, most first
+//! (ties keep the saved order).
 //! Frequent folders: right-click pins as a bookmark, excludes from the
 //! history (with or without subfolders) or forgets.
 
@@ -323,22 +325,6 @@ impl Browser {
                 b.shared.bookmarks_changed();
             }),
         );
-        add(
-            "bookmark-left",
-            Box::new(|b, i| {
-                if i > 0 {
-                    b.shared.bookmarks.borrow_mut().move_to(i, i - 1);
-                    b.shared.bookmarks_changed();
-                }
-            }),
-        );
-        add(
-            "bookmark-right",
-            Box::new(|b, i| {
-                b.shared.bookmarks.borrow_mut().move_to(i, i + 1);
-                b.shared.bookmarks_changed();
-            }),
-        );
         add("pin", Box::new(|b, i| b.pin_frequent(i)));
         add(
             "run-launcher",
@@ -415,9 +401,27 @@ impl Browser {
         }
     }
 
-    /// `Alt+1..9`.
-    pub(crate) fn open_bookmark(self: &Rc<Self>, i: usize) {
-        self.open_target(Target::Bookmark(i));
+    /// `Alt+1..9`: the `n`th bookmark as shown.
+    pub(crate) fn open_bookmark(self: &Rc<Self>, n: usize) {
+        if let Some(&i) = self.bookmark_order().get(n) {
+            self.open_target(Target::Bookmark(i));
+        }
+    }
+
+    /// Bookmark indices in display order: most opened first, ties in the
+    /// saved order.
+    fn bookmark_order(&self) -> Vec<usize> {
+        let bookmarks = self.shared.bookmarks.borrow();
+        let hist = self.hist.borrow();
+        let count = |i: usize| {
+            hist.counts
+                .get(Path::new(&bookmarks.items[i].path))
+                .copied()
+                .unwrap_or(0)
+        };
+        let mut order: Vec<usize> = (0..bookmarks.items.len()).collect();
+        order.sort_by_key(|&i| std::cmp::Reverse(count(i)));
+        order
     }
 
     /// `Ctrl+D`: bookmark the current folder.
@@ -479,6 +483,7 @@ impl Browser {
             self.bar_box.remove(&c);
         }
         self.bar.separator.replace(None);
+        let order = self.bookmark_order();
         let bookmarks = self.shared.bookmarks.borrow();
         let hist = self.hist.borrow();
         let mut items: Vec<BarItem> = Vec::new();
@@ -532,11 +537,16 @@ impl Browser {
                 btn
             });
         }
-        for (i, bm) in bookmarks.items.iter().enumerate() {
+        for (n, &i) in order.iter().enumerate() {
+            let bm = &bookmarks.items[i];
             let label = bm.label();
             let mut tip = bm.path.clone();
-            if i < 9 {
-                tip.push_str(&format!("  (Alt+{})", i + 1));
+            if let Some(&c) = hist.counts.get(Path::new(&bm.path)) {
+                tip.push('\n');
+                tip.push_str(&fill(&ntr("opened {} time", "opened {} times", c), &[&c]));
+            }
+            if n < 9 {
+                tip.push_str(&format!("  (Alt+{})", n + 1));
             }
             let item = gio::MenuItem::new(Some(&label), None);
             item.set_action_and_target_value(
@@ -547,8 +557,7 @@ impl Browser {
                 let btn = folder_button(&label, &tip);
                 btn.set_action_name(Some("bar.open-bookmark"));
                 btn.set_action_target_value(Some(&(i as i32).to_variant()));
-                self.bookmark_menu(&btn, i, bookmarks.items.len());
-                self.bookmark_drag(&btn, i);
+                self.bookmark_menu(&btn, i);
                 btn
             });
         }
@@ -558,12 +567,14 @@ impl Browser {
             hint.add_css_class("tudi-bar-hint");
             self.bar_box.append(&hint);
         }
-        let freq: Vec<(usize, &tudi_core::frecency::Entry)> = hist
+        let mut freq: Vec<(usize, &tudi_core::frecency::Entry)> = hist
             .entries
             .iter()
             .enumerate()
             .filter(|(_, e)| !bookmarks.contains(&e.path))
             .collect();
+        // The most used folders (by frecency), most opened first.
+        freq.sort_by_key(|(_, e)| std::cmp::Reverse(e.count));
         if !freq.is_empty() && items.len() < MAX_BUILT {
             let sep = gtk::Separator::new(gtk::Orientation::Vertical);
             self.bar_box.append(&sep);
@@ -624,7 +635,7 @@ impl Browser {
         btn.add_controller(click);
     }
 
-    fn bookmark_menu(&self, btn: &gtk::Button, i: usize, n: usize) {
+    fn bookmark_menu(&self, btn: &gtk::Button, i: usize) {
         let menu = gio::Menu::new();
         let item = |label: String, action: &str| {
             let it = gio::MenuItem::new(Some(&label), None);
@@ -632,12 +643,6 @@ impl Browser {
             it
         };
         menu.append_item(&item(tr("Rename…"), "bar.rename-bookmark"));
-        if i > 0 {
-            menu.append_item(&item(tr("Move Left"), "bar.bookmark-left"));
-        }
-        if i + 1 < n {
-            menu.append_item(&item(tr("Move Right"), "bar.bookmark-right"));
-        }
         menu.append_item(&item(tr("Remove Bookmark"), "bar.remove-bookmark"));
         Self::on_right_click(btn, menu);
     }
@@ -807,36 +812,6 @@ impl Browser {
             *self.select_after_load.borrow_mut() = Some(name.as_bytes().to_vec());
             self.navigate(dir, true);
         }
-    }
-
-    /// Drag a bookmark onto another to move it there.
-    fn bookmark_drag(&self, btn: &gtk::Button, i: usize) {
-        let src = gtk::DragSource::new();
-        src.set_actions(gdk::DragAction::MOVE);
-        src.connect_prepare(move |_, _, _| {
-            Some(gdk::ContentProvider::for_value(
-                &format!("tudi-bookmark:{i}").to_value(),
-            ))
-        });
-        btn.add_controller(src);
-        let drop = gtk::DropTarget::new(glib::Type::STRING, gdk::DragAction::MOVE);
-        let shared = Rc::downgrade(&self.shared);
-        drop.connect_drop(move |_, v, _, _| {
-            let Some(from) = v
-                .get::<String>()
-                .ok()
-                .and_then(|s| s.strip_prefix("tudi-bookmark:")?.parse::<usize>().ok())
-            else {
-                return false;
-            };
-            if let Some(sh) = shared.upgrade() {
-                sh.bookmarks.borrow_mut().move_to(from, i);
-                // Rebuild after the drag finishes (this button is replaced).
-                glib::idle_add_local_once(move || sh.bookmarks_changed());
-            }
-            true
-        });
-        btn.add_controller(drop);
     }
 }
 

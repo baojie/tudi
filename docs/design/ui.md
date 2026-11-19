@@ -176,9 +176,11 @@ columns (CJK counts two), with an ellipsis; tooltips and the drop-down
 show the full name.
 
 - `bar.rs`: a bar under the header, like a browser's bookmarks bar: the
-  user's bookmarks (`bookmarks.toml`, `Ctrl+D`, `Alt+1..9`, right-click to
-  rename / move / remove, drag to reorder), a separator, then up to 12 most
-  used folders by frecency (tooltip: path, open count, last visit;
+  user's bookmarks (`bookmarks.toml`, `Ctrl+D`, `Alt+1..9` in the shown
+  order, right-click to rename / remove), a separator, then up to 12 most
+  used folders by frecency. Both groups are ordered by open count, most
+  first (ADR-023): the history snapshot carries every folder's count;
+  bookmarks never opened keep their saved order at the end (tooltip: path, open count, last visit;
   right-click: pin as bookmark, never show — folder or with subfolders —,
   remove from history). The buttons are clipped, not wrapped; a "»" menu
   lists all bookmarks and the 30 most used folders.

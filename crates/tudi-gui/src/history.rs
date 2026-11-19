@@ -33,6 +33,8 @@ enum Req {
 pub struct Snapshot {
     pub entries: Vec<Entry>,
     pub exclusions: Vec<Exclusion>,
+    /// Open counts of every recorded folder (orders the bookmarks).
+    pub counts: std::collections::HashMap<PathBuf, u64>,
 }
 
 /// Handle to the history thread (one per process).
@@ -87,9 +89,11 @@ impl History {
                         Req::Import(force) => import_history(&mut store, force),
                         Req::Query(reply) => store.top(SHOWN, now()).and_then(|entries| {
                             let exclusions = store.exclusions()?;
+                            let counts = store.counts()?;
                             let _ = reply.send_blocking(Reply::History(Snapshot {
                                 entries,
                                 exclusions,
+                                counts,
                             }));
                             Ok(())
                         }),

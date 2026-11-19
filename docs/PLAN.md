@@ -488,8 +488,9 @@ Layout (libadwaita `AdwApplicationWindow`):
 - **Bookmarks bar** below the header, like a web browser's: one button per
   bookmark, numbered for `Alt+1..9`, overflow into a `»` menu; a
   "Frequent ▾" menu at the right end lists the top frecency directories not
-  already bookmarked. `Ctrl+D` bookmarks the current folder; drag to
-  reorder; right-click to rename/remove. Stored in
+  already bookmarked. `Ctrl+D` bookmarks the current folder; bookmarks
+  are ordered by open count, most first (ADR-023); right-click to
+  rename/remove. Stored in
   `$XDG_CONFIG_HOME/tudi/bookmarks.toml`.
 - **Launchers** (ADR-014): a special root "Launchers" in the folder tree
   (and a button at the left end of the bookmarks bar) whose list shows the

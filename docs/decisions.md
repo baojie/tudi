@@ -336,3 +336,17 @@ through `sh` / `python3`; `.desktop` files through `gio launch`.
 - **Consequences.** Dragging within tudi moves files by default, which is
   what most users expect on one disk. Large cross-disk copies show only the
   status-bar spinner until the M9 progress UI.
+
+## ADR-023: The bookmarks bar is ordered by open count
+
+- **Context.** The maintainer wants the bar's buttons in the order of how
+  often each folder was opened, not a hand-arranged order.
+- **Decision.** Bookmarks are shown by their open count in the folder
+  history (most first; ties, including never-opened bookmarks, keep the
+  saved order), and the frequent folders after the separator are the same
+  frecency top list as before, shown by open count. `Alt+1..9` follow the
+  shown order. Moving bookmarks left/right and drag-to-reorder are removed.
+  The history thread sends every folder's count with each snapshot.
+- **Consequences.** The order changes as folders are used, so `Alt+N` is
+  not a fixed binding. `bookmarks.toml` keeps its order, used only for
+  ties.

@@ -245,6 +245,20 @@ impl Frecency {
         Ok(all)
     }
 
+    /// Visits ever recorded per folder (folders matching the rules left out).
+    pub fn counts(&self) -> Result<std::collections::HashMap<PathBuf, u64>, FrecencyError> {
+        let mut stmt = self.db.prepare_cached("SELECT path, count FROM dirs")?;
+        let rows = stmt.query_map([], |r| Ok((path(r.get(0)?), r.get::<_, i64>(1)? as u64)))?;
+        let mut out = std::collections::HashMap::new();
+        for row in rows {
+            let (p, n) = row?;
+            if !self.rules.matches(&p) {
+                out.insert(p, n);
+            }
+        }
+        Ok(out)
+    }
+
     /// Exclude `dir` (and, if `recursive`, everything below it) and delete
     /// the matching records.
     pub fn exclude(&mut self, dir: &Path, recursive: bool) -> Result<(), FrecencyError> {
@@ -362,6 +376,10 @@ mod tests {
         assert_eq!(top[1].count, 5);
         assert_eq!(top[1].last, NOW - 30 * DAY);
         assert_eq!(f.top(1, NOW).unwrap().len(), 1);
+        let counts = f.counts().unwrap();
+        assert_eq!(counts.len(), 3);
+        assert_eq!(counts[Path::new("/w/old")], 5);
+        assert_eq!(counts[Path::new("/w/once")], 1);
     }
 
     #[test]
