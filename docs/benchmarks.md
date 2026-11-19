@@ -154,3 +154,14 @@ represent real names; the index arrays plus search data alone take
 
 Pinyin collation (optional, worker thread), `flat-100k` (12 % CJK names):
 name ranking 10.6 ms → 14.3 ms (`cargo bench -p tudi-core -- name-rank`).
+
+### Find-bar filter (2026-11-20)
+
+`name_contains` (lossy UTF-8 → lowercase → substring) over all 100,000
+names of `flat-100k` (88 % ASCII), release, best of 20, load average ≈ 2.5:
+4.7–6.3 ms for the needles `table-2`, `report`, `资料`, `q`. While a filter
+is set every `Job::Sort` / `Job::ListPane` pays this once on the worker:
+list + sort of `flat-100k` 31.8 ms → ≈ 37 ms (budget < 80 ms); a re-sort
+by name (`order`, 0.21 ms) becomes ≈ 5 ms, off the main thread. An
+allocation-free ASCII path (byte windows, or a stack buffer plus
+`str::contains`) measured the same within noise and was not adopted.
