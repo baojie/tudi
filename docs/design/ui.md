@@ -113,6 +113,10 @@ reading file details, measuring the folder size, copying, moving, trashing
 — registers a `Task` while it runs. Tasks running longer than 300 ms show a
 spinner and a label ("Measuring folder size…") at the start of the status
 bar, so a busy window says what it is doing; shorter ones never appear.
+The status text is always rebuilt whole by `update_status` (a task's
+delayed display calls it too), so nothing else writes the label: a listing
+error is kept in `pane_error` and shown instead of the counts until the
+next listing is requested.
 
 ## Find in folder
 

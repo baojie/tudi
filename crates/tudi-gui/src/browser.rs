@@ -13,10 +13,9 @@ use tudi_core::config::SortBy;
 use tudi_core::listing::meta::{MetaFetcher, MetaStatus};
 use tudi_core::listing::sort::{SortKey, SortSpec};
 use tudi_core::state::WindowState;
-
-use crate::activity::Task;
 use tudi_core::tree::{Expand, NodeId};
 
+use crate::activity::Task;
 use crate::history::Snapshot;
 use crate::i18n::{fill, ntr, tr};
 use crate::pane::{self, PaneModel, Wanted};
@@ -126,6 +125,9 @@ pub struct Browser {
     /// newer listing was in flight or before the first one arrived: re-sort
     /// when it arrives (it was computed with the old parameters).
     resort_pending: Cell<bool>,
+    /// Why the shown folder could not be listed; the status bar shows it
+    /// instead of the counts until the next listing.
+    pane_error: RefCell<Option<String>>,
     pub(crate) spec: Cell<SortSpec>,
     pub(crate) show_hidden: Cell<bool>,
     /// Entry name to select once the next listing arrives (e.g. the folder
@@ -313,6 +315,7 @@ impl Browser {
                 future: RefCell::default(),
                 generation: Cell::new(0),
                 resort_pending: Cell::new(false),
+                pane_error: RefCell::default(),
                 spec: Cell::new(spec),
                 show_hidden: Cell::new(show_hidden),
                 select_after_load: RefCell::default(),
@@ -703,6 +706,7 @@ impl Browser {
         self.forward.set_sensitive(!self.future.borrow().is_empty());
         // The new listing is ordered with the current parameters.
         self.resort_pending.set(false);
+        self.pane_error.replace(None);
         self.worker.send(Job::ListPane {
             path: path.clone(),
             generation,
@@ -1247,6 +1251,11 @@ impl Browser {
 
     pub(crate) fn update_status(&self) {
         let mut text = self.activity_text();
+        if let Some(e) = self.pane_error.borrow().as_deref() {
+            text.push_str(e);
+            self.status.set_text(&text);
+            return;
+        }
         let d = self.pane.data();
         let (files, dirs) = (u64::from(d.files), u64::from(d.dirs));
         text += &fill(&ntr("{} file", "{} files", files), &[&fmt_count(files)]);
@@ -1373,8 +1382,11 @@ impl Browser {
                 self.pane.clear(generation);
                 self.resort_pending.set(false);
                 self.find.cancel_focus_after_sort();
+                // Stored, not written to the label: any later status update
+                // (a task's delayed display, selection) would replace it.
+                self.pane_error.replace(Some(error.to_string()));
                 self.end_tasks(Task::Listing);
-                self.status.set_text(&error.to_string());
+                self.update_status();
             }
             Reply::Sorted { generation, order } => {
                 let keep = self.selected_entries();
@@ -1490,6 +1502,7 @@ impl Browser {
         self.begin_task(Task::Listing);
         // The new listing is ordered with the current parameters.
         self.resort_pending.set(false);
+        self.pane_error.replace(None);
         self.worker.send(Job::ListPane {
             path: self.current.borrow().clone(),
             generation,
