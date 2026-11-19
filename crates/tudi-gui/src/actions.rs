@@ -64,14 +64,15 @@ impl Match {
 
 impl Browser {
     pub(crate) fn current_dir(&self) -> PathBuf {
-        self.current.borrow().clone()
+        self.tab().current.borrow().clone()
     }
 
     /// Absolute paths of the selected entries.
     pub(crate) fn selected_paths(&self) -> Vec<PathBuf> {
         let dir = self.current_dir();
         let entries = self.selected_entries();
-        let d = self.pane.data();
+        let tab = self.tab();
+        let d = tab.pane.data();
         entries
             .into_iter()
             .map(|e| dir.join(OsStr::from_bytes(d.name(e))))
@@ -85,7 +86,7 @@ impl Browser {
     /// Re-list the current folder (after a change made by tudi itself),
     /// then select `select` if given.
     pub(crate) fn reload(self: &Rc<Self>, select: Option<Vec<u8>>) {
-        *self.select_after_load.borrow_mut() = select;
+        *self.tab().select_after_load.borrow_mut() = select;
         let cur = self.current_dir();
         self.navigate(&cur, false);
     }
@@ -98,7 +99,8 @@ impl Browser {
             return false;
         }
         let (prefix, serial) = {
-            let mut t = self.typeahead.borrow_mut();
+            let tab = self.tab();
+            let mut t = tab.typeahead.borrow_mut();
             let now = Instant::now();
             if t.last.is_none_or(|l| now - l > TYPEAHEAD_RESET) {
                 t.text.clear();
@@ -114,7 +116,7 @@ impl Browser {
         // The new serial stopped any running find-bar scan.
         self.find_scan_superseded();
         // Start at the current row when extending a match, else after it.
-        let n = self.pane.n_items() as usize;
+        let n = self.tab().pane.n_items() as usize;
         if n == 0 {
             return true;
         }
@@ -129,13 +131,14 @@ impl Browser {
     }
 
     pub(crate) fn focused_row(&self) -> Option<usize> {
-        let bits = self.pane_sel.selection();
+        let bits = self.tab().pane_sel.selection();
         (!bits.is_empty()).then(|| bits.minimum() as usize)
     }
 
     /// Start a new row scan, cancelling any running one.
     pub(crate) fn next_scan_serial(&self) -> u64 {
-        let mut t = self.typeahead.borrow_mut();
+        let tab = self.tab();
+        let mut t = tab.typeahead.borrow_mut();
         t.serial += 1;
         t.serial
     }
@@ -156,10 +159,10 @@ impl Browser {
         scanned: usize,
         forward: bool,
     ) {
-        if self.typeahead.borrow().serial != serial {
+        if self.tab().typeahead.borrow().serial != serial {
             return;
         }
-        let n = self.pane.n_items() as usize;
+        let n = self.tab().pane.n_items() as usize;
         if n == 0 {
             m.done(self, false);
             return;
@@ -173,20 +176,21 @@ impl Browser {
         };
         let end = (scanned + SCAN_CHUNK).min(n);
         let found = {
-            let d = self.pane.data();
+            let tab = self.tab();
+            let d = tab.pane.data();
             (scanned..end)
                 .map(row_at)
                 .find(|&row| m.matches(d.name(d.order[row])))
         };
         if let Some(row) = found {
-            self.pane_sel.select_item(row as u32, true);
+            self.tab().pane_sel.select_item(row as u32, true);
             // From the find bar, keep the keyboard focus in its entry.
             let flags = if m.focus_list() {
                 gtk::ListScrollFlags::FOCUS
             } else {
                 gtk::ListScrollFlags::NONE
             };
-            self.pane_view.scroll_to(row as u32, flags, None);
+            self.tab().pane_view.scroll_to(row as u32, flags, None);
             m.done(self, true);
             return;
         }
@@ -234,7 +238,7 @@ impl Browser {
 
     /// Ctrl+A.
     pub(crate) fn select_all(&self) {
-        self.pane_sel.select_all();
+        self.tab().pane_sel.select_all();
     }
 
     /// Ctrl+V: copy (or move, after a cut) the files on the clipboard into
@@ -564,6 +568,11 @@ impl Browser {
             group.add_action(&a);
         };
         add("open", |b| b.open_selected());
+        add("open-tab", |b| {
+            if let Some(p) = b.selected_paths().into_iter().next() {
+                b.open_in_new_tab(&p);
+            }
+        });
         add("copy", |b| b.copy_files());
         add("cut", |b| b.cut_files());
         add("paste", |b| b.paste());
@@ -596,7 +605,8 @@ impl Browser {
         let mut files = Vec::new();
         let mut folder = None;
         {
-            let d = self.pane.data();
+            let tab = self.tab();
+            let d = tab.pane.data();
             let dir = self.current_dir();
             for e in entries {
                 let p = dir.join(OsStr::from_bytes(d.name(e)));
@@ -628,7 +638,8 @@ impl Browser {
     /// Bookmark the selected folder, or the current folder.
     pub(crate) fn bookmark_selected_folder(&self) {
         let target = {
-            let d = self.pane.data();
+            let tab = self.tab();
+            let d = tab.pane.data();
             self.selected_entries()
                 .into_iter()
                 .find(|&e| d.is_dir(e))
@@ -660,9 +671,9 @@ impl Browser {
         y: f64,
     ) {
         if let Some(p) = pos
-            && !self.pane_sel.is_selected(p)
+            && !self.tab().pane_sel.is_selected(p)
         {
-            self.pane_sel.select_item(p, true);
+            self.tab().pane_sel.select_item(p, true);
         }
         let item = |label: String, action: &str, accel: &str| {
             let it = gio::MenuItem::new(Some(&label), Some(action));
@@ -674,12 +685,16 @@ impl Browser {
         let menu = gio::Menu::new();
         if pos.is_some() {
             let one_folder = {
-                let d = self.pane.data();
+                let tab = self.tab();
+                let d = tab.pane.data();
                 let sel = self.selected_entries();
                 sel.len() == 1 && d.is_dir(sel[0])
             };
             let open = gio::Menu::new();
             open.append_item(&item(tr("Open"), "file.open", "Return"));
+            if one_folder {
+                open.append_item(&item(tr("Open in New Tab"), "file.open-tab", ""));
+            }
             open.append_item(&item(tr("Open in Editor"), "file.editor", "<Control>e"));
             menu.append_section(None, &open);
             let edit = gio::Menu::new();
@@ -747,7 +762,7 @@ impl Browser {
             let paths = b.selected_paths();
             (!paths.is_empty()).then(|| files_provider(&paths, false))
         });
-        self.pane_view.add_controller(src);
+        self.tab().pane_view.add_controller(src);
     }
 }
 

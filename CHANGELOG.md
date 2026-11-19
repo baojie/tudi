@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Tabs in the file list, named after their folder, "+" after the last tab
+  (`Ctrl+T`, `Ctrl+W`, `Ctrl+Tab`, middle-click a folder or "Open in New
+  Tab"); two tabs can be shown side by side (tab menu or `Ctrl+\`).
+  Tabs are restored on the next start.
 - Languages: Traditional Chinese, Japanese, Korean, German, French,
   Spanish, Portuguese (Brazil), Italian and Russian, selectable in the
   settings (or `[ui] language = "de"` …) whatever the system language.

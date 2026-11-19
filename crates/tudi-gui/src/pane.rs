@@ -439,6 +439,21 @@ fn fill(row: &gtk::Box, model: &PaneModel, position: u32) {
     }
 }
 
+impl PaneModel {
+    /// The position a bound row widget shows (a few dozen are bound).
+    pub fn bound_position(&self, row: &gtk::Widget) -> Option<u32> {
+        self.imp()
+            .bound
+            .borrow()
+            .iter()
+            .find(|(_, w)| {
+                w.upgrade()
+                    .is_some_and(|r| r.upcast_ref::<gtk::Widget>() == row)
+            })
+            .map(|(&p, _)| p)
+    }
+}
+
 /// Entries whose rows were bound while their metadata was pending: the
 /// visible rows, fetched first.
 pub type Wanted = std::rc::Rc<RefCell<Vec<u32>>>;

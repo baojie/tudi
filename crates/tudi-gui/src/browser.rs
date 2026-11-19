@@ -1,6 +1,6 @@
 //! One browser window: header bar (history, path), folder tree on the left,
-//! details list on the right, status bar. Owns navigation and wires worker
-//! replies into the two models.
+//! the tabs' details lists on the right (`tabs.rs`), status bar. Owns
+//! navigation and routes worker replies to the tree and the tabs.
 
 use std::cell::{Cell, RefCell};
 use std::path::{Path, PathBuf};
@@ -18,9 +18,10 @@ use tudi_core::tree::{Expand, NodeId};
 use crate::activity::Task;
 use crate::history::Snapshot;
 use crate::i18n::{fill, ntr, tr};
-use crate::pane::{self, PaneModel, Wanted};
+use crate::pane;
 use crate::shared::Shared;
 use crate::sidebar::{self, TreeModel};
+use crate::tabs::Tab;
 use crate::worker::{Job, Reply, WatchKey, Worker};
 
 /// Most directories watched for live updates per window (PLAN §5.1).
@@ -68,28 +69,13 @@ pub struct Browser {
     /// The folder the tree's context menu was opened on.
     pub(crate) tree_target: RefCell<Option<crate::tree_menu::Target>>,
     volume_monitor: RefCell<Option<gio::VolumeMonitor>>,
-    /// Total size below the shown folder, once computed (≤ 1 s).
-    folder_size: Cell<Option<u64>>,
-    /// Free space on the shown folder's filesystem.
-    free_space: Cell<Option<u64>>,
-    /// Cancels the running size computation.
-    size_cancel: RefCell<Option<Arc<std::sync::atomic::AtomicBool>>>,
-    /// Folder whose size is shown or being computed.
-    size_for: RefCell<PathBuf>,
-    /// The generation the size computation was started with (a live reload
-    /// of the same folder must not make its result look stale).
-    size_gen: Cell<u64>,
     zoom_toast: RefCell<Option<adw::Toast>>,
     paned: RefCell<Option<gtk::Paned>>,
     pub(crate) toasts: adw::ToastOverlay,
-    pub(crate) typeahead: crate::actions::TypeAheadState,
-    pub(crate) find: crate::find::FindBar,
     pub(crate) worker: Worker,
-    watcher: Option<tudi_core::watch::Watcher<WatchKey>>,
+    pub(crate) watcher: Option<tudi_core::watch::Watcher<WatchKey>>,
     /// Tree nodes with a live watch (expanded and listed).
     watched: RefCell<std::collections::HashSet<NodeId>>,
-    /// Scroll position to restore after a live reload of the pane.
-    keep_scroll: Cell<Option<f64>>,
 
     pub(crate) tree: TreeModel,
     pub(crate) tree_sel: gtk::SingleSelection,
@@ -101,16 +87,19 @@ pub struct Browser {
     /// Set while the tree selection is changed programmatically.
     pub(crate) syncing: Cell<bool>,
 
-    pub(crate) pane: PaneModel,
-    pub(crate) pane_sel: gtk::MultiSelection,
-    pub(crate) pane_view: gtk::ListView,
-    /// Size and date column widths (dragged in the header).
+    /// Size and date column widths (dragged in the header), shared by
+    /// the tabs.
     pub(crate) columns: Rc<pane::Columns>,
-    pub(crate) pane_scroll: gtk::ScrolledWindow,
-    pub(crate) sort_buttons: [gtk::Button; 3],
-    pub(crate) fetcher: RefCell<Option<MetaFetcher>>,
-    pub(crate) wanted: Wanted,
-    pub(crate) wanted_scheduled: Cell<bool>,
+    /// Tabs in strip order, the active one, and the tab being handled
+    /// (see `tabs.rs`).
+    pub(crate) tabs: RefCell<Vec<Rc<Tab>>>,
+    pub(crate) active: RefCell<Rc<Tab>>,
+    pub(crate) tab_ctx: RefCell<Vec<Rc<Tab>>>,
+    pub(crate) tiled: RefCell<Option<(Rc<Tab>, Rc<Tab>)>>,
+    pub(crate) strip: crate::tabs::TabStrip,
+    pub(crate) next_tab_id: Cell<u64>,
+    /// Listing generations, unique across tabs.
+    pub(crate) generations: Cell<u64>,
 
     pub(crate) path_entry: gtk::Entry,
     pub(crate) back: gtk::Button,
@@ -119,22 +108,7 @@ pub struct Browser {
     pub(crate) status_spinner: gtk::Spinner,
     pub(crate) activity: crate::activity::Activity,
 
-    pub(crate) current: RefCell<PathBuf>,
-    pub(crate) history: RefCell<Vec<PathBuf>>,
-    pub(crate) future: RefCell<Vec<PathBuf>>,
-    pub(crate) generation: Cell<u64>,
-    /// The order parameters (sort, hidden, find filter) changed while a
-    /// newer listing was in flight or before the first one arrived: re-sort
-    /// when it arrives (it was computed with the old parameters).
-    resort_pending: Cell<bool>,
-    /// Why the shown folder could not be listed; the status bar shows it
-    /// instead of the counts until the next listing.
-    pane_error: RefCell<Option<String>>,
-    pub(crate) spec: Cell<SortSpec>,
     pub(crate) show_hidden: Cell<bool>,
-    /// Entry name to select once the next listing arrives (e.g. the folder
-    /// we came from when going up).
-    pub(crate) select_after_load: RefCell<Option<Vec<u8>>>,
 }
 
 fn home() -> PathBuf {
@@ -157,6 +131,7 @@ impl Browser {
         start: &Path,
         state: &WindowState,
         shared: Rc<Shared>,
+        restore_tabs: bool,
     ) -> Rc<Self> {
         let config = shared.config.borrow().clone();
         let spec = SortSpec {
@@ -187,44 +162,11 @@ impl Browser {
         tree_sel.set_autoselect(false);
         tree_sel.set_can_unselect(true);
 
-        // --- pane
-        let pane = PaneModel::default();
-        let pane_sel = gtk::MultiSelection::new(Some(pane.clone()));
-        let wanted: Wanted = Rc::default();
+        // --- list (one per tab, see tabs.rs)
         let columns = Rc::new(pane::Columns::default());
         let px = |w: i32| (w > 0).then_some(w);
         columns.size.set(px(state.size_column));
         columns.date.set(px(state.date_column));
-        // The list is built before the browser; its menu handler finds the
-        // browser through this slot, filled in below.
-        let menu_slot: Rc<RefCell<std::rc::Weak<Browser>>> = Rc::default();
-        let slot = menu_slot.clone();
-        let pane_view = pane::build_view(
-            &pane,
-            &pane_sel,
-            &wanted,
-            &columns,
-            Rc::new(move |pos, w, x, y| {
-                if let Some(b) = slot.borrow().upgrade() {
-                    b.file_menu(pos, w, x, y);
-                }
-            }),
-            {
-                let slot = menu_slot.clone();
-                Rc::new(move |pos, files, mods| {
-                    slot.borrow()
-                        .upgrade()
-                        .is_some_and(|b| b.drop_on_pane(Some(pos), files, mods))
-                })
-            },
-        );
-        let (col_header, sort_buttons) = pane::build_header(&pane, &columns);
-        let pane_scroll = gtk::ScrolledWindow::builder()
-            .overlay_scrolling(false)
-            .hscrollbar_policy(gtk::PolicyType::Never)
-            .vexpand(true)
-            .child(&pane_view)
-            .build();
 
         // --- header bar
         let back = gtk::Button::from_icon_name("go-previous-symbolic");
@@ -282,6 +224,7 @@ impl Browser {
                 }),
             );
             let search_client = crate::search::SearchClient::start(worker.reply_sender());
+            let first_tab = Tab::new(weak, 1, &columns, spec);
             Browser {
                 window: window.clone(),
                 shared,
@@ -295,20 +238,12 @@ impl Browser {
                 settings_strong: RefCell::default(),
                 tree_target: RefCell::default(),
                 volume_monitor: RefCell::default(),
-                folder_size: Cell::new(None),
-                free_space: Cell::new(None),
-                size_cancel: RefCell::default(),
-                size_for: RefCell::default(),
-                size_gen: Cell::new(0),
                 zoom_toast: RefCell::default(),
                 paned: RefCell::default(),
                 toasts: adw::ToastOverlay::new(),
-                typeahead: Rc::default(),
-                find: crate::find::FindBar::new(),
                 worker,
                 watcher,
                 watched: RefCell::default(),
-                keep_scroll: Cell::new(None),
                 tree,
                 tree_sel,
                 tree_view,
@@ -316,30 +251,21 @@ impl Browser {
                 reveal: RefCell::default(),
                 expand_paths: RefCell::new(state.expanded.iter().map(PathBuf::from).collect()),
                 syncing: Cell::new(false),
-                pane,
-                pane_sel,
-                pane_view,
                 columns,
-                pane_scroll,
-                sort_buttons,
-                fetcher: RefCell::default(),
-                wanted,
-                wanted_scheduled: Cell::new(false),
+                tabs: RefCell::new(vec![first_tab.clone()]),
+                active: RefCell::new(first_tab),
+                tab_ctx: RefCell::default(),
+                tiled: RefCell::default(),
+                strip: crate::tabs::TabStrip::new(),
+                next_tab_id: Cell::new(1),
+                generations: Cell::new(0),
                 path_entry,
                 back,
                 forward,
                 status,
                 status_spinner: gtk::Spinner::new(),
                 activity: Default::default(),
-                current: RefCell::default(),
-                history: RefCell::default(),
-                future: RefCell::default(),
-                generation: Cell::new(0),
-                resort_pending: Cell::new(false),
-                pane_error: RefCell::default(),
-                spec: Cell::new(spec),
                 show_hidden: Cell::new(show_hidden),
-                select_after_load: RefCell::default(),
             }
         });
 
@@ -351,10 +277,8 @@ impl Browser {
             .build();
         tree_scroll.add_css_class("tudi-tree-scroll");
         let files = gtk::Box::new(gtk::Orientation::Vertical, 0);
-        files.append(&b.find.revealer);
-        files.append(&col_header);
-        files.append(&gtk::Separator::new(gtk::Orientation::Horizontal));
-        files.append(&b.pane_scroll);
+        files.append(&b.strip.bar);
+        files.append(&b.strip.stage);
         let right = &files;
         // The divider between the panes is draggable; a wide handle makes it
         // easy to grab (the theme's default is a 1 px line).
@@ -401,14 +325,11 @@ impl Browser {
         });
         b.build_bar();
         b.connect_search();
-        b.connect_find();
         b.connect_signals(&up);
         b.install_shortcuts();
-        b.install_drag_source();
-        b.install_drop_targets();
-        *menu_slot.borrow_mut() = Rc::downgrade(&b);
         b.install_file_actions();
         b.install_tree_actions();
+        b.install_tab_actions();
         let w = Rc::downgrade(&b);
         gear.connect_clicked(move |_| {
             if let Some(b) = w.upgrade() {
@@ -416,8 +337,7 @@ impl Browser {
             }
         });
         b.spawn_reply_loop(replies);
-        b.update_sort_buttons();
-        b.navigate(start, true);
+        b.init_tabs(start, state, restore_tabs);
         b
     }
 
@@ -509,26 +429,12 @@ impl Browser {
         });
 
         let w = Rc::downgrade(self);
-        self.pane_view.connect_activate(move |_, pos| {
-            if let Some(b) = w.upgrade() {
-                b.activate_entry(pos);
-            }
-        });
-
-        let w = Rc::downgrade(self);
-        self.pane_sel.connect_selection_changed(move |_, _, _| {
-            if let Some(b) = w.upgrade() {
-                b.update_status();
-            }
-        });
-
-        let w = Rc::downgrade(self);
         self.path_entry.connect_activate(move |e| {
             if let Some(b) = w.upgrade() {
                 let p = expand_tilde(e.text().trim());
                 b.navigate(&p, true);
                 b.record_visit(&p);
-                b.pane_view.grab_focus();
+                b.tab().pane_view.grab_focus();
             }
         });
 
@@ -550,15 +456,6 @@ impl Browser {
                 b.go_up();
             }
         });
-
-        for i in 0..3 {
-            let w = Rc::downgrade(self);
-            self.sort_buttons[i].connect_clicked(move |_| {
-                if let Some(b) = w.upgrade() {
-                    b.click_sort(i);
-                }
-            });
-        }
 
         // Tree keys: Right expands, Left collapses or selects the parent.
         let keys = gtk::EventControllerKey::new();
@@ -634,9 +531,132 @@ impl Browser {
         add("<Control><Alt>t", Box::new(|b| b.open_terminal()));
         add("<Control>e", Box::new(|b| b.open_editor()));
         add("<Control><Shift>n", Box::new(|b| b.new_folder()));
+        add("<Control>t", Box::new(|b| b.new_tab_here()));
+        add("<Control>w", Box::new(|b| b.close_active_tab()));
+        add("<Control>Tab", Box::new(|b| b.cycle_tab(1)));
+        add("<Control>Page_Down", Box::new(|b| b.cycle_tab(1)));
+        add("<Control><Shift>Tab", Box::new(|b| b.cycle_tab(-1)));
+        add(
+            "<Control><Shift>ISO_Left_Tab",
+            Box::new(|b| b.cycle_tab(-1)),
+        );
+        add("<Control>Page_Up", Box::new(|b| b.cycle_tab(-1)));
+        add("<Control>backslash", Box::new(|b| b.toggle_tile()));
         self.window.add_controller(ctl);
+    }
 
-        // List-only shortcuts, so they do not steal keys from the path bar.
+    /// The current tab's list: its signals, keys, drag and drop, find bar.
+    /// Called with the new tab as [`Self::tab`].
+    pub(crate) fn wire_tab(self: &Rc<Self>) {
+        let tab = self.tab();
+        let (w, t) = (Rc::downgrade(self), Rc::downgrade(&tab));
+        tab.pane_view.connect_activate(move |_, pos| {
+            if let (Some(b), Some(t)) = (w.upgrade(), t.upgrade()) {
+                b.with_tab(&t, |b| b.activate_entry(pos));
+            }
+        });
+        let (w, t) = (Rc::downgrade(self), Rc::downgrade(&tab));
+        tab.pane_sel.connect_selection_changed(move |_, _, _| {
+            if let (Some(b), Some(t)) = (w.upgrade(), t.upgrade()) {
+                b.with_tab(&t, |b| b.update_status());
+            }
+        });
+        for i in 0..3 {
+            let (w, t) = (Rc::downgrade(self), Rc::downgrade(&tab));
+            tab.sort_buttons[i].connect_clicked(move |_| {
+                if let (Some(b), Some(t)) = (w.upgrade(), t.upgrade()) {
+                    b.activate_tab(&t);
+                    b.click_sort(i);
+                }
+            });
+        }
+        // Middle-click on a folder opens it in a new tab.
+        let middle = gtk::GestureClick::new();
+        middle.set_button(gdk::BUTTON_MIDDLE);
+        let (w, t) = (Rc::downgrade(self), Rc::downgrade(&tab));
+        middle.connect_pressed(move |g, _, x, y| {
+            let (Some(b), Some(t)) = (w.upgrade(), t.upgrade()) else {
+                return;
+            };
+            let Some(view) = g.widget() else { return };
+            if let Some(path) = b.with_tab(&t, |b| b.folder_at(&view, x, y)) {
+                g.set_state(gtk::EventSequenceState::Claimed);
+                b.open_in_new_tab(&path);
+            }
+        });
+        tab.pane_view.add_controller(middle);
+        self.connect_find();
+        self.install_list_keys();
+        self.install_drag_source();
+        self.install_drop_targets();
+        // Bound rows push pending entries into `wanted`; forward them to
+        // the fetcher after each frame's binds.
+        let (w, t) = (Rc::downgrade(self), Rc::downgrade(&tab));
+        tab.pane_view
+            .add_tick_callback(move |_, _| match (w.upgrade(), t.upgrade()) {
+                (Some(b), Some(t)) => {
+                    if !t.wanted.borrow().is_empty() {
+                        b.with_tab(&t, |b| b.schedule_prioritize());
+                    }
+                    glib::ControlFlow::Continue
+                }
+                _ => glib::ControlFlow::Break,
+            });
+        self.update_sort_buttons();
+    }
+
+    /// The folder at a point of the list (middle-click), if any.
+    fn folder_at(&self, view: &gtk::Widget, x: f64, y: f64) -> Option<PathBuf> {
+        let picked = view.pick(x, y, gtk::PickFlags::DEFAULT)?;
+        let row = std::iter::successors(Some(picked), |c| c.parent())
+            .take_while(|c| c != view)
+            .find(|c| c.has_css_class("tudi-row"))?;
+        let tab = self.tab();
+        let pos = tab.pane.bound_position(&row)?;
+        let d = tab.pane.data();
+        let &e = d.order.get(pos as usize)?;
+        use std::os::unix::ffi::OsStrExt;
+        d.is_dir(e).then(|| {
+            tab.current
+                .borrow()
+                .join(std::ffi::OsStr::from_bytes(d.name(e)))
+        })
+    }
+
+    /// Restore the remembered tabs (first window, no path given) or start
+    /// with one tab on `start`.
+    fn init_tabs(self: &Rc<Self>, start: &Path, state: &WindowState, restore: bool) {
+        let first = self.active.borrow().clone();
+        self.with_tab(&first, |b| b.wire_tab());
+        self.wire_tab_button(&first);
+        self.rebuild_strip();
+        first.button.add_css_class("active");
+        first.files.add_css_class("active");
+        self.show_stage();
+        let saved: Vec<PathBuf> = state.tabs.iter().map(PathBuf::from).collect();
+        let active = state.active_tab.min(saved.len().saturating_sub(1));
+        if restore && saved.len() > 1 && saved.get(active).is_some_and(|p| p == start) {
+            first.pending.replace(Some(saved[0].clone()));
+            first.update_title();
+            // Each is inserted after the active (first) tab: last first.
+            for p in saved[1..].iter().rev() {
+                self.new_tab(p, false);
+            }
+            let target = self.tabs.borrow()[active].clone();
+            if active == 0 {
+                if let Some(p) = first.pending.take() {
+                    self.with_tab(&first, |b| b.navigate(&p, true));
+                }
+            } else {
+                self.activate_tab(&target);
+            }
+        } else {
+            self.with_tab(&first, |b| b.navigate(start, true));
+        }
+    }
+
+    /// List-only shortcuts, so they do not steal keys from the path bar.
+    fn install_list_keys(self: &Rc<Self>) {
         let ctl = gtk::ShortcutController::new();
         let add = |accel: &str, f: Handler| {
             let w = Rc::downgrade(self);
@@ -659,7 +679,7 @@ impl Browser {
         add("<Control><Shift>c", Box::new(|b| b.copy_paths()));
         add("Delete", Box::new(|b| b.trash_selected()));
         add("F2", Box::new(|b| b.rename_selected()));
-        self.pane_view.add_controller(ctl);
+        self.tab().pane_view.add_controller(ctl);
 
         // Backspace goes up only from the panes, not while editing the path.
         let keys = gtk::EventControllerKey::new();
@@ -678,7 +698,7 @@ impl Browser {
             }
             if key == gdk::Key::Escape
                 && mods.is_empty()
-                && (b.find.revealer.reveals_child() || b.find.filter.borrow().is_some())
+                && (b.tab().find.revealer.reveals_child() || b.tab().find.filter.borrow().is_some())
             {
                 b.close_find(true);
                 return glib::Propagation::Stop;
@@ -692,7 +712,7 @@ impl Browser {
             }
             glib::Propagation::Proceed
         });
-        self.pane_view.add_controller(keys);
+        self.tab().pane_view.add_controller(keys);
     }
 
     // --------------------------------------------------------- navigation
@@ -700,42 +720,47 @@ impl Browser {
     /// Show `path` in the details list and reveal it in the tree.
     pub fn navigate(self: &Rc<Self>, path: &Path, push_history: bool) {
         let path = path.to_path_buf();
-        if *self.current.borrow() != path {
+        if *self.tab().current.borrow() != path {
             // The find text and filter belong to the folder they were typed in.
             self.reset_find();
         }
         {
-            let mut cur = self.current.borrow_mut();
+            let tab = self.tab();
+            let mut cur = tab.current.borrow_mut();
             if push_history && !cur.as_os_str().is_empty() && *cur != path {
-                self.history.borrow_mut().push(cur.clone());
-                self.future.borrow_mut().clear();
+                self.tab().history.borrow_mut().push(cur.clone());
+                self.tab().future.borrow_mut().clear();
             }
             *cur = path.clone();
         }
-        let generation = self.generation.get() + 1;
-        self.generation.set(generation);
-        self.fetcher.replace(None);
-        self.end_tasks(Task::Details);
-        self.end_tasks(Task::Listing);
-        self.begin_task(Task::Listing);
-        self.path_entry.set_text(&path.to_string_lossy());
-        self.window.set_title(Some(&format!(
-            "{} — tudi",
-            path.file_name()
-                .map_or_else(|| path.to_string_lossy(), |n| n.to_string_lossy())
-        )));
-        self.back.set_sensitive(!self.history.borrow().is_empty());
-        self.forward.set_sensitive(!self.future.borrow().is_empty());
+        let tab = self.tab();
+        tab.pending.replace(None);
+        let generation = self.next_generation();
+        tab.generation.set(generation);
+        tab.fetcher.replace(None);
+        tab.update_title();
+        let active = self.is_active(&tab);
+        if active {
+            self.end_tasks(Task::Details);
+            self.end_tasks(Task::Listing);
+            self.begin_task(Task::Listing);
+            self.path_entry.set_text(&path.to_string_lossy());
+            self.window
+                .set_title(Some(&format!("{} — tudi", crate::tabs::title_of(&path))));
+            self.back.set_sensitive(!tab.history.borrow().is_empty());
+            self.forward.set_sensitive(!tab.future.borrow().is_empty());
+        }
         // The new listing is ordered with the current parameters.
-        self.resort_pending.set(false);
-        self.pane_error.replace(None);
+        self.tab().resort_pending.set(false);
+        self.tab().pane_error.replace(None);
         self.worker.send(Job::ListPane {
             path: path.clone(),
             generation,
-            spec: self.spec.get(),
+            spec: self.tab().spec.get(),
             show_hidden: self.show_hidden.get(),
-            filter: self.find.filter.borrow().clone(),
+            filter: self.tab().find.filter.borrow().clone(),
             select: self
+                .tab()
                 .select_after_load
                 .borrow_mut()
                 .take()
@@ -743,34 +768,41 @@ impl Browser {
                 .collect(),
         });
         if let Some(w) = &self.watcher {
-            w.watch(WatchKey::Pane, path.clone(), true);
+            w.watch(WatchKey::Pane(tab.id), path.clone(), true);
         }
-        self.reveal_in_tree(path);
+        if active {
+            self.reveal_in_tree(path);
+        }
     }
 
     pub(crate) fn go_back(self: &Rc<Self>) {
-        let Some(prev) = self.history.borrow_mut().pop() else {
+        let Some(prev) = self.tab().history.borrow_mut().pop() else {
             return;
         };
-        self.future.borrow_mut().push(self.current.borrow().clone());
+        self.tab()
+            .future
+            .borrow_mut()
+            .push(self.tab().current.borrow().clone());
         self.navigate(&prev, false);
     }
 
     pub(crate) fn go_forward(self: &Rc<Self>) {
-        let Some(next) = self.future.borrow_mut().pop() else {
+        let Some(next) = self.tab().future.borrow_mut().pop() else {
             return;
         };
-        self.history
+        self.tab()
+            .history
             .borrow_mut()
-            .push(self.current.borrow().clone());
+            .push(self.tab().current.borrow().clone());
         self.navigate(&next, false);
     }
 
     pub(crate) fn go_up(self: &Rc<Self>) {
-        let cur = self.current.borrow().clone();
+        let cur = self.tab().current.borrow().clone();
         if let Some(parent) = cur.parent() {
             use std::os::unix::ffi::OsStrExt;
-            *self.select_after_load.borrow_mut() = cur.file_name().map(|n| n.as_bytes().to_vec());
+            *self.tab().select_after_load.borrow_mut() =
+                cur.file_name().map(|n| n.as_bytes().to_vec());
             self.navigate(parent, true);
         }
     }
@@ -781,10 +813,10 @@ impl Browser {
     }
 
     fn switch_pane_focus(&self) {
-        if self.pane_view.has_focus() || self.pane_view.focus_child().is_some() {
+        if self.tab().pane_view.has_focus() || self.tab().pane_view.focus_child().is_some() {
             self.tree_view.grab_focus();
         } else {
-            self.pane_view.grab_focus();
+            self.tab().pane_view.grab_focus();
         }
     }
 
@@ -797,7 +829,8 @@ impl Browser {
 
     pub(crate) fn activate_entry(self: &Rc<Self>, pos: u32) {
         let (name, is_dir) = {
-            let d = self.pane.data();
+            let tab = self.tab();
+            let d = tab.pane.data();
             let Some(&entry) = d.order.get(pos as usize) else {
                 return;
             };
@@ -805,6 +838,7 @@ impl Browser {
         };
         use std::os::unix::ffi::OsStrExt;
         let path = self
+            .tab()
             .current
             .borrow()
             .join(std::ffi::OsStr::from_bytes(&name));
@@ -916,7 +950,7 @@ impl Browser {
 
     /// Expand the tree down to `target` and select it, listing directories
     /// as needed (continues in [`Self::continue_reveal`]).
-    fn reveal_in_tree(self: &Rc<Self>, target: PathBuf) {
+    pub(crate) fn reveal_in_tree(self: &Rc<Self>, target: PathBuf) {
         *self.reveal.borrow_mut() = Some(Reveal { target });
         self.continue_reveal();
     }
@@ -1025,8 +1059,9 @@ impl Browser {
 
     /// The list shows the listing of the current navigation.
     pub(crate) fn pane_settled(&self) -> bool {
-        let d = self.pane.data();
-        d.generation == self.generation.get() && d.listing.is_some()
+        let tab = self.tab();
+        let d = tab.pane.data();
+        d.generation == self.tab().generation.get() && d.listing.is_some()
     }
 
     pub(crate) fn show_zoom(&self, level: u32) {
@@ -1062,7 +1097,17 @@ impl Browser {
             .collect();
         // Parents first, so restoring expands top-down; stable file order.
         expanded.sort();
-        st.set_paths(&self.current.borrow(), &expanded);
+        st.set_paths(&self.active.borrow().current.borrow(), &expanded);
+        let (tabs, active) = self.tab_paths();
+        st.tabs = tabs
+            .iter()
+            .filter_map(|p| p.to_str().map(String::from))
+            .collect();
+        st.active_tab = if st.tabs.len() == tabs.len() {
+            active
+        } else {
+            0
+        };
         st
     }
 
@@ -1088,7 +1133,7 @@ impl Browser {
 
     /// Apply changed browsing settings (from the settings dialog).
     pub(crate) fn apply_browse(self: &Rc<Self>, browse: &tudi_core::config::Browse) {
-        let mut spec = self.spec.get();
+        let mut spec = self.tab().spec.get();
         spec.dirs_first = browse.dirs_first;
         spec.key = match browse.sort {
             SortBy::Name => SortKey::Name,
@@ -1096,7 +1141,7 @@ impl Browser {
             SortBy::Mtime => SortKey::Modified,
         };
         spec.descending = browse.sort != SortBy::Name;
-        self.spec.set(spec);
+        self.tab().spec.set(spec);
         self.update_sort_buttons();
         let pinyin = &crate::worker::PINYIN_SORT;
         if pinyin.swap(browse.pinyin_sort, std::sync::atomic::Ordering::Relaxed)
@@ -1125,7 +1170,7 @@ impl Browser {
         let w = Rc::downgrade(self);
         glib::timeout_add_local_once(std::time::Duration::from_secs(1), move || {
             if let Some(b) = w.upgrade()
-                && *b.current.borrow() == path
+                && *b.tab().current.borrow() == path
             {
                 b.record_visit(&path);
             }
@@ -1171,24 +1216,25 @@ impl Browser {
     /// A column header was clicked: sort by it, or flip the direction.
     pub(crate) fn click_sort(&self, column: usize) {
         let key = [SortKey::Name, SortKey::Size, SortKey::Modified][column];
-        let mut spec = self.spec.get();
+        let mut spec = self.tab().spec.get();
         if spec.key == key {
             spec.descending = !spec.descending;
         } else {
             spec.key = key;
             spec.descending = key != SortKey::Name;
         }
-        self.spec.set(spec);
+        self.tab().spec.set(spec);
         self.update_sort_buttons();
         self.request_sort();
     }
 
     pub(crate) fn request_sort(&self) {
-        let d = self.pane.data();
-        if d.listing.is_none() || d.generation != self.generation.get() {
+        let tab = self.tab();
+        let d = tab.pane.data();
+        if d.listing.is_none() || d.generation != self.tab().generation.get() {
             // A newer listing is on its way, ordered with the old
             // parameters; its Sorted reply would also reject this one.
-            self.resort_pending.set(true);
+            self.tab().resort_pending.set(true);
         }
         let (Some(listing), Some(rank)) = (d.listing.clone(), d.rank.clone()) else {
             return;
@@ -1199,14 +1245,14 @@ impl Browser {
             listing,
             rank,
             metas: d.metas.clone(),
-            spec: self.spec.get(),
+            spec: self.tab().spec.get(),
             show_hidden: self.show_hidden.get(),
-            filter: self.find.filter.borrow().clone(),
+            filter: self.tab().find.filter.borrow().clone(),
         });
     }
 
     fn update_sort_buttons(&self) {
-        let spec = self.spec.get();
+        let spec = self.tab().spec.get();
         let labels = [tr("Name"), tr("Size"), tr("Modified")];
         let keys = [SortKey::Name, SortKey::Size, SortKey::Modified];
         for i in 0..3 {
@@ -1217,30 +1263,34 @@ impl Browser {
             } else {
                 " ▴"
             };
-            if let Some(l) = self.sort_buttons[i].child().and_downcast::<gtk::Label>() {
+            if let Some(l) = self.tab().sort_buttons[i]
+                .child()
+                .and_downcast::<gtk::Label>()
+            {
                 l.set_text(&format!("{}{arrow}", labels[i]));
             }
         }
     }
 
     fn schedule_prioritize(self: &Rc<Self>) {
-        if self.wanted_scheduled.replace(true) {
+        if self.tab().wanted_scheduled.replace(true) {
             return;
         }
         let w = Rc::downgrade(self);
         glib::idle_add_local_once(move || {
             let Some(b) = w.upgrade() else { return };
-            b.wanted_scheduled.set(false);
-            let wanted = std::mem::take(&mut *b.wanted.borrow_mut());
-            if let Some(f) = &*b.fetcher.borrow() {
+            b.tab().wanted_scheduled.set(false);
+            let wanted = std::mem::take(&mut *b.tab().wanted.borrow_mut());
+            if let Some(f) = &*b.tab().fetcher.borrow() {
                 f.prioritize(&wanted);
             }
         });
     }
 
     pub(crate) fn selected_entries(&self) -> Vec<u32> {
-        let d = self.pane.data();
-        let bits = self.pane_sel.selection();
+        let tab = self.tab();
+        let d = tab.pane.data();
+        let bits = self.tab().pane_sel.selection();
         let mut out = Vec::with_capacity(bits.size() as usize);
         if let Some((mut it, first)) = gtk::BitsetIter::init_first(&bits) {
             let mut p = first;
@@ -1258,7 +1308,8 @@ impl Browser {
     }
 
     fn select_entries(&self, entries: &[u32]) {
-        let d = self.pane.data();
+        let tab = self.tab();
+        let d = tab.pane.data();
         let bits = gtk::Bitset::new_empty();
         for &e in entries {
             if let Some(&p) = d.pos_of.get(e as usize)
@@ -1268,19 +1319,25 @@ impl Browser {
             }
         }
         drop(d);
-        let n = self.pane.n_items();
-        self.pane_sel
+        let n = self.tab().pane.n_items();
+        self.tab()
+            .pane_sel
             .set_selection(&bits, &gtk::Bitset::new_range(0, n));
     }
 
     pub(crate) fn update_status(&self) {
+        // The status bar is the active tab's.
+        if !self.is_active(&self.tab()) {
+            return;
+        }
         let mut text = self.activity_text();
-        if let Some(e) = self.pane_error.borrow().as_deref() {
+        if let Some(e) = self.tab().pane_error.borrow().as_deref() {
             text.push_str(e);
             self.status.set_text(&text);
             return;
         }
-        let d = self.pane.data();
+        let tab = self.tab();
+        let d = tab.pane.data();
         let (files, dirs) = (u64::from(d.files), u64::from(d.dirs));
         text += &fill(&ntr("{} file", "{} files", files), &[&fmt_count(files)]);
         text.push_str(", ");
@@ -1288,26 +1345,27 @@ impl Browser {
             &ntr("{} folder", "{} folders", dirs),
             &[&fmt_count(dirs)],
         ));
-        if let Some(f) = self.find.filter.borrow().as_deref() {
+        if let Some(f) = self.tab().find.filter.borrow().as_deref() {
             text.push_str(" · ");
             text.push_str(&fill(&tr("filtered by “{}”"), &[&f]));
         }
-        if let Some(size) = self.folder_size.get() {
+        if let Some(size) = self.tab().folder_size.get() {
             text.push_str(" · ");
             text.push_str(&crate::format::size(size));
         }
-        if let Some(free) = self.free_space.get() {
+        if let Some(free) = self.tab().free_space.get() {
             text.push_str(" · ");
             text.push_str(&fill(&tr("{} free"), &[&crate::format::size(free)]));
         }
-        let selected = self.pane_sel.selection().size();
+        let selected = self.tab().pane_sel.selection().size();
         if selected > 0 {
             text.push_str(" · ");
             text.push_str(&fill(&tr("{} selected"), &[&fmt_count(selected)]));
             if selected <= STATUS_SIZE_LIMIT {
                 drop(d);
                 let entries = self.selected_entries();
-                let d = self.pane.data();
+                let tab = self.tab();
+                let d = tab.pane.data();
                 let mut total = 0u64;
                 let mut known = true;
                 for e in entries {
@@ -1344,42 +1402,58 @@ impl Browser {
                 }
             }
         });
-        let w = Rc::downgrade(self);
-        // Bound rows push pending entries into `wanted`; forward them to
-        // the fetcher after each frame's binds.
-        self.pane_view
-            .add_tick_callback(move |_, _| match w.upgrade() {
-                Some(b) => {
-                    if !b.wanted.borrow().is_empty() {
-                        b.schedule_prioritize();
-                    }
-                    glib::ControlFlow::Continue
-                }
-                None => glib::ControlFlow::Break,
-            });
     }
 
     fn handle(self: &Rc<Self>, reply: Reply) {
+        // Replies about one tab's list are handled with that tab as
+        // `tab()`; stale ones (closed tab, older listing) find no tab.
+        let tab = match &reply {
+            Reply::Pane(p) => Some(self.tab_of_generation(p.generation)),
+            Reply::PaneError { generation, .. } | Reply::Sorted { generation, .. } => {
+                Some(self.tab_of_generation(*generation))
+            }
+            Reply::Meta(batch) => Some(self.tab_of_generation(batch.generation)),
+            Reply::FolderSize { generation, .. } => Some(self.tab_of_size(*generation)),
+            Reply::Changed(_) | Reply::Tree { .. } | Reply::Search { .. } | Reply::History(_) => {
+                None
+            }
+        };
+        match tab {
+            Some(Some(t)) => self.with_tab(&t, |b| b.handle_for_tab(reply)),
+            Some(None) => {}
+            None => self.handle_window(reply),
+        }
+    }
+
+    fn handle_for_tab(self: &Rc<Self>, reply: Reply) {
+        let active = self.is_active(&self.tab());
         match reply {
             Reply::Pane(p) => {
-                if p.generation != self.generation.get() {
+                if p.generation != self.tab().generation.get() {
                     return;
                 }
-                self.end_tasks(Task::Listing);
-                self.end_tasks(Task::Details);
-                self.begin_task(Task::Details);
+                if active {
+                    self.end_tasks(Task::Listing);
+                    self.end_tasks(Task::Details);
+                    self.begin_task(Task::Details);
+                }
                 let first: Vec<u32> = p.order.order.iter().take(FIRST_SCREEN).copied().collect();
                 let listing = p.listing.clone();
-                self.pane
-                    .set_listing(p.generation, p.listing, p.rank, p.order, self.spec.get());
-                self.fetcher.replace(Some(MetaFetcher::start(
+                self.tab().pane.set_listing(
+                    p.generation,
+                    p.listing,
+                    p.rank,
+                    p.order,
+                    self.tab().spec.get(),
+                );
+                self.tab().fetcher.replace(Some(MetaFetcher::start(
                     listing,
                     &first,
                     META_WORKERS,
                     self.worker.meta_sink(),
                 )));
                 self.after_order_change(Vec::new(), p.select);
-                if self.resort_pending.take() {
+                if self.tab().resort_pending.take() {
                     self.request_sort();
                 }
                 self.start_folder_size(p.generation);
@@ -1390,58 +1464,75 @@ impl Browser {
                 available,
                 done,
             } => {
-                if generation == self.size_gen.get() {
-                    if done {
+                if generation == self.tab().size_gen.get() {
+                    if done && active {
                         self.end_tasks(Task::FolderSize);
                     }
-                    self.folder_size.set(size);
-                    self.free_space.set(available);
+                    self.tab().folder_size.set(size);
+                    self.tab().free_space.set(available);
                     self.update_status();
                 }
             }
             Reply::PaneError { generation, error } => {
-                if generation != self.generation.get() {
+                if generation != self.tab().generation.get() {
                     return;
                 }
-                self.pane.clear(generation);
-                self.resort_pending.set(false);
-                self.find.cancel_focus_after_sort();
+                self.tab().pane.clear(generation);
+                self.tab().resort_pending.set(false);
+                self.tab().find.cancel_focus_after_sort();
                 // Stored, not written to the label: any later status update
                 // (a task's delayed display, selection) would replace it.
-                self.pane_error.replace(Some(error.to_string()));
-                self.end_tasks(Task::Listing);
+                self.tab().pane_error.replace(Some(error.to_string()));
+                if active {
+                    self.end_tasks(Task::Listing);
+                }
                 self.update_status();
             }
             Reply::Sorted { generation, order } => {
                 let keep = self.selected_entries();
-                if self.pane.set_order(generation, order, self.spec.get()) {
+                if self
+                    .tab()
+                    .pane
+                    .set_order(generation, order, self.tab().spec.get())
+                {
                     self.after_order_change(keep, Vec::new());
                     self.after_find_sort();
                 }
             }
             Reply::Meta(batch) => {
-                if self.pane.apply_meta(&batch) {
+                if self.tab().pane.apply_meta(&batch) {
                     self.request_sort();
                 }
-                if batch.complete && batch.generation == self.pane.data().generation {
+                if active && batch.complete && batch.generation == self.tab().pane.data().generation
+                {
                     self.end_tasks(Task::Details);
                 }
                 if batch.complete {
                     // Free accuracy for the search index: what the user
                     // looks at is always current there.
-                    let d = self.pane.data();
+                    let tab = self.tab();
+                    let d = tab.pane.data();
                     if d.generation == batch.generation
                         && let Some(l) = d.listing.clone()
                     {
                         // MetaTable is a flat Vec: this clone is a memcpy.
-                        self.search_client
-                            .hint(self.current.borrow().clone(), l, d.metas.clone());
+                        self.search_client.hint(
+                            self.tab().current.borrow().clone(),
+                            l,
+                            d.metas.clone(),
+                        );
                     }
                 }
-                if batch.complete || self.pane_sel.selection().size() > 0 {
+                if batch.complete || self.tab().pane_sel.selection().size() > 0 {
                     self.update_status();
                 }
             }
+            _ => {}
+        }
+    }
+
+    fn handle_window(self: &Rc<Self>, reply: Reply) {
+        match reply {
             Reply::Tree {
                 node,
                 refresh,
@@ -1479,32 +1570,39 @@ impl Browser {
                 let mut tree_nodes = Vec::new();
                 for k in keys {
                     match k {
-                        WatchKey::Pane => self.live_reload_pane(),
+                        WatchKey::Pane(id) => {
+                            if let Some(t) = self.tab_by_id(id) {
+                                self.with_tab(&t, |b| b.live_reload_pane());
+                            }
+                        }
                         WatchKey::Tree(n) => tree_nodes.push(n),
                     }
                 }
                 self.refresh_tree_nodes(&tree_nodes);
             }
+            _ => {}
         }
     }
 
     /// Lazily compute the total size of a newly shown folder (live reloads
     /// of the same folder keep the last value).
     fn start_folder_size(self: &Rc<Self>, generation: u64) {
-        let cur = self.current.borrow().clone();
-        if *self.size_for.borrow() == cur {
+        let cur = self.tab().current.borrow().clone();
+        if *self.tab().size_for.borrow() == cur {
             return;
         }
-        if let Some(c) = self.size_cancel.take() {
+        if let Some(c) = self.tab().size_cancel.take() {
             c.store(true, std::sync::atomic::Ordering::Relaxed);
         }
-        self.folder_size.set(None);
-        self.end_tasks(Task::FolderSize);
-        self.begin_task(Task::FolderSize);
-        *self.size_for.borrow_mut() = cur.clone();
+        self.tab().folder_size.set(None);
+        if self.is_active(&self.tab()) {
+            self.end_tasks(Task::FolderSize);
+            self.begin_task(Task::FolderSize);
+        }
+        *self.tab().size_for.borrow_mut() = cur.clone();
         let cancel = Arc::new(std::sync::atomic::AtomicBool::new(false));
-        self.size_cancel.replace(Some(cancel.clone()));
-        self.size_gen.set(generation);
+        self.tab().size_cancel.replace(Some(cancel.clone()));
+        self.tab().size_gen.set(generation);
         self.worker.folder_size(cur, generation, cancel);
     }
 
@@ -1513,26 +1611,30 @@ impl Browser {
     fn live_reload_pane(self: &Rc<Self>) {
         let selected = self.selected_entries();
         let select = if selected.len() <= KEEP_SELECTION_LIMIT {
-            let d = self.pane.data();
+            let tab = self.tab();
+            let d = tab.pane.data();
             selected.iter().map(|&e| d.name(e).to_vec()).collect()
         } else {
             Vec::new()
         };
-        self.keep_scroll
-            .set(Some(self.pane_scroll.vadjustment().value()));
-        let generation = self.generation.get() + 1;
-        self.generation.set(generation);
-        self.end_tasks(Task::Listing);
-        self.begin_task(Task::Listing);
+        self.tab()
+            .keep_scroll
+            .set(Some(self.tab().pane_scroll.vadjustment().value()));
+        let generation = self.next_generation();
+        self.tab().generation.set(generation);
+        if self.is_active(&self.tab()) {
+            self.end_tasks(Task::Listing);
+            self.begin_task(Task::Listing);
+        }
         // The new listing is ordered with the current parameters.
-        self.resort_pending.set(false);
-        self.pane_error.replace(None);
+        self.tab().resort_pending.set(false);
+        self.tab().pane_error.replace(None);
         self.worker.send(Job::ListPane {
-            path: self.current.borrow().clone(),
+            path: self.tab().current.borrow().clone(),
             generation,
-            spec: self.spec.get(),
+            spec: self.tab().spec.get(),
             show_hidden: self.show_hidden.get(),
-            filter: self.find.filter.borrow().clone(),
+            filter: self.tab().find.filter.borrow().clone(),
             select,
         });
     }
@@ -1541,16 +1643,18 @@ impl Browser {
     /// or the rows at `select` (focusing the first unless the scroll
     /// position is being kept).
     fn after_order_change(&self, keep: Vec<u32>, select: Vec<u32>) {
-        let scroll = self.keep_scroll.take();
+        let scroll = self.tab().keep_scroll.take();
         if !select.is_empty() {
             let bits = gtk::Bitset::new_empty();
             for &p in &select {
                 bits.add(p);
             }
-            self.pane_sel
-                .set_selection(&bits, &gtk::Bitset::new_range(0, self.pane.n_items()));
+            self.tab()
+                .pane_sel
+                .set_selection(&bits, &gtk::Bitset::new_range(0, self.tab().pane.n_items()));
             if scroll.is_none() {
-                self.pane_view
+                self.tab()
+                    .pane_view
                     .scroll_to(select[0], gtk::ListScrollFlags::FOCUS, None);
             }
         } else if !keep.is_empty() {
@@ -1558,16 +1662,16 @@ impl Browser {
         } else {
             // Items are positions: a selection left from the previous order
             // would point at other entries.
-            self.pane_sel.unselect_all();
+            self.tab().pane_sel.unselect_all();
             if scroll.is_none() {
-                self.pane_scroll.vadjustment().set_value(0.0);
+                self.tab().pane_scroll.vadjustment().set_value(0.0);
             }
         }
         if let Some(v) = scroll {
             // Wait for the new rows' layout before restoring the position.
-            let sw = self.pane_scroll.downgrade();
+            let sw = self.tab().pane_scroll.downgrade();
             let frames = Cell::new(0);
-            self.pane_view.add_tick_callback(move |_, _| {
+            self.tab().pane_view.add_tick_callback(move |_, _| {
                 if let Some(sw) = sw.upgrade() {
                     sw.vadjustment().set_value(v);
                 }

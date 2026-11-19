@@ -61,26 +61,26 @@ impl FindBar {
 impl Browser {
     /// `Ctrl+F`: show the find bar and focus it.
     pub(crate) fn open_find(&self) {
-        self.find.revealer.set_reveal_child(true);
-        self.find.entry.grab_focus();
-        self.find.entry.select_region(0, -1);
+        self.tab().find.revealer.set_reveal_child(true);
+        self.tab().find.entry.grab_focus();
+        self.tab().find.entry.select_region(0, -1);
     }
 
     /// Hide the find bar and clear any filter. With `focus`, give the
     /// keyboard to the list at the selected row.
     pub(crate) fn close_find(&self, focus: bool) {
-        if !self.find.revealer.reveals_child() && self.find.filter.borrow().is_none() {
+        if !self.tab().find.revealer.reveals_child() && self.tab().find.filter.borrow().is_none() {
             return;
         }
-        self.find.revealer.set_reveal_child(false);
-        self.find.entry.remove_css_class("error");
-        self.find.focus_after_sort.set(false);
+        self.tab().find.revealer.set_reveal_child(false);
+        self.tab().find.entry.remove_css_class("error");
+        self.tab().find.focus_after_sort.set(false);
         if !focus {
             self.set_find_filter(None);
         } else if self.set_find_filter(None) {
             // Rows are positions: focus once the unfiltered order is in,
             // where the selected entry has its new position.
-            self.find.focus_after_sort.set(true);
+            self.tab().find.focus_after_sort.set(true);
         } else {
             self.focus_list_at_selection();
         }
@@ -90,30 +90,31 @@ impl Browser {
     /// filter (no re-sort: the new folder's listing is about to be
     /// requested with the current filter, which is now none).
     pub(crate) fn reset_find(&self) {
-        self.find.revealer.set_reveal_child(false);
-        self.find.focus_after_sort.set(false);
-        self.find.filter.replace(None);
-        if !self.find.entry.text().is_empty() {
-            self.find.entry.set_text("");
+        self.tab().find.revealer.set_reveal_child(false);
+        self.tab().find.focus_after_sort.set(false);
+        self.tab().find.filter.replace(None);
+        if !self.tab().find.entry.text().is_empty() {
+            self.tab().find.entry.set_text("");
         }
-        self.find.entry.remove_css_class("error");
+        self.tab().find.entry.remove_css_class("error");
     }
 
     fn focus_list_at_selection(&self) {
         match self.focused_row() {
             Some(row) => {
-                self.pane_view
+                self.tab()
+                    .pane_view
                     .scroll_to(row as u32, gtk::ListScrollFlags::FOCUS, None);
             }
             None => {
-                self.pane_view.grab_focus();
+                self.tab().pane_view.grab_focus();
             }
         }
     }
 
     /// The lowercase find text, or `None` when the field is empty.
     fn find_needle(&self) -> Option<String> {
-        let text = self.find.entry.text();
+        let text = self.tab().find.entry.text();
         (!text.is_empty()).then(|| text.to_lowercase())
     }
 
@@ -122,12 +123,12 @@ impl Browser {
     pub(crate) fn find_jump(self: &Rc<Self>, from_top: bool, forward: bool) {
         let serial = self.next_scan_serial();
         let Some(needle) = self.find_needle() else {
-            self.find.scanning.set(false);
-            self.find.entry.remove_css_class("error");
+            self.tab().find.scanning.set(false);
+            self.tab().find.entry.remove_css_class("error");
             return;
         };
-        self.find.scanning.set(true);
-        let n = self.pane.n_items() as usize;
+        self.tab().find.scanning.set(true);
+        let n = self.tab().pane.n_items() as usize;
         let start = match (from_top, self.focused_row()) {
             (true, _) | (_, None) => 0,
             (false, Some(cur)) if forward => (cur + 1) % n.max(1),
@@ -138,29 +139,29 @@ impl Browser {
 
     /// A find scan ended: mark the field when nothing matched.
     pub(crate) fn find_result(&self, found: bool) {
-        self.find.scanning.set(false);
+        self.tab().find.scanning.set(false);
         if found {
-            self.find.entry.remove_css_class("error");
+            self.tab().find.entry.remove_css_class("error");
         } else {
-            self.find.entry.add_css_class("error");
+            self.tab().find.entry.add_css_class("error");
         }
     }
 
     /// Another scan (type-ahead) replaced a running jump scan, which will
     /// not report: the field's state is unknown, so do not show "no match".
     pub(crate) fn find_scan_superseded(&self) {
-        if self.find.scanning.take() {
-            self.find.entry.remove_css_class("error");
+        if self.tab().find.scanning.take() {
+            self.tab().find.entry.remove_css_class("error");
         }
     }
 
     /// `Enter`: filter the list to the matching rows (or clear the filter).
     pub(crate) fn apply_find_filter(&self) {
         let needle = self.find_needle();
-        self.find.entry.remove_css_class("error");
+        self.tab().find.entry.remove_css_class("error");
         // The row the typing jumped to matches, so it stays selected.
         if self.set_find_filter(needle.map(Arc::from)) {
-            self.find.focus_after_sort.set(true);
+            self.tab().find.focus_after_sort.set(true);
         } else {
             self.focus_list_at_selection();
         }
@@ -169,27 +170,27 @@ impl Browser {
     /// The filtered order replaced the rows: focus the selected row, or the
     /// first one.
     pub(crate) fn after_find_sort(&self) {
-        if !self.find.focus_after_sort.take() {
+        if !self.tab().find.focus_after_sort.take() {
             return;
         }
-        if self.focused_row().is_none() && self.pane.n_items() > 0 {
-            self.pane_sel.select_item(0, true);
+        if self.focused_row().is_none() && self.tab().pane.n_items() > 0 {
+            self.tab().pane_sel.select_item(0, true);
         }
         self.focus_list_at_selection();
     }
 
     /// Returns whether the filter changed (a re-sort was requested).
     fn set_find_filter(&self, filter: Option<Arc<str>>) -> bool {
-        if *self.find.filter.borrow() == filter {
+        if *self.tab().find.filter.borrow() == filter {
             return false;
         }
-        self.find.filter.replace(filter);
+        self.tab().find.filter.replace(filter);
         self.request_sort();
         true
     }
 
     pub(crate) fn connect_find(self: &Rc<Self>) {
-        let entry = &self.find.entry;
+        let entry = &self.tab().find.entry;
         let w = Rc::downgrade(self);
         entry.connect_search_changed(move |_| {
             if let Some(b) = w.upgrade() {

@@ -79,7 +79,7 @@ fn step(b: Rc<Browser>, queue: Queue, delay: Duration) {
             "forward" => b.go_forward(),
             "select" => {
                 let row: u32 = arg.parse().unwrap_or(0);
-                b.pane_sel.select_item(row, true);
+                b.tab().pane_sel.select_item(row, true);
             }
             "type" => {
                 for c in arg.chars() {
@@ -88,7 +88,7 @@ fn step(b: Rc<Browser>, queue: Queue, delay: Duration) {
             }
             "find" => {
                 b.open_find();
-                b.find.entry.set_text(arg);
+                b.tab().find.entry.set_text(arg);
             }
             "findnext" => b.find_jump(false, true),
             "findprev" => b.find_jump(false, false),
@@ -154,13 +154,13 @@ fn step(b: Rc<Browser>, queue: Queue, delay: Duration) {
             "selectall" => b.select_all(),
             "menu" => {
                 let pos = arg.parse::<u32>().ok();
-                let w: gtk::Widget = b.pane_view.clone().upcast();
+                let w: gtk::Widget = b.tab().pane_view.clone().upcast();
                 b.file_menu(pos, &w, 300.0, 120.0);
             }
             "menuat" => {
                 // Dev only: the background menu at a height in the list.
                 let y = arg.parse::<f64>().unwrap_or(120.0);
-                let w: gtk::Widget = b.pane_view.clone().upcast();
+                let w: gtk::Widget = b.tab().pane_view.clone().upcast();
                 b.file_menu(None, &w, 300.0, y);
             }
             "settings" => b.open_settings(),
@@ -227,10 +227,22 @@ fn step(b: Rc<Browser>, queue: Queue, delay: Duration) {
             }
             "scroll" => {
                 let f: f64 = arg.parse().unwrap_or(0.0);
-                let adj = b.pane_scroll.vadjustment();
+                let adj = b.tab().pane_scroll.vadjustment();
                 adj.set_value(f * (adj.upper() - adj.page_size()));
             }
             "dump" => dump(&b),
+            "newtab" => {
+                b.new_tab(Path::new(arg), true);
+            }
+            "bgtab" => b.open_in_new_tab(Path::new(arg)),
+            "tab" => {
+                let t = b.tabs.borrow().get(arg.parse().unwrap_or(0)).cloned();
+                if let Some(t) = t {
+                    b.activate_tab(&t);
+                }
+            }
+            "closetab" => b.close_active_tab(),
+            "tile" => b.toggle_tile(),
             "shot" => screenshot(&b, Path::new(arg)),
             "quit" => {
                 b.window.application().unwrap().quit();
@@ -247,7 +259,8 @@ fn step(b: Rc<Browser>, queue: Queue, delay: Duration) {
 /// position.
 fn dump(b: &Browser) {
     println!("dir: {}", b.current_dir().display());
-    let d = b.pane.data();
+    let tab = b.tab();
+    let d = tab.pane.data();
     let names: Vec<String> = d
         .order
         .iter()
@@ -265,13 +278,13 @@ fn dump(b: &Browser) {
     println!("status: {}", b.status.text());
     println!(
         "find: shown={} text={:?} error={} filter={:?}",
-        b.find.revealer.reveals_child(),
-        b.find.entry.text(),
-        b.find.entry.has_css_class("error"),
-        b.find.filter.borrow().as_deref()
+        b.tab().find.revealer.reveals_child(),
+        b.tab().find.entry.text(),
+        b.tab().find.entry.has_css_class("error"),
+        b.tab().find.filter.borrow().as_deref()
     );
     println!("focus: {}", focus_desc(b));
-    println!("scroll: {:.0}", b.pane_scroll.vadjustment().value());
+    println!("scroll: {:.0}", b.tab().pane_scroll.vadjustment().value());
     let t = b.tree.tree();
     let rows: Vec<String> = t
         .rows()
@@ -294,8 +307,25 @@ fn dump(b: &Browser) {
         );
     }
     println!("bar: {}", b.dev_bar_labels().join(" | "));
+    let tabs: Vec<String> = b
+        .tabs
+        .borrow()
+        .iter()
+        .map(|t| {
+            let mark = if b.is_active(t) { "*" } else { "" };
+            format!("{mark}{}", t.label.text())
+        })
+        .collect();
+    let tiled = b
+        .tiled
+        .borrow()
+        .as_ref()
+        .map(|(l, r)| format!(" tiled {}+{}", l.label.text(), r.label.text()))
+        .unwrap_or_default();
+    println!("tabs: {}{tiled}", tabs.join(" | "));
     // Column header: each button's x range in window coordinates.
     let cols: Vec<String> = b
+        .tab()
         .sort_buttons
         .iter()
         .filter_map(|btn| btn.compute_bounds(&b.window))

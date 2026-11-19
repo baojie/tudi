@@ -369,3 +369,23 @@ through `sh` / `python3`; `.desktop` files through `gio launch`.
   ignores `LANGUAGE` under `LANG=C`), which every desktop session has. The
   translations need review by native speakers; new strings must be added
   to every catalog (`msgmerge`), untranslated ones show in English.
+
+## ADR-025: Tabs in the file list, two can be shown side by side
+
+- **Context.** The maintainer wants browser-like tabs in the list (named
+  after the folder, a "+" after the last tab) and tabs that can be tiled.
+- **Decision.** A `Tab` struct owns everything that belonged to the one
+  list (model, view, history, find bar, folder size, watch key); the
+  window keeps the tree, path bar, status bar, worker and watcher and
+  follows the active tab. Existing list code reaches its tab through
+  `Browser::tab()`, which is the active tab unless `with_tab` set the tab
+  of the reply or event being handled; generations are unique per window
+  so replies are routed by them. The strip is our own widgets (not
+  `AdwTabBar`, whose "+" sits at the far end). Tiling is one pair side by
+  side in a `GtkPaned`, shown while the active tab belongs to it. Tabs
+  are restored in the first window; inactive ones are listed when first
+  shown, so startup lists one folder as before.
+- **Consequences.** Every tab keeps its listing in memory and a live watch
+  on its folder (within the window's 512 watches). Window-level settings
+  (hidden files, column widths) apply to all tabs. Status-bar tasks of a
+  background tab are not shown.

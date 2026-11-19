@@ -536,6 +536,9 @@ Default keybindings (all remappable in `config.toml`):
 | `Backspace` / `Alt+↑` | go to parent folder |
 | `Ctrl+P`, `/` | memory search |
 | `Ctrl+F` | find in this folder: jump to the first match; `Enter` filters |
+| `Ctrl+T`, `Ctrl+W` | new tab on this folder, close tab (ADR-025) |
+| `Ctrl+Tab`, `Ctrl+PgDn` / `Ctrl+Shift+Tab`, `Ctrl+PgUp` | next / previous tab |
+| `Ctrl+\` | show the tab side by side with the next one, or stop |
 | `Ctrl+L` | path bar |
 | `Ctrl+H` | toggle hidden files |
 | `Ctrl+C` | copy selected files (uri-list + text paths) |

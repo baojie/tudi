@@ -146,7 +146,8 @@ impl Browser {
         if sel.len() != 1 {
             return None;
         }
-        let d = self.pane.data();
+        let tab = self.tab();
+        let d = tab.pane.data();
         let e = sel[0];
         if d.is_dir(e) {
             return None;

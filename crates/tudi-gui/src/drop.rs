@@ -61,7 +61,8 @@ impl Browser {
         let dir = self.current_dir();
         let dest = pos
             .and_then(|pos| {
-                let d = self.pane.data();
+                let tab = self.tab();
+                let d = tab.pane.data();
                 let &e = d.order.get(pos as usize)?;
                 d.is_dir(e)
                     .then(|| dir.join(std::ffi::OsStr::from_bytes(d.name(e))))
@@ -128,7 +129,7 @@ impl Browser {
             b.end_task(task);
             let Ok(report) = report else { return };
             b.report_transfer(&report);
-            if *b.current.borrow() == dest && !report.done.is_empty() {
+            if *b.tab().current.borrow() == dest && !report.done.is_empty() {
                 let first = report
                     .done
                     .first()
@@ -158,11 +159,16 @@ impl Browser {
     /// Accept files dropped on the list's empty space (rows have their own
     /// targets, see `pane::build_view`).
     pub(crate) fn install_drop_targets(self: &Rc<Self>) {
-        let w = Rc::downgrade(self);
+        let tab = self.tab();
+        let (w, t) = (Rc::downgrade(self), Rc::downgrade(&tab));
         let target = file_drop_target(Rc::new(move |files, mods| {
-            w.upgrade()
-                .is_some_and(|b| b.drop_on_pane(None, files, mods))
+            let (Some(b), Some(t)) = (w.upgrade(), t.upgrade()) else {
+                return false;
+            };
+            // A drop on a tile that is not the active tab goes to its folder.
+            b.activate_tab(&t);
+            b.drop_on_pane(None, files, mods)
         }));
-        self.pane_view.add_controller(target);
+        tab.pane_view.add_controller(target);
     }
 }

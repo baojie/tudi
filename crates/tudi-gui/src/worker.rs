@@ -121,8 +121,8 @@ pub enum Reply {
 /// What a directory watch belongs to.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum WatchKey {
-    /// The folder shown in the details list.
-    Pane,
+    /// The folder shown in a tab's details list (by tab id).
+    Pane(u64),
     /// An expanded folder in the tree.
     Tree(NodeId),
 }

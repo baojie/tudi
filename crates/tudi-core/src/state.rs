@@ -25,6 +25,9 @@ pub struct WindowState {
     /// Widths of the list's size and date columns in pixels (0: default).
     pub size_column: i32,
     pub date_column: i32,
+    /// Folders of the open tabs, in order, and the active one.
+    pub tabs: Vec<String>,
+    pub active_tab: usize,
 }
 
 impl Default for WindowState {
@@ -39,6 +42,8 @@ impl Default for WindowState {
             tree_width: 280,
             size_column: 0,
             date_column: 0,
+            tabs: Vec::new(),
+            active_tab: 0,
         }
     }
 }

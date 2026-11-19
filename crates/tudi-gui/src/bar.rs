@@ -426,7 +426,7 @@ impl Browser {
 
     /// `Ctrl+D`: bookmark the current folder.
     pub(crate) fn bookmark_current(&self) {
-        let cur = self.current.borrow().clone();
+        let cur = self.tab().current.borrow().clone();
         let added = self.shared.bookmarks.borrow_mut().add(&cur);
         if added {
             self.toast(&fill(&tr("Bookmarked {}"), &[&path_label(&cur)]));
@@ -809,7 +809,7 @@ impl Browser {
         };
         if let (Some(dir), Some(name)) = (p.parent(), p.file_name()) {
             use std::os::unix::ffi::OsStrExt;
-            *self.select_after_load.borrow_mut() = Some(name.as_bytes().to_vec());
+            *self.tab().select_after_load.borrow_mut() = Some(name.as_bytes().to_vec());
             self.navigate(dir, true);
         }
     }

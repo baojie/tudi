@@ -203,7 +203,7 @@ fn on_paint(b: &Rc<Browser>, now: Instant, reopen: &Rc<dyn Fn()>) {
                 samples,
                 pending,
             } => {
-                let shown = b.pane.n_items() > 0 && *b.current.borrow() == *path;
+                let shown = b.tab().pane.n_items() > 0 && *b.tab().current.borrow() == *path;
                 match *pending {
                     Some((true, t0)) if shown && b.pane_settled() => {
                         samples.push(ms(now - t0));
@@ -219,7 +219,7 @@ fn on_paint(b: &Rc<Browser>, now: Instant, reopen: &Rc<dyn Fn()>) {
                     println!(
                         "{{\"bench\":\"open\",\"path\":{:?},\"rows\":{},\"runs\":{},\"median_ms\":{:.2},\"max_ms\":{:.2}}}",
                         path.display().to_string(),
-                        b.pane.n_items(),
+                        b.tab().pane.n_items(),
                         s.len(),
                         s[s.len() / 2],
                         s[s.len() - 1]
@@ -229,7 +229,7 @@ fn on_paint(b: &Rc<Browser>, now: Instant, reopen: &Rc<dyn Fn()>) {
                     return;
                 }
                 // Alternate: parent, then the target.
-                let to_target = b.current.borrow().as_path() != path.as_path();
+                let to_target = b.tab().current.borrow().as_path() != path.as_path();
                 let next = if to_target {
                     path.clone()
                 } else {

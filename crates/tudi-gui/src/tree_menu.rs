@@ -42,6 +42,7 @@ impl Browser {
             b.navigate(&t.path, true);
             b.record_visit(&t.path);
         });
+        add("open-tab", |b, t| b.open_in_new_tab(&t.path));
         add("toggle", |b, t| b.toggle_tree_row(t.row));
         add("terminal", |b, t| {
             let tmpl = b.shared.config.borrow().commands.terminal.clone();
@@ -123,6 +124,7 @@ impl Browser {
         let menu = gio::Menu::new();
         let open = gio::Menu::new();
         open.append_item(&item(tr("Open"), "tree.open"));
+        open.append_item(&item(tr("Open in New Tab"), "tree.open-tab"));
         open.append_item(&item(
             if expanded {
                 tr("Collapse")

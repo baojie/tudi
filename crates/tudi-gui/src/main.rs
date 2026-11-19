@@ -31,6 +31,7 @@ mod search;
 mod settings;
 mod shared;
 mod sidebar;
+mod tabs;
 mod tree_menu;
 mod worker;
 mod zoom;
@@ -71,6 +72,16 @@ const CSS: &str = "
 .tudi-bar { padding: 2px 6px; }
 .tudi-find { padding: 4px 6px; }
 .tudi-drop-row:drop(active) { background: alpha(@accent_bg_color, 0.25); border-radius: 4px; }
+.tudi-tabs { padding: 3px 6px 0 6px; background-color: @headerbar_bg_color; border-bottom: 1px solid alpha(currentColor, 0.12); }
+.tudi-tab { padding: 1px 2px 1px 10px; border-radius: 6px 6px 0 0; min-width: 80px; opacity: 0.75; }
+.tudi-tab:hover { background-color: alpha(currentColor, 0.06); opacity: 1; }
+.tudi-tab.active { background-color: @view_bg_color; opacity: 1; box-shadow: inset 0 2px @accent_bg_color; }
+.tudi-tab.tiled { box-shadow: inset 0 -2px alpha(@accent_bg_color, 0.6); }
+.tudi-tab.active.tiled { box-shadow: inset 0 2px @accent_bg_color, inset 0 -2px alpha(@accent_bg_color, 0.6); }
+.tudi-tab-page.tudi-tile { box-shadow: inset 0 2px alpha(currentColor, 0.08); }
+.tudi-tab-page.tudi-tile.active { box-shadow: inset 0 2px @accent_bg_color; }
+.tudi-tab-close { min-width: 20px; min-height: 20px; padding: 0; }
+.tudi-tab-add { min-width: 24px; min-height: 24px; padding: 0 4px; margin-bottom: 2px; }
 .tudi-search { padding: 10px; box-shadow: 0 8px 28px alpha(black, 0.25); }
 .tudi-search-results > row { padding: 3px 6px; }
 .tudi-search-scope { padding: 0 2px 0 8px; border-radius: 999px; background: alpha(@accent_bg_color, 0.15); }
@@ -139,6 +150,7 @@ impl App {
                 l.4.clone(),
             )
         };
+        let path_given = path.is_some();
         let start = path
             .or_else(|| state.last_dir.as_ref().map(PathBuf::from))
             .unwrap_or_else(glib::home_dir);
@@ -154,7 +166,10 @@ impl App {
         if self.browsers.borrow().is_empty() {
             zoom::set(state.zoom);
         }
-        let b = Browser::new(app, &start, &state, shared.clone());
+        // The remembered tabs come back in the first window when no folder
+        // was asked for.
+        let restore_tabs = !path_given && self.browsers.borrow().is_empty();
+        let b = Browser::new(app, &start, &state, shared.clone(), restore_tabs);
         shared.browsers.borrow_mut().push(Rc::downgrade(&b));
         let first = self.browsers.borrow().is_empty();
         self.browsers.borrow_mut().push(b.clone());

@@ -497,7 +497,8 @@ impl Browser {
     /// `Ctrl+Shift+F`: search below the selected folder, or the current
     /// one.
     pub(crate) fn open_search_here(self: &Rc<Self>) {
-        let d = self.pane.data();
+        let tab = self.tab();
+        let d = tab.pane.data();
         let dir = self
             .selected_entries()
             .first()
@@ -545,7 +546,7 @@ impl Browser {
 
     pub(crate) fn close_search(&self) {
         self.search.container.set_visible(false);
-        self.pane_view.grab_focus();
+        self.tab().pane_view.grab_focus();
     }
 
     pub(crate) fn connect_search(self: &Rc<Self>) {
@@ -716,7 +717,7 @@ impl Browser {
         };
         if let Some(name) = path.file_name() {
             use std::os::unix::ffi::OsStrExt;
-            *self.select_after_load.borrow_mut() = Some(name.as_bytes().to_vec());
+            *self.tab().select_after_load.borrow_mut() = Some(name.as_bytes().to_vec());
         }
         self.navigate(&dir, true);
         self.record_visit(&dir);

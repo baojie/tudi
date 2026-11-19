@@ -13,6 +13,7 @@ Code: `crates/tudi-gui/src/`. Plan: `docs/PLAN.md` §5.3, §5.7.
 | `worker.rs` | listing threads: `Job` in, `Reply` out over `async-channel` |
 | `actions.rs` | type-ahead, clipboard, external commands, rename, trash, new folder, drag out |
 | `find.rs` | `Ctrl+F` find bar: jump to matches, `Enter` filters the list |
+| `tabs.rs` | tabs of the list, the tab strip, side-by-side tiles |
 | `activity.rs` | background tasks named in the status bar, with a spinner |
 | `format.rs` | sizes, dates, icons from file names |
 | `dev.rs` | `TUDI_DEV_SCREENSHOT` and `TUDI_DEV_SCRIPT` test hooks |
@@ -147,6 +148,38 @@ The status text is always rebuilt whole by `update_status` (a task's
 delayed display calls it too), so nothing else writes the label: a listing
 error is kept in `pane_error` and shown instead of the counts until the
 next listing is requested.
+
+## Tabs (ADR-025)
+
+`tabs.rs`: each tab (`Tab`) owns a details list — model, selection, view,
+column header, find bar, folder, back/forward history, sort order,
+listing generation, metadata fetcher, folder size, live watch
+(`WatchKey::Pane(tab id)`). The window keeps the tree, path bar, bookmarks
+bar, status bar, worker and watcher, and follows the active tab: switching
+tabs re-syncs the path bar, title, history buttons, tree selection and
+status. Hidden files and column widths are per window.
+
+- Code written for one list calls `Browser::tab()`: the active tab, or,
+  while `with_tab` runs, the tab a reply or a widget event belongs to.
+  Listing generations come from one per-window counter, so worker replies
+  (`Pane`, `Sorted`, `Meta`, `PaneError`, `FolderSize`) find their tab by
+  generation; replies for closed tabs find none and are dropped. Window
+  chrome (status, path bar, tasks in the status bar) is only touched for
+  the active tab.
+- The strip above the list: one button per tab (folder name, at most 22
+  characters, full path in the tooltip, close button), then "+". Click
+  selects, middle-click closes, right-click: New Tab, side by side, Close
+  Tab, Close Other Tabs. Middle-click on a folder in the list, or "Open in
+  New Tab" in the list and tree menus, opens it in a background tab.
+- Side by side: one pair of tabs (`Browser::tiled`) is shown in a
+  `GtkPaned` while the active tab is one of them; selecting another tab
+  shows it alone, selecting either of the pair shows both again. A press
+  or focus anywhere in a tab's page makes it active, so menus, keys and
+  drops act on the tile they happen in. The active tile has an accent line
+  on top.
+- Tabs are saved in `state.toml` (`tabs`, `active_tab`) and restored in the
+  first window when no folder was given; tabs other than the active one
+  are listed when first shown.
 
 ## Find in folder
 
