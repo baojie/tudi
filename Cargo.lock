@@ -788,7 +788,7 @@ dependencies = [
 
 [[package]]
 name = "gtk4-list-spike"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "gtk4",
  "libadwaita",
@@ -1768,7 +1768,7 @@ dependencies = [
 
 [[package]]
 name = "tudi-core"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "criterion",
  "globset",
@@ -1786,11 +1786,11 @@ dependencies = [
 
 [[package]]
 name = "tudi-fanotifyd"
-version = "0.1.1"
+version = "0.1.2"
 
 [[package]]
 name = "tudi-gui"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "anyhow",
  "async-channel",
@@ -1809,7 +1809,7 @@ dependencies = [
 
 [[package]]
 name = "tudi-index"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "crc32fast",
  "globset",
@@ -1824,7 +1824,7 @@ dependencies = [
 
 [[package]]
 name = "tudi-indexd"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "anyhow",
  "libc",
@@ -1837,7 +1837,7 @@ dependencies = [
 
 [[package]]
 name = "tudi-proto"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "postcard",
  "serde",

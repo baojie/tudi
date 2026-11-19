@@ -2,37 +2,41 @@
 
 ## Unreleased
 
-- The list hides the modified and size columns (in that order) when the
-  name would get too narrow, e.g. side by side; double-click a column
-  divider to fit the column to its content (up to a limit).
-- A header-bar button shows or hides hidden files (`Ctrl+H`).
-- Thumbnail view: in a folder with images, a header-bar button (or
-  `Ctrl+2` / `Ctrl+1`) switches between thumbnails and the list.
-- Fix: an empty band above the column headers (the closed find bar still
-  took its height).
+## 0.1.2 — 2026-11-20
+
+Tabs and a side-by-side view, thumbnails, drag and drop, resizable
+columns and nine more interface languages.
+
 - Tabs in the file list, named after their folder, "+" after the last tab
   (`Ctrl+T`, `Ctrl+W`, `Ctrl+Tab`, middle-click a folder or "Open in New
   Tab"); the list can be split in two sides, each with its own tabs
-  (tab menu "Open Side by Side" or `Ctrl+\`).
-  Tabs are restored on the next start.
-- Languages: Traditional Chinese, Japanese, Korean, German, French,
-  Spanish, Portuguese (Brazil), Italian and Russian, selectable in the
-  settings (or `[ui] language = "de"` …) whatever the system language.
-- Drag the handles between the list's column headers to resize the size
-  and modified columns (double-click resets); remembered per window. A
-  faint line separates the columns.
-- Fix: right-click on the list's empty space showed no menu; a context
-  menu taller than the room above and below the pointer closed at once.
+  (tab menu "Open Side by Side" or `Ctrl+\`). Tabs are restored on the
+  next start.
+- Thumbnail view: in a folder with images, a header-bar button (or
+  `Ctrl+2` / `Ctrl+1`) switches between thumbnails and the list.
 - Drag files onto a folder in the list or the tree, or onto the list's
   empty space, to move them (same disk) or copy them (another disk);
   `Ctrl` copies, `Shift` moves. Works with files from other apps.
+- Columns: drag the handles between the column headers to resize the size
+  and modified columns, double-click a handle to fit the column to its
+  content (up to a limit); remembered per window. A faint line separates
+  the columns. When the name would get too narrow (e.g. side by side), the
+  modified and then the size column are hidden.
+- Languages: Traditional Chinese, Japanese, Korean, German, French,
+  Spanish, Portuguese (Brazil), Italian and Russian, selectable in the
+  settings (or `[ui] language = "de"` …) whatever the system language.
+- A header-bar button shows or hides hidden files (`Ctrl+H`).
 - "New File…" in the list's right-click menu on empty space.
-- Bookmarks bar: bookmarks and frequent folders are ordered by how often
-  they were opened (`Alt+1..9` follow the shown order). Drag a bookmark
-  to put them in your own order instead; "Sort by Open Count" goes back.
 - Bookmarks bar: shows as many buttons as fit the window instead of at
   most 10; long folder names are shortened to their first two words or a
-  length limit (full name in the tooltip and the drop-down).
+  length limit (full name in the tooltip and the drop-down). Bookmarks
+  and frequent folders are ordered by how often they were opened
+  (`Alt+1..9` follow the shown order); drag a bookmark to put them in
+  your own order instead, "Sort by Open Count" goes back.
+- Fix: right-click on the list's empty space showed no menu; a context
+  menu taller than the room above and below the pointer closed at once.
+- Fix: an empty band above the column headers (the closed find bar still
+  took its height).
 
 ## 0.1.1 — 2026-11-20
 
