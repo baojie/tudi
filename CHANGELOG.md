@@ -7,6 +7,9 @@
 Tabs and a side-by-side view, thumbnails, drag and drop, resizable
 columns and nine more interface languages.
 
+![Tabs on two sides, thumbnails on the right](docs/screenshots/0.1.2.png)
+![The interface in Japanese](docs/screenshots/0.1.2-2.png)
+
 - Tabs in the file list, named after their folder, "+" after the last tab
   (`Ctrl+T`, `Ctrl+W`, `Ctrl+Tab`, middle-click a folder or "Open in New
   Tab"); the list can be split in two sides, each with its own tabs
@@ -42,6 +45,9 @@ columns and nine more interface languages.
 
 Memory search with its index daemon, the bookmarks bar, launchers and many
 browsing improvements.
+
+![Memory search (Ctrl+P)](docs/screenshots/0.1.1.png)
+![Bookmarks bar and Ctrl+F filtering](docs/screenshots/0.1.1-2.png)
 
 - `Ctrl+F` finds in the shown folder: typing jumps to the first name
   containing the text, `↓`/`F3` and `↑`/`Shift+F3` step through matches,
@@ -109,6 +115,8 @@ browsing improvements.
 First public preview. Usable as a daily file browser; search (index
 daemon, `Ctrl+P`), bookmarks bar and launchers are not there yet (see
 `docs/PLAN.md`).
+
+![Folder tree and details list](docs/screenshots/0.1.0.png)
 
 - Two panes: folder tree (directories only) on the left, details list on
   the right with sortable name / size / modified columns, natural sort,
