@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fix: opening a folder from outside (`tudi PATH`) could leave it at the
+  edge of the folder tree or out of view; it is now shown in the middle.
 - Preview pane (`Alt+P` or the header-bar button): shows the selected
   image, the start of a text file, or the item's details.
 ## 0.1.2 — 2026-11-20

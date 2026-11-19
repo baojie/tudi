@@ -1131,18 +1131,28 @@ impl Browser {
         match found {
             Some(row) => {
                 self.tree_sel.set_selected(row as u32);
-                // Rows inserted in this turn are not measured yet; scroll
-                // after the next frame's layout (and once more after that,
-                // since ListView refines its row-height estimate).
+                // Rows inserted in this turn are not measured yet, and a
+                // reveal can insert hundreds: scroll after each of the next
+                // frames' layout while ListView refines its row heights,
+                // then put the row in the middle (tree rows are all the
+                // same height), not at the edge where it barely shows.
                 let frames = Cell::new(0);
                 self.tree_view.add_tick_callback(move |v, _| {
-                    v.scroll_to(row as u32, gtk::ListScrollFlags::NONE, None);
-                    frames.set(frames.get() + 1);
-                    if frames.get() < 2 {
-                        glib::ControlFlow::Continue
-                    } else {
-                        glib::ControlFlow::Break
+                    let f = frames.get() + 1;
+                    frames.set(f);
+                    if f < 4 {
+                        v.scroll_to(row as u32, gtk::ListScrollFlags::NONE, None);
+                        return glib::ControlFlow::Continue;
                     }
+                    let n = v.model().map_or(0, |m| m.n_items());
+                    if let Some(adj) = v.vadjustment()
+                        && n > 0
+                    {
+                        let h = adj.upper() / f64::from(n);
+                        let top = h * row as f64 - (adj.page_size() - h) / 2.0;
+                        adj.set_value(top.clamp(0.0, (adj.upper() - adj.page_size()).max(0.0)));
+                    }
+                    glib::ControlFlow::Break
                 });
             }
             // Do not highlight an ancestor as if it were the current folder.

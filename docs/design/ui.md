@@ -82,7 +82,9 @@ Code: `crates/tudi-gui/src/`. Plan: `docs/PLAN.md` §5.3, §5.7.
 - Selecting a folder shows it in the list. Navigation from anywhere reveals
   the folder in the tree: ancestors are expanded (listing as needed) and the
   folder is selected; if the path goes through a hidden folder while hidden
-  files are off, nothing is selected.
+  files are off, nothing is selected. The selected row is scrolled to the
+  middle of the tree once the inserted rows are measured (a few frames;
+  `tudi PATH` from outside can expand hundreds of rows).
 - Expanded state is remembered while collapsed (`tudi-core` tree) and across
   sessions (`state.toml`, up to 200 folders).
 - Tree listings include symlinks to directories (resolved with `statx` on
