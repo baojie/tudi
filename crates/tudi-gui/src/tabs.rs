@@ -117,6 +117,7 @@ impl Tab {
                 .vexpand(true)
                 .child(&pane_view)
                 .build();
+            keep_header_aligned(&col_header, &pane_scroll);
             let find = crate::find::FindBar::new();
             let files = gtk::Box::new(gtk::Orientation::Vertical, 0);
             files.add_css_class("tudi-tab-page");
@@ -194,6 +195,34 @@ impl Tab {
         }
         self.fetcher.replace(None);
     }
+}
+
+/// The rows are narrower by the vertical scrollbar only while it is shown
+/// (a short folder has none): give the column header the same right
+/// margin, so its columns and lines stay above the rows'.
+fn keep_header_aligned(header: &gtk::Box, scroll: &gtk::ScrolledWindow) {
+    let sync = {
+        let (h, s) = (header.downgrade(), scroll.downgrade());
+        move || {
+            let (Some(h), Some(s)) = (h.upgrade(), s.upgrade()) else {
+                return;
+            };
+            let adj = s.vadjustment();
+            let sb = s.vscrollbar();
+            let shown = adj.upper() > adj.page_size() + 0.5;
+            let w = if shown {
+                sb.measure(gtk::Orientation::Horizontal, -1).0
+            } else {
+                0
+            };
+            if h.margin_end() != w {
+                h.set_margin_end(w);
+            }
+        }
+    };
+    let s = sync.clone();
+    scroll.vadjustment().connect_changed(move |_| s());
+    sync();
 }
 
 /// A folder's name for a tab ("/" for the root).

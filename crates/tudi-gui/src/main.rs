@@ -52,10 +52,13 @@ const APP_ID: &str = "io.github.baojie.tudi";
 const CSS: &str = "
 /* Right padding = row padding (12px) + the always-visible scrollbar (22px),
    so the header columns line up with the list columns. */
-.tudi-column-header { padding: 0 34px 0 12px; }
+.tudi-column-header { padding: 0 12px; }
 .tudi-column-header button { padding: 2px 0; min-height: 0; font-weight: normal; }
-.tudi-col-handle { margin: 3px 0; background: linear-gradient(to right, transparent 3px, alpha(currentColor, 0.12) 3px, alpha(currentColor, 0.12) 4px, transparent 4px); }
+.tudi-col-handle { margin: 3px 0; }
 .tudi-col-handle:hover { background: linear-gradient(to right, transparent 3px, alpha(currentColor, 0.4) 3px, alpha(currentColor, 0.4) 5px, transparent 5px); }
+/* The header's line between columns: the size and date buttons' left
+   border, exactly like the rows' below. */
+.tudi-column-header .tudi-col { margin-left: -1px; border-left: 1px solid alpha(currentColor, 0.12); border-radius: 0; }
 /* A faint line between columns in every row, under the header's line
    (the label's left border, pulled into the gap: content unmoved; the
    dim-label opacity halves it, hence the stronger alpha). */

@@ -594,6 +594,8 @@ pub fn build_header(model: &PaneModel, columns: &Rc<Columns>) -> (gtk::Box, [gtk
     name.set_hexpand(true);
     let size = mk(&tr("Size"), 1.0, COL_SIZE_CHARS);
     let date = mk(&tr("Modified"), 1.0, COL_DATE_CHARS);
+    size.add_css_class("tudi-col");
+    date.add_css_class("tudi-col");
     let label_of = |b: &gtk::Button| b.child().and_downcast::<gtk::Label>().unwrap();
     let (size_label, date_label) = (label_of(&size), label_of(&date));
     apply_width(&size_label, columns.size.get(), COL_SIZE_CHARS);
