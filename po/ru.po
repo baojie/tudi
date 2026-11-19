@@ -287,66 +287,70 @@ msgstr "Сохранить"
 msgid "Rename Launcher"
 msgstr "Переименовать ярлык"
 
-#: crates/tudi-gui/src/browser.rs:178
+#: crates/tudi-gui/src/browser.rs:180
 msgid "Back (Alt+Left)"
 msgstr "Назад (Alt+Left)"
 
-#: crates/tudi-gui/src/browser.rs:180
+#: crates/tudi-gui/src/browser.rs:182
 msgid "Forward (Alt+Right)"
 msgstr "Вперёд (Alt+Right)"
 
-#: crates/tudi-gui/src/browser.rs:182
+#: crates/tudi-gui/src/browser.rs:184
 msgid "Parent folder (Alt+Up)"
 msgstr "Родительская папка (Alt+Up)"
 
-#: crates/tudi-gui/src/browser.rs:193
+#: crates/tudi-gui/src/browser.rs:194
+msgid "Show Hidden Files (Ctrl+H)"
+msgstr "Показать скрытые файлы (Ctrl+H)"
+
+#: crates/tudi-gui/src/browser.rs:200
 msgid "Settings (Ctrl+,)"
 msgstr "Настройки (Ctrl+,)"
 
-#: crates/tudi-gui/src/browser.rs:364
+#: crates/tudi-gui/src/browser.rs:381
 msgid "Home"
 msgstr "Домашняя папка"
 
-#: crates/tudi-gui/src/browser.rs:366
+#: crates/tudi-gui/src/browser.rs:383
 msgid "File System"
 msgstr "Файловая система"
 
-#: crates/tudi-gui/src/browser.rs:1116
+#: crates/tudi-gui/src/browser.rs:1139
 msgid "Zoom {}%"
 msgstr "Масштаб {}%"
 
-#: crates/tudi-gui/src/browser.rs:1299 crates/tudi-gui/src/pane.rs:597
+#: crates/tudi-gui/src/browser.rs:1322 crates/tudi-gui/src/pane.rs:649
 #: crates/tudi-gui/src/settings.rs:115
 msgid "Name"
 msgstr "Имя"
 
-#: crates/tudi-gui/src/browser.rs:1299 crates/tudi-gui/src/pane.rs:599
+#: crates/tudi-gui/src/browser.rs:1322 crates/tudi-gui/src/pane.rs:651
 #: crates/tudi-gui/src/properties.rs:229 crates/tudi-gui/src/settings.rs:115
 msgid "Size"
 msgstr "Размер"
 
-#: crates/tudi-gui/src/browser.rs:1299 crates/tudi-gui/src/pane.rs:600
+#: crates/tudi-gui/src/browser.rs:1322 crates/tudi-gui/src/pane.rs:652
 #: crates/tudi-gui/src/properties.rs:242 crates/tudi-gui/src/settings.rs:115
 msgid "Modified"
 msgstr "Изменён"
 
-#: crates/tudi-gui/src/browser.rs:1394
+#: crates/tudi-gui/src/browser.rs:1417
 msgid "filtered by “{}”"
 msgstr "фильтр: «{}»"
 
-#: crates/tudi-gui/src/browser.rs:1402
+#: crates/tudi-gui/src/browser.rs:1425
 msgid "{} free"
 msgstr "{} свободно"
 
-#: crates/tudi-gui/src/browser.rs:1407
+#: crates/tudi-gui/src/browser.rs:1430
 msgid "{} selected"
 msgstr "выбрано: {}"
 
-#: crates/tudi-gui/src/browser.rs:1772
+#: crates/tudi-gui/src/browser.rs:1796
 msgid "List (Ctrl+1)"
 msgstr "Список (Ctrl+1)"
 
-#: crates/tudi-gui/src/browser.rs:1774
+#: crates/tudi-gui/src/browser.rs:1798
 msgid "Thumbnails (Ctrl+2)"
 msgstr "Миниатюры (Ctrl+2)"
 
@@ -746,35 +750,35 @@ msgstr ""
 msgid "Clear"
 msgstr "Очистить"
 
-#: crates/tudi-gui/src/tabs.rs:322
+#: crates/tudi-gui/src/tabs.rs:347
 msgid "Close Tab (Ctrl+W)"
 msgstr "Закрыть вкладку (Ctrl+W)"
 
-#: crates/tudi-gui/src/tabs.rs:346
+#: crates/tudi-gui/src/tabs.rs:371
 msgid "New Tab (Ctrl+T)"
 msgstr "Новая вкладка (Ctrl+T)"
 
-#: crates/tudi-gui/src/tabs.rs:863
+#: crates/tudi-gui/src/tabs.rs:889
 msgid "New Tab"
 msgstr "Новая вкладка"
 
-#: crates/tudi-gui/src/tabs.rs:865
+#: crates/tudi-gui/src/tabs.rs:891
 msgid "Move to Other Side"
 msgstr "Переместить на другую сторону"
 
-#: crates/tudi-gui/src/tabs.rs:866
+#: crates/tudi-gui/src/tabs.rs:892
 msgid "Stop Side by Side"
 msgstr "Не показывать рядом"
 
-#: crates/tudi-gui/src/tabs.rs:868
+#: crates/tudi-gui/src/tabs.rs:894
 msgid "Open Side by Side"
 msgstr "Открыть рядом"
 
-#: crates/tudi-gui/src/tabs.rs:872
+#: crates/tudi-gui/src/tabs.rs:898
 msgid "Close Tab"
 msgstr "Закрыть вкладку"
 
-#: crates/tudi-gui/src/tabs.rs:874
+#: crates/tudi-gui/src/tabs.rs:900
 msgid "Close Other Tabs"
 msgstr "Закрыть другие вкладки"
 
@@ -843,14 +847,14 @@ msgstr[0] "{} открытие"
 msgstr[1] "{} открытия"
 msgstr[2] "{} открытий"
 
-#: crates/tudi-gui/src/browser.rs:1386 crates/tudi-gui/src/properties.rs:167
+#: crates/tudi-gui/src/browser.rs:1409 crates/tudi-gui/src/properties.rs:167
 msgid "{} file"
 msgid_plural "{} files"
 msgstr[0] "{} файл"
 msgstr[1] "{} файла"
 msgstr[2] "{} файлов"
 
-#: crates/tudi-gui/src/browser.rs:1389 crates/tudi-gui/src/properties.rs:172
+#: crates/tudi-gui/src/browser.rs:1412 crates/tudi-gui/src/properties.rs:172
 msgid "{} folder"
 msgid_plural "{} folders"
 msgstr[0] "{} папка"

@@ -54,12 +54,18 @@ Code: `crates/tudi-gui/src/`. Plan: `docs/PLAN.md` §5.3, §5.7.
 - Column widths: the header has an 8 px drag handle left of the size and
   date columns (the gaps the rows have between columns). Dragging sets that
   column's width in pixels (24–800; the name column takes the rest);
-  double-click restores the default width in characters, which follows
-  the zoom. Widths live in `pane::Columns`, shared by the header and the
+  double-click fits the column to its widest text (header and the rows on
+  screen), at most 280 px. Without a dragged width a column has its
+  default width in characters, which follows the zoom. Widths live in `pane::Columns`, shared by the header and the
   rows; a drag re-applies them to the bound rows only, and a row gets them
   when bound. The drag is measured in window coordinates, since the handle
   moves with the column edge. Saved per window in `state.toml`
   (`size_column`, `date_column`, 0 = default).
+- Columns that do not fit are hidden from the right (the date, then the
+  size) so the name keeps at least 180 px; they come back when there is
+  room (`pane::columns_to_hide`, re-checked in an idle callback when the
+  tab page's width changes and after a drag or fit). Header and rows hide
+  together (`pane::Hidden`, per tab).
 - A faint 1 px line separates the columns: the left border of the size
   and date widgets, in the header (buttons) and in every row (labels,
   pulled 1 px into the gap and 2 px into the row padding so the line is

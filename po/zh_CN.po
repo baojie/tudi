@@ -284,66 +284,70 @@ msgstr "保存"
 msgid "Rename Launcher"
 msgstr "重命名启动器"
 
-#: crates/tudi-gui/src/browser.rs:178
+#: crates/tudi-gui/src/browser.rs:180
 msgid "Back (Alt+Left)"
 msgstr "后退 (Alt+←)"
 
-#: crates/tudi-gui/src/browser.rs:180
+#: crates/tudi-gui/src/browser.rs:182
 msgid "Forward (Alt+Right)"
 msgstr "前进 (Alt+→)"
 
-#: crates/tudi-gui/src/browser.rs:182
+#: crates/tudi-gui/src/browser.rs:184
 msgid "Parent folder (Alt+Up)"
 msgstr "上一级 (Alt+↑)"
 
-#: crates/tudi-gui/src/browser.rs:193
+#: crates/tudi-gui/src/browser.rs:194
+msgid "Show Hidden Files (Ctrl+H)"
+msgstr "显示隐藏文件 (Ctrl+H)"
+
+#: crates/tudi-gui/src/browser.rs:200
 msgid "Settings (Ctrl+,)"
 msgstr "设置 (Ctrl+,)"
 
-#: crates/tudi-gui/src/browser.rs:364
+#: crates/tudi-gui/src/browser.rs:381
 msgid "Home"
 msgstr "主目录"
 
-#: crates/tudi-gui/src/browser.rs:366
+#: crates/tudi-gui/src/browser.rs:383
 msgid "File System"
 msgstr "文件系统"
 
-#: crates/tudi-gui/src/browser.rs:1116
+#: crates/tudi-gui/src/browser.rs:1139
 msgid "Zoom {}%"
 msgstr "缩放 {}%"
 
-#: crates/tudi-gui/src/browser.rs:1299 crates/tudi-gui/src/pane.rs:597
+#: crates/tudi-gui/src/browser.rs:1322 crates/tudi-gui/src/pane.rs:649
 #: crates/tudi-gui/src/settings.rs:115
 msgid "Name"
 msgstr "名称"
 
-#: crates/tudi-gui/src/browser.rs:1299 crates/tudi-gui/src/pane.rs:599
+#: crates/tudi-gui/src/browser.rs:1322 crates/tudi-gui/src/pane.rs:651
 #: crates/tudi-gui/src/properties.rs:229 crates/tudi-gui/src/settings.rs:115
 msgid "Size"
 msgstr "大小"
 
-#: crates/tudi-gui/src/browser.rs:1299 crates/tudi-gui/src/pane.rs:600
+#: crates/tudi-gui/src/browser.rs:1322 crates/tudi-gui/src/pane.rs:652
 #: crates/tudi-gui/src/properties.rs:242 crates/tudi-gui/src/settings.rs:115
 msgid "Modified"
 msgstr "修改时间"
 
-#: crates/tudi-gui/src/browser.rs:1394
+#: crates/tudi-gui/src/browser.rs:1417
 msgid "filtered by “{}”"
 msgstr "已筛选“{}”"
 
-#: crates/tudi-gui/src/browser.rs:1402
+#: crates/tudi-gui/src/browser.rs:1425
 msgid "{} free"
 msgstr "剩余 {}"
 
-#: crates/tudi-gui/src/browser.rs:1407
+#: crates/tudi-gui/src/browser.rs:1430
 msgid "{} selected"
 msgstr "已选 {} 项"
 
-#: crates/tudi-gui/src/browser.rs:1772
+#: crates/tudi-gui/src/browser.rs:1796
 msgid "List (Ctrl+1)"
 msgstr "列表 (Ctrl+1)"
 
-#: crates/tudi-gui/src/browser.rs:1774
+#: crates/tudi-gui/src/browser.rs:1798
 msgid "Thumbnails (Ctrl+2)"
 msgstr "缩略图 (Ctrl+2)"
 
@@ -738,35 +742,35 @@ msgstr "所有文件夹的访问次数都将被清除。排除项和书签会保
 msgid "Clear"
 msgstr "清空"
 
-#: crates/tudi-gui/src/tabs.rs:322
+#: crates/tudi-gui/src/tabs.rs:347
 msgid "Close Tab (Ctrl+W)"
 msgstr "关闭标签页 (Ctrl+W)"
 
-#: crates/tudi-gui/src/tabs.rs:346
+#: crates/tudi-gui/src/tabs.rs:371
 msgid "New Tab (Ctrl+T)"
 msgstr "新建标签页 (Ctrl+T)"
 
-#: crates/tudi-gui/src/tabs.rs:863
+#: crates/tudi-gui/src/tabs.rs:889
 msgid "New Tab"
 msgstr "新建标签页"
 
-#: crates/tudi-gui/src/tabs.rs:865
+#: crates/tudi-gui/src/tabs.rs:891
 msgid "Move to Other Side"
 msgstr "移到另一侧"
 
-#: crates/tudi-gui/src/tabs.rs:866
+#: crates/tudi-gui/src/tabs.rs:892
 msgid "Stop Side by Side"
 msgstr "取消并排显示"
 
-#: crates/tudi-gui/src/tabs.rs:868
+#: crates/tudi-gui/src/tabs.rs:894
 msgid "Open Side by Side"
 msgstr "并排打开"
 
-#: crates/tudi-gui/src/tabs.rs:872
+#: crates/tudi-gui/src/tabs.rs:898
 msgid "Close Tab"
 msgstr "关闭标签页"
 
-#: crates/tudi-gui/src/tabs.rs:874
+#: crates/tudi-gui/src/tabs.rs:900
 msgid "Close Other Tabs"
 msgstr "关闭其他标签页"
 
@@ -821,12 +825,12 @@ msgid "{} open"
 msgid_plural "{} opens"
 msgstr[0] "打开 {} 次"
 
-#: crates/tudi-gui/src/browser.rs:1386 crates/tudi-gui/src/properties.rs:167
+#: crates/tudi-gui/src/browser.rs:1409 crates/tudi-gui/src/properties.rs:167
 msgid "{} file"
 msgid_plural "{} files"
 msgstr[0] "{} 个文件"
 
-#: crates/tudi-gui/src/browser.rs:1389 crates/tudi-gui/src/properties.rs:172
+#: crates/tudi-gui/src/browser.rs:1412 crates/tudi-gui/src/properties.rs:172
 msgid "{} folder"
 msgid_plural "{} folders"
 msgstr[0] "{} 个文件夹"

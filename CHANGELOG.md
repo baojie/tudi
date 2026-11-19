@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- The list hides the modified and size columns (in that order) when the
+  name would get too narrow, e.g. side by side; double-click a column
+  divider to fit the column to its content (up to a limit).
+- A header-bar button shows or hides hidden files (`Ctrl+H`).
 - Thumbnail view: in a folder with images, a header-bar button (or
   `Ctrl+2` / `Ctrl+1`) switches between thumbnails and the list.
 - Fix: an empty band above the column headers (the closed find bar still

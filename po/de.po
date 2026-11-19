@@ -287,66 +287,70 @@ msgstr "Speichern"
 msgid "Rename Launcher"
 msgstr "Starter umbenennen"
 
-#: crates/tudi-gui/src/browser.rs:178
+#: crates/tudi-gui/src/browser.rs:180
 msgid "Back (Alt+Left)"
 msgstr "Zurück (Alt+Left)"
 
-#: crates/tudi-gui/src/browser.rs:180
+#: crates/tudi-gui/src/browser.rs:182
 msgid "Forward (Alt+Right)"
 msgstr "Vor (Alt+Right)"
 
-#: crates/tudi-gui/src/browser.rs:182
+#: crates/tudi-gui/src/browser.rs:184
 msgid "Parent folder (Alt+Up)"
 msgstr "Übergeordneter Ordner (Alt+Up)"
 
-#: crates/tudi-gui/src/browser.rs:193
+#: crates/tudi-gui/src/browser.rs:194
+msgid "Show Hidden Files (Ctrl+H)"
+msgstr "Verborgene Dateien anzeigen (Ctrl+H)"
+
+#: crates/tudi-gui/src/browser.rs:200
 msgid "Settings (Ctrl+,)"
 msgstr "Einstellungen (Ctrl+,)"
 
-#: crates/tudi-gui/src/browser.rs:364
+#: crates/tudi-gui/src/browser.rs:381
 msgid "Home"
 msgstr "Persönlicher Ordner"
 
-#: crates/tudi-gui/src/browser.rs:366
+#: crates/tudi-gui/src/browser.rs:383
 msgid "File System"
 msgstr "Dateisystem"
 
-#: crates/tudi-gui/src/browser.rs:1116
+#: crates/tudi-gui/src/browser.rs:1139
 msgid "Zoom {}%"
 msgstr "Zoom {}%"
 
-#: crates/tudi-gui/src/browser.rs:1299 crates/tudi-gui/src/pane.rs:597
+#: crates/tudi-gui/src/browser.rs:1322 crates/tudi-gui/src/pane.rs:649
 #: crates/tudi-gui/src/settings.rs:115
 msgid "Name"
 msgstr "Name"
 
-#: crates/tudi-gui/src/browser.rs:1299 crates/tudi-gui/src/pane.rs:599
+#: crates/tudi-gui/src/browser.rs:1322 crates/tudi-gui/src/pane.rs:651
 #: crates/tudi-gui/src/properties.rs:229 crates/tudi-gui/src/settings.rs:115
 msgid "Size"
 msgstr "Größe"
 
-#: crates/tudi-gui/src/browser.rs:1299 crates/tudi-gui/src/pane.rs:600
+#: crates/tudi-gui/src/browser.rs:1322 crates/tudi-gui/src/pane.rs:652
 #: crates/tudi-gui/src/properties.rs:242 crates/tudi-gui/src/settings.rs:115
 msgid "Modified"
 msgstr "Geändert"
 
-#: crates/tudi-gui/src/browser.rs:1394
+#: crates/tudi-gui/src/browser.rs:1417
 msgid "filtered by “{}”"
 msgstr "gefiltert nach „{}“"
 
-#: crates/tudi-gui/src/browser.rs:1402
+#: crates/tudi-gui/src/browser.rs:1425
 msgid "{} free"
 msgstr "{} frei"
 
-#: crates/tudi-gui/src/browser.rs:1407
+#: crates/tudi-gui/src/browser.rs:1430
 msgid "{} selected"
 msgstr "{} ausgewählt"
 
-#: crates/tudi-gui/src/browser.rs:1772
+#: crates/tudi-gui/src/browser.rs:1796
 msgid "List (Ctrl+1)"
 msgstr "Liste (Ctrl+1)"
 
-#: crates/tudi-gui/src/browser.rs:1774
+#: crates/tudi-gui/src/browser.rs:1798
 msgid "Thumbnails (Ctrl+2)"
 msgstr "Vorschaubilder (Ctrl+2)"
 
@@ -746,35 +750,35 @@ msgstr ""
 msgid "Clear"
 msgstr "Leeren"
 
-#: crates/tudi-gui/src/tabs.rs:322
+#: crates/tudi-gui/src/tabs.rs:347
 msgid "Close Tab (Ctrl+W)"
 msgstr "Tab schließen (Ctrl+W)"
 
-#: crates/tudi-gui/src/tabs.rs:346
+#: crates/tudi-gui/src/tabs.rs:371
 msgid "New Tab (Ctrl+T)"
 msgstr "Neuer Tab (Ctrl+T)"
 
-#: crates/tudi-gui/src/tabs.rs:863
+#: crates/tudi-gui/src/tabs.rs:889
 msgid "New Tab"
 msgstr "Neuer Tab"
 
-#: crates/tudi-gui/src/tabs.rs:865
+#: crates/tudi-gui/src/tabs.rs:891
 msgid "Move to Other Side"
 msgstr "Auf andere Seite verschieben"
 
-#: crates/tudi-gui/src/tabs.rs:866
+#: crates/tudi-gui/src/tabs.rs:892
 msgid "Stop Side by Side"
 msgstr "Nebeneinander beenden"
 
-#: crates/tudi-gui/src/tabs.rs:868
+#: crates/tudi-gui/src/tabs.rs:894
 msgid "Open Side by Side"
 msgstr "Nebeneinander öffnen"
 
-#: crates/tudi-gui/src/tabs.rs:872
+#: crates/tudi-gui/src/tabs.rs:898
 msgid "Close Tab"
 msgstr "Tab schließen"
 
-#: crates/tudi-gui/src/tabs.rs:874
+#: crates/tudi-gui/src/tabs.rs:900
 msgid "Close Other Tabs"
 msgstr "Andere Tabs schließen"
 
@@ -836,13 +840,13 @@ msgid_plural "{} opens"
 msgstr[0] "{} Aufruf"
 msgstr[1] "{} Aufrufe"
 
-#: crates/tudi-gui/src/browser.rs:1386 crates/tudi-gui/src/properties.rs:167
+#: crates/tudi-gui/src/browser.rs:1409 crates/tudi-gui/src/properties.rs:167
 msgid "{} file"
 msgid_plural "{} files"
 msgstr[0] "{} Datei"
 msgstr[1] "{} Dateien"
 
-#: crates/tudi-gui/src/browser.rs:1389 crates/tudi-gui/src/properties.rs:172
+#: crates/tudi-gui/src/browser.rs:1412 crates/tudi-gui/src/properties.rs:172
 msgid "{} folder"
 msgid_plural "{} folders"
 msgstr[0] "{} Ordner"

@@ -321,10 +321,56 @@ fn apply_width(label: &gtk::Label, px: Option<i32>, chars: i32) {
     }
 }
 
-fn apply_row_widths(row: &gtk::Box, cols: &Columns) {
+/// Columns hidden from the right because the list is too narrow: 0 none,
+/// 1 the date, 2 the date and the size (per tab).
+pub type Hidden = Rc<Cell<u8>>;
+
+fn apply_row_widths(row: &gtk::Box, cols: &Columns, hidden: &Cell<u8>) {
     let p = parts(row);
     apply_width(&p.size, cols.size.get(), COL_SIZE_CHARS);
     apply_width(&p.date, cols.date.get(), COL_DATE_CHARS);
+    p.date.set_visible(hidden.get() < 1);
+    p.size.set_visible(hidden.get() < 2);
+}
+
+/// What a row has besides its columns: padding, icon and its gap, room
+/// for the scrollbar.
+const ROW_FIXED: i32 = 12 + 16 + 8 + 12 + 14;
+/// Narrowest the name column gets before columns are hidden, in pixels.
+const NAME_MIN: i32 = 180;
+/// Widest a double-click makes a column (fit to its content).
+const COL_AUTO_MAX: i32 = 280;
+
+/// A column's width in pixels: the dragged one, or the default in
+/// characters measured in `label`'s font.
+fn column_px(label: &gtk::Label, px: Option<i32>, chars: i32) -> i32 {
+    px.unwrap_or_else(|| {
+        label
+            .create_pango_layout(Some(&"0".repeat(chars as usize)))
+            .pixel_size()
+            .0
+    })
+}
+
+/// How many columns to hide so the name keeps [`NAME_MIN`] in `width`.
+fn columns_to_hide(width: i32, fixed: i32, size: i32, date: i32) -> u8 {
+    // Each shown column also takes its 8 px gap.
+    let room = width - fixed - NAME_MIN;
+    if room >= size + date + 16 {
+        0
+    } else if room >= size + 8 {
+        1
+    } else {
+        2
+    }
+}
+
+/// The column header: its box, the three sort buttons, and `fit`, which
+/// hides columns that do not fit in `width` and re-applies widths.
+pub struct Header {
+    pub widget: gtk::Box,
+    pub buttons: [gtk::Button; 3],
+    pub fit: Rc<dyn Fn(i32)>,
 }
 
 fn fixed_label(chars: i32) -> gtk::Label {
@@ -476,6 +522,7 @@ pub fn build_view(
     selection: &gtk::MultiSelection,
     wanted: &Wanted,
     columns: &Rc<Columns>,
+    hidden: &Hidden,
     on_menu: MenuFn,
     on_drop: RowDropFn,
 ) -> gtk::ListView {
@@ -509,14 +556,19 @@ pub fn build_view(
             r.set(w);
         });
     });
-    let (m, w, cols) = (model.clone(), wanted.clone(), columns.clone());
+    let (m, w, cols, hid) = (
+        model.clone(),
+        wanted.clone(),
+        columns.clone(),
+        hidden.clone(),
+    );
     factory.connect_bind(move |_, item| {
         let item = item.downcast_ref::<gtk::ListItem>().unwrap();
         let row = item.child().and_downcast::<gtk::Box>().unwrap();
         let pos = item.item().and_downcast::<PaneRow>().unwrap().position();
         let t0 = std::time::Instant::now();
         // Unchanged widths are no-ops (GTK setters compare first).
-        apply_row_widths(&row, &cols);
+        apply_row_widths(&row, &cols, &hid);
         fill(&row, &m, pos);
         crate::bench::ROW_WORK.with(|r| {
             let mut w = r.get();
@@ -573,12 +625,12 @@ pub fn build_view(
     view
 }
 
-/// Column header row matching the row layout. Returns the box and the three
-/// buttons (name, size, modified). Between the buttons are drag handles:
-/// the one left of a column sets that column's width (dragging left widens
-/// it; the name column takes the rest); a double-click restores the
-/// default. The widths are saved with the window state.
-pub fn build_header(model: &PaneModel, columns: &Rc<Columns>) -> (gtk::Box, [gtk::Button; 3]) {
+/// Column header row matching the row layout. Between the buttons are
+/// drag handles: the one left of a column sets that column's width
+/// (dragging left widens it; the name column takes the rest); a
+/// double-click fits the column to its content (at most
+/// [`COL_AUTO_MAX`]). The widths are saved with the window state.
+pub fn build_header(model: &PaneModel, columns: &Rc<Columns>, hidden: &Hidden) -> Header {
     // No spacing: the handles fill the gaps the rows have between columns.
     let header = gtk::Box::new(gtk::Orientation::Horizontal, 0);
     header.add_css_class("tudi-column-header");
@@ -604,25 +656,65 @@ pub fn build_header(model: &PaneModel, columns: &Rc<Columns>) -> (gtk::Box, [gtk
     let (size_label, date_label) = (label_of(&size), label_of(&date));
     apply_width(&size_label, columns.size.get(), COL_SIZE_CHARS);
     apply_width(&date_label, columns.date.get(), COL_DATE_CHARS);
-    // Re-apply the widths to the header label and the bound rows.
-    let refresh: Rc<dyn Fn()> = {
-        let (m, cols) = (model.clone(), columns.clone());
-        let (sl, dl) = (size_label.clone(), date_label.clone());
-        Rc::new(move || {
-            apply_width(&sl, cols.size.get(), COL_SIZE_CHARS);
-            apply_width(&dl, cols.date.get(), COL_DATE_CHARS);
-            // Only bound rows (on screen, a few dozen); the others get the
-            // widths when bound.
-            for row in m.imp().bound.borrow().values().filter_map(|w| w.upgrade()) {
-                apply_row_widths(&row, &cols);
-            }
-        })
-    };
-    let handle = |column: gtk::Button, is_size: bool| {
+    let mk_handle = || {
         let h = gtk::Box::new(gtk::Orientation::Horizontal, 0);
         h.set_size_request(8, -1);
         h.add_css_class("tudi-col-handle");
         h.set_cursor_from_name(Some("col-resize"));
+        h
+    };
+    let (size_handle, date_handle) = (mk_handle(), mk_handle());
+    // Re-apply widths and hidden columns to the header and the bound rows.
+    let refresh: Rc<dyn Fn()> = {
+        let (m, cols, hid) = (model.clone(), columns.clone(), hidden.clone());
+        let (sl, dl) = (size_label.clone(), date_label.clone());
+        let (sb, db) = (size.clone(), date.clone());
+        let (sh, dh) = (size_handle.clone(), date_handle.clone());
+        Rc::new(move || {
+            apply_width(&sl, cols.size.get(), COL_SIZE_CHARS);
+            apply_width(&dl, cols.date.get(), COL_DATE_CHARS);
+            db.set_visible(hid.get() < 1);
+            dh.set_visible(hid.get() < 1);
+            sb.set_visible(hid.get() < 2);
+            sh.set_visible(hid.get() < 2);
+            // Only bound rows (on screen, a few dozen); the others get the
+            // widths when bound.
+            for row in m.imp().bound.borrow().values().filter_map(|w| w.upgrade()) {
+                apply_row_widths(&row, &cols, &hid);
+            }
+        })
+    };
+    // Hide columns that do not fit `width` (the list's width; the last
+    // one is kept so a drag can re-check).
+    let last_width = Rc::new(Cell::new(0));
+    let fit: Rc<dyn Fn(i32)> = {
+        let (cols, hid, r, lw) = (
+            columns.clone(),
+            hidden.clone(),
+            refresh.clone(),
+            last_width.clone(),
+        );
+        let (sl, dl) = (size_label.clone(), date_label.clone());
+        Rc::new(move |width| {
+            if width <= 0 {
+                return;
+            }
+            lw.set(width);
+            let s = column_px(&sl, cols.size.get(), COL_SIZE_CHARS);
+            let d = column_px(&dl, cols.date.get(), COL_DATE_CHARS);
+            let n = columns_to_hide(width, ROW_FIXED, s, d);
+            if hid.get() != n {
+                hid.set(n);
+                r();
+            }
+        })
+    };
+    // After a drag or a fit: widths changed, re-check what fits.
+    let refit: Rc<dyn Fn()> = {
+        let (f, lw) = (fit.clone(), last_width.clone());
+        Rc::new(move || f(lw.get()))
+    };
+    let wire = |h: &gtk::Box, column: gtk::Button, is_size: bool| {
         let drag = gtk::GestureDrag::new();
         // The handle moves with the column edge, so its own coordinates are
         // not a fixed frame: measure the pointer in the window's.
@@ -656,23 +748,64 @@ pub fn build_header(model: &PaneModel, columns: &Rc<Columns>) -> (gtk::Box, [gtk
                 r();
             }
         });
+        let rf = refit.clone();
+        drag.connect_drag_end(move |_, _, _| rf());
         h.add_controller(drag);
-        let reset = gtk::GestureClick::new();
-        let (cols, r) = (columns.clone(), refresh.clone());
-        reset.connect_pressed(move |_, n, _, _| {
-            if n == 2 {
-                let c = if is_size { &cols.size } else { &cols.date };
-                c.set(None);
-                r();
+        // Double-click: fit the column to its widest text (header and the
+        // rows on screen), within limits.
+        let autofit = gtk::GestureClick::new();
+        let (cols, r, m, rf) = (
+            columns.clone(),
+            refresh.clone(),
+            model.clone(),
+            refit.clone(),
+        );
+        let header_label = label_of(&column);
+        autofit.connect_pressed(move |_, n, _, _| {
+            if n != 2 {
+                return;
             }
+            let text_px = |l: &gtk::Label| l.create_pango_layout(Some(&l.text())).pixel_size().0;
+            let mut widest = text_px(&header_label);
+            for row in m.imp().bound.borrow().values().filter_map(|w| w.upgrade()) {
+                let p = parts(&row);
+                widest = widest.max(text_px(if is_size { &p.size } else { &p.date }));
+            }
+            // Room for the right-aligned text not to touch the line.
+            let px = (widest + 8).clamp(COL_MIN, COL_AUTO_MAX);
+            let c = if is_size { &cols.size } else { &cols.date };
+            c.set(Some(px));
+            r();
+            rf();
         });
-        h.add_controller(reset);
-        h
+        h.add_controller(autofit);
     };
+    wire(&size_handle, size.clone(), true);
+    wire(&date_handle, date.clone(), false);
     header.append(&name);
-    header.append(&handle(size.clone(), true));
+    header.append(&size_handle);
     header.append(&size);
-    header.append(&handle(date.clone(), false));
+    header.append(&date_handle);
     header.append(&date);
-    (header, [name, size, date])
+    Header {
+        widget: header,
+        buttons: [name, size, date],
+        fit,
+    }
+}
+
+#[cfg(test)]
+mod column_tests {
+    use super::{NAME_MIN, columns_to_hide};
+
+    #[test]
+    fn columns_hide_from_the_right() {
+        let (fixed, s, d) = (60, 80, 100);
+        let all = fixed + NAME_MIN + s + d + 16;
+        assert_eq!(columns_to_hide(all, fixed, s, d), 0);
+        assert_eq!(columns_to_hide(all - 1, fixed, s, d), 1);
+        assert_eq!(columns_to_hide(fixed + NAME_MIN + s + 8, fixed, s, d), 1);
+        assert_eq!(columns_to_hide(fixed + NAME_MIN + s + 7, fixed, s, d), 2);
+        assert_eq!(columns_to_hide(10, fixed, s, d), 2);
+    }
 }

@@ -217,7 +217,6 @@ pub fn is_image(name: &[u8]) -> bool {
     }
 }
 
-
 /// Grid cells currently bound, by position (refilled when a thumbnail
 /// arrives).
 pub type GridBound = std::rc::Rc<std::cell::RefCell<HashMap<u32, glib::WeakRef<gtk::Box>>>>;

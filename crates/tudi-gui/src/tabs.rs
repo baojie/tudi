@@ -121,8 +121,12 @@ impl Tab {
                 b.activate_tab(&t);
                 b.drop_on_pane(Some(pos), files, mods)
             });
-            let pane_view = pane::build_view(&pane, &pane_sel, &wanted, columns, on_menu, on_drop);
-            let (col_header, sort_buttons) = pane::build_header(&pane, columns);
+            let hidden = pane::Hidden::default();
+            let pane_view = pane::build_view(
+                &pane, &pane_sel, &wanted, columns, &hidden, on_menu, on_drop,
+            );
+            let header = pane::build_header(&pane, columns, &hidden);
+            let (col_header, sort_buttons) = (header.widget.clone(), header.buttons.clone());
             let grid_bound = crate::thumbs::GridBound::default();
             let (bw, tw) = (b.clone(), me.clone());
             let grid_menu: pane::MenuFn = Rc::new(move |pos, w, x, y| {
@@ -160,6 +164,7 @@ impl Tab {
                 .child(&page)
                 .build();
             files.add_css_class("tudi-tab-page");
+            fit_columns_to(&files, header.fit.clone());
             let (button, label) = tab_button();
             Tab {
                 id,
@@ -297,6 +302,26 @@ fn keep_header_aligned(header: &gtk::Box, scroll: &gtk::ScrolledWindow) {
     let s = sync.clone();
     scroll.vadjustment().connect_changed(move |_| s());
     sync();
+}
+
+/// Hide list columns that do not fit the tab page's width (the name
+/// column keeps a minimum), re-checked whenever the width changes. In an
+/// idle callback: never during allocation.
+fn fit_columns_to(page: &gtk::ScrolledWindow, fit: Rc<dyn Fn(i32)>) {
+    let scheduled = Rc::new(Cell::new(false));
+    let p = page.downgrade();
+    page.hadjustment().connect_changed(move |_| {
+        if scheduled.replace(true) {
+            return;
+        }
+        let (p, f, s) = (p.clone(), fit.clone(), scheduled.clone());
+        glib::idle_add_local_once(move || {
+            s.set(false);
+            if let Some(p) = p.upgrade() {
+                f(p.width());
+            }
+        });
+    });
 }
 
 /// A folder's name for a tab ("/" for the root).

@@ -103,6 +103,8 @@ pub struct Browser {
     pub(crate) thumbs: Rc<crate::thumbs::Thumbnailer>,
     /// List / thumbnails switch (shown when the folder has images).
     pub(crate) view_toggle: gtk::Button,
+    /// Show / hide hidden files (follows `Ctrl+H` and the settings).
+    pub(crate) hidden_toggle: gtk::ToggleButton,
 
     pub(crate) path_entry: gtk::Entry,
     pub(crate) back: gtk::Button,
@@ -187,12 +189,18 @@ impl Browser {
         header.pack_start(&back);
         header.pack_start(&forward);
         header.pack_start(&up);
+        let hidden_toggle = gtk::ToggleButton::builder()
+            .icon_name("view-reveal-symbolic")
+            .tooltip_text(tr("Show Hidden Files (Ctrl+H)"))
+            .active(show_hidden)
+            .build();
         let view_toggle = gtk::Button::from_icon_name("view-grid-symbolic");
         view_toggle.set_visible(false);
         let gear = gtk::Button::from_icon_name("emblem-system-symbolic");
         gear.set_tooltip_text(Some(&tr("Settings (Ctrl+,)")));
         header.pack_end(&gear);
         header.pack_end(&view_toggle);
+        header.pack_end(&hidden_toggle);
         header.set_title_widget(Some(&path_entry));
 
         let status = gtk::Label::new(None);
@@ -268,6 +276,7 @@ impl Browser {
                 generations: Cell::new(0),
                 thumbs: thumbs.clone(),
                 view_toggle: view_toggle.clone(),
+                hidden_toggle: hidden_toggle.clone(),
                 path_entry,
                 back,
                 forward,
@@ -347,6 +356,14 @@ impl Browser {
         });
         b.spawn_reply_loop(replies);
         b.spawn_thumb_loop(thumb_rx);
+        let w = Rc::downgrade(&b);
+        b.hidden_toggle.connect_toggled(move |t| {
+            if let Some(b) = w.upgrade()
+                && t.is_active() != b.show_hidden.get()
+            {
+                b.toggle_hidden();
+            }
+        });
         let w = Rc::downgrade(&b);
         b.view_toggle.connect_clicked(move |_| {
             if let Some(b) = w.upgrade() {
@@ -866,7 +883,13 @@ impl Browser {
 
     pub(crate) fn toggle_hidden(self: &Rc<Self>) {
         self.show_hidden.set(!self.show_hidden.get());
-        self.request_sort();
+        // The header button shows the state (its handler sees no change).
+        self.hidden_toggle.set_active(self.show_hidden.get());
+        // Every tab's list (hidden files are a window setting).
+        let tabs: Vec<Rc<Tab>> = self.tabs.borrow().clone();
+        for t in &tabs {
+            self.with_tab(t, |b| b.request_sort());
+        }
         let nodes: Vec<NodeId> = self.watched.borrow().iter().copied().collect();
         self.refresh_tree_nodes(&nodes);
     }
