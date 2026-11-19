@@ -15,9 +15,7 @@ polished release are planned (see `docs/PLAN.md` and `CHANGELOG.md`).
 
 ![tudi 0.1.2: tabs on two sides, thumbnails on the right](docs/screenshots/0.1.2.png)
 
-Screenshots of every release are in `CHANGELOG.md`; they are made with
-`scripts/screenshots.py` (a demo home folder in a sandbox, so they show no
-real files).
+What each release added, with screenshots: [`docs/releases.md`](docs/releases.md).
 
 ## Building
 

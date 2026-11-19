@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Screenshots of a tudi release for docs/screenshots/.
+"""Screenshots of a tudi release for docs/screenshots/ (shown in
+docs/releases.md).
 
     scripts/screenshots.py VERSION TUDI_GUI_BINARY OUT_DIR
 
