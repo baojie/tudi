@@ -519,6 +519,9 @@ Layout (libadwaita `AdwApplicationWindow`):
   it. `Alt+Enter` opens its containing folder in a terminal.
 - **Plain typing** in either pane = type-ahead jump among the visible rows
   (prefix match), not global search.
+- **Find in folder** (`Ctrl+F`): a field above the list; typing jumps to the
+  first row whose name contains the text, `Enter` filters the list to the
+  matches, `Esc` clears.
 
 Default keybindings (all remappable in `config.toml`):
 
@@ -531,6 +534,7 @@ Default keybindings (all remappable in `config.toml`):
 | `Enter` (list) | open file / enter folder |
 | `Backspace` / `Alt+↑` | go to parent folder |
 | `Ctrl+P`, `/` | memory search |
+| `Ctrl+F` | find in this folder: jump to the first match; `Enter` filters |
 | `Ctrl+L` | path bar |
 | `Ctrl+H` | toggle hidden files |
 | `Ctrl+C` | copy selected files (uri-list + text paths) |

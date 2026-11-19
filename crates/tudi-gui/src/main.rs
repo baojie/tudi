@@ -16,6 +16,7 @@ mod bar;
 mod bench;
 mod browser;
 mod dev;
+mod find;
 mod format;
 mod history;
 mod i18n;
@@ -64,6 +65,7 @@ const CSS: &str = "
 .tudi-details:not(:focus-within) > row:selected .dim-label { color: inherit; opacity: 0.55; }
 .tudi-bar { background-color: @headerbar_bg_color; }
 .tudi-bar { padding: 2px 6px; }
+.tudi-find { padding: 4px 6px; }
 .tudi-search { padding: 10px; box-shadow: 0 8px 28px alpha(black, 0.25); }
 .tudi-search-results > row { padding: 3px 6px; }
 .tudi-search-scope { padding: 0 2px 0 8px; border-radius: 999px; background: alpha(@accent_bg_color, 0.15); }

@@ -12,6 +12,7 @@ Code: `crates/tudi-gui/src/`. Plan: `docs/PLAN.md` §5.3, §5.7.
 | `sidebar.rs` | folder tree: `TreeModel` (`gio::ListModel` over `tudi_core::tree::Tree` rows) |
 | `worker.rs` | listing threads: `Job` in, `Reply` out over `async-channel` |
 | `actions.rs` | type-ahead, clipboard, external commands, rename, trash, new folder, drag out |
+| `find.rs` | `Ctrl+F` find bar: jump to matches, `Enter` filters the list |
 | `format.rs` | sizes, dates, icons from file names |
 | `dev.rs` | `TUDI_DEV_SCREENSHOT` and `TUDI_DEV_SCRIPT` test hooks |
 
@@ -97,6 +98,22 @@ See PLAN §5.7. Implemented in M3: history (`Alt+←/→`), up (`Alt+↑`,
 double-click, type-ahead, `Ctrl+C`, `Ctrl+Shift+C`, `Ctrl+Alt+T`, `Ctrl+E`,
 `F2`, `Delete`, `Ctrl+Shift+N`. List-only keys (`Ctrl+C`, `Delete`, `F2`)
 are bound on the list so they do not take keys from the path bar.
+
+## Find in folder
+
+`find.rs`: `Ctrl+F` reveals a `GtkSearchEntry` above the column header.
+Typing selects and scrolls to the first row whose name contains the text
+(case-insensitive, lossy UTF-8), scanning in 4096-row chunks on idle like
+type-ahead (both share one scan serial, so a newer scan cancels an older
+one); keyboard focus stays in the field. `Down`/`F3` and `Up`/`Shift+F3`
+jump to the next / previous match, wrapping. No match turns the field red.
+`Enter` filters: the lowercase text goes with `Job::Sort`/`Job::ListPane`
+and the worker drops non-matching rows after the hidden-file filter, so
+counts, selection and live reloads all see the filtered order; the status
+bar says "filtered by …" and focus moves to the list (the jumped-to row
+stays selected). `Enter` on an empty field removes the filter. `Esc` in the
+field or in the list hides the bar and removes the filter; showing another
+folder does too.
 
 ## Bookmarks bar and folder history (ADR-016)
 

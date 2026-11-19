@@ -34,11 +34,14 @@ pub enum Job {
         generation: u64,
         spec: SortSpec,
         show_hidden: bool,
+        /// Find-bar filter (lowercase): show only names containing it.
+        filter: Option<Arc<str>>,
         /// Names of entries whose positions should be reported (to keep or
         /// set the selection).
         select: Vec<Vec<u8>>,
     },
-    /// Recompute the pane order (sort change, hidden toggle, metadata).
+    /// Recompute the pane order (sort change, hidden toggle, filter,
+    /// metadata).
     Sort {
         generation: u64,
         listing: Arc<Listing>,
@@ -46,6 +49,7 @@ pub enum Job {
         metas: MetaTable,
         spec: SortSpec,
         show_hidden: bool,
+        filter: Option<Arc<str>>,
     },
     /// List the sub-directories of a tree node. With `refresh`, the node
     /// was listed before and this is a live update.
@@ -198,12 +202,20 @@ fn run(jobs: async_channel::Receiver<Job>, replies: async_channel::Sender<Reply>
                 generation,
                 spec,
                 show_hidden,
+                filter,
                 select,
             } => match lister.list(&path, generation) {
                 Ok(listing) => {
                     let rank = name_rank(&listing);
                     let metas = MetaTable::new(listing.len());
-                    let order = filtered_order(&listing, &rank, &metas, spec, show_hidden);
+                    let order = filtered_order(
+                        &listing,
+                        &rank,
+                        &metas,
+                        spec,
+                        show_hidden,
+                        filter.as_deref(),
+                    );
                     let select = positions_of(&listing, &order, &select);
                     Reply::Pane(PaneListing {
                         generation,
@@ -222,9 +234,17 @@ fn run(jobs: async_channel::Receiver<Job>, replies: async_channel::Sender<Reply>
                 metas,
                 spec,
                 show_hidden,
+                filter,
             } => Reply::Sorted {
                 generation,
-                order: filtered_order(&listing, &rank, &metas, spec, show_hidden),
+                order: filtered_order(
+                    &listing,
+                    &rank,
+                    &metas,
+                    spec,
+                    show_hidden,
+                    filter.as_deref(),
+                ),
             },
             Job::ListTree {
                 node,
@@ -256,6 +276,14 @@ fn positions_of(listing: &Listing, order: &Order, names: &[Vec<u8>]) -> Vec<u32>
         .collect()
 }
 
+/// Whether `name` contains `needle_lower` (already lowercase), ignoring
+/// case. Shared by the find bar's jump and its filter so both agree.
+pub fn name_contains(name: &[u8], needle_lower: &str) -> bool {
+    String::from_utf8_lossy(name)
+        .to_lowercase()
+        .contains(needle_lower)
+}
+
 pub fn is_hidden(name: &[u8]) -> bool {
     name.first() == Some(&b'.')
 }
@@ -266,10 +294,14 @@ fn filtered_order(
     metas: &MetaTable,
     spec: SortSpec,
     show_hidden: bool,
+    filter: Option<&str>,
 ) -> Order {
     let mut order = order(listing, rank, metas, spec);
     if !show_hidden {
         order.retain(|&i| !is_hidden(listing.name(i as usize)));
+    }
+    if let Some(needle) = filter.filter(|f| !f.is_empty()) {
+        order.retain(|&i| name_contains(listing.name(i as usize), needle));
     }
     let mut pos_of = vec![u32::MAX; listing.len()];
     let mut dirs = 0;
@@ -320,4 +352,17 @@ fn list_subdirs(
         .filter(|&i| is_dir(i))
         .map(|i| listing.name(i).into())
         .collect())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::name_contains;
+
+    #[test]
+    fn name_contains_ignores_case_and_handles_bytes() {
+        assert!(name_contains(b"Report-2025.PDF", "port-2025.pdf"));
+        assert!(name_contains("资料Notes.txt".as_bytes(), "料notes"));
+        assert!(name_contains(b"bad\xffname", "name"));
+        assert!(!name_contains(b"alpha", "beta"));
+    }
 }

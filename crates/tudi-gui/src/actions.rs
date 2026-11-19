@@ -34,6 +34,33 @@ pub struct TypeAhead {
 
 pub type TypeAheadState = Rc<RefCell<TypeAhead>>;
 
+/// What a row scan looks for (names compared case-insensitively).
+pub(crate) enum Match {
+    /// Type-ahead: the name starts with this (lowercase) text.
+    Prefix(String),
+    /// Find bar: the name contains this (lowercase) text.
+    Contains(String),
+}
+
+impl Match {
+    fn matches(&self, name: &[u8]) -> bool {
+        match self {
+            Match::Prefix(p) => String::from_utf8_lossy(name).to_lowercase().starts_with(p),
+            Match::Contains(n) => crate::worker::name_contains(name, n),
+        }
+    }
+
+    fn focus_list(&self) -> bool {
+        matches!(self, Match::Prefix(_))
+    }
+
+    fn done(&self, b: &Browser, found: bool) {
+        if let Match::Contains(_) = self {
+            b.find_result(found);
+        }
+    }
+}
+
 impl Browser {
     pub(crate) fn current_dir(&self) -> PathBuf {
         self.current.borrow().clone()
@@ -94,46 +121,81 @@ impl Browser {
         } else {
             cur + 1
         };
-        self.scan_typeahead(prefix, serial, start % n, 0);
+        self.scan_rows(Match::Prefix(prefix), serial, start % n, true);
         true
     }
 
-    fn focused_row(&self) -> Option<usize> {
+    pub(crate) fn focused_row(&self) -> Option<usize> {
         let bits = self.pane_sel.selection();
         (!bits.is_empty()).then(|| bits.minimum() as usize)
     }
 
-    /// Scan up to `SCAN_CHUNK` rows from `pos` for a name starting with
-    /// `prefix` (case-insensitive), continuing in an idle callback.
-    fn scan_typeahead(self: &Rc<Self>, prefix: String, serial: u64, pos: usize, scanned: usize) {
+    /// Start a new row scan, cancelling any running one.
+    pub(crate) fn next_scan_serial(&self) -> u64 {
+        let mut t = self.typeahead.borrow_mut();
+        t.serial += 1;
+        t.serial
+    }
+
+    /// Find the first row from `start` (wrapping, forwards or backwards)
+    /// whose name matches, `SCAN_CHUNK` rows per main-loop turn, and select
+    /// it. Calls `found` with the outcome when the scan ends (unless a newer
+    /// scan replaced it).
+    pub(crate) fn scan_rows(self: &Rc<Self>, m: Match, serial: u64, start: usize, forward: bool) {
+        self.scan_chunk(Rc::new(m), serial, start, 0, forward);
+    }
+
+    fn scan_chunk(
+        self: &Rc<Self>,
+        m: Rc<Match>,
+        serial: u64,
+        start: usize,
+        scanned: usize,
+        forward: bool,
+    ) {
         if self.typeahead.borrow().serial != serial {
             return;
         }
         let n = self.pane.n_items() as usize;
+        if n == 0 {
+            m.done(self, false);
+            return;
+        }
+        let row_at = |k: usize| {
+            if forward {
+                (start + k) % n
+            } else {
+                (start + n - k % n) % n
+            }
+        };
+        let end = (scanned + SCAN_CHUNK).min(n);
         let found = {
             let d = self.pane.data();
-            (0..SCAN_CHUNK.min(n - scanned))
-                .map(|k| (pos + k) % n)
-                .find(|&row| {
-                    String::from_utf8_lossy(d.name(d.order[row]))
-                        .to_lowercase()
-                        .starts_with(&prefix)
-                })
+            (scanned..end)
+                .map(row_at)
+                .find(|&row| m.matches(d.name(d.order[row])))
         };
         if let Some(row) = found {
             self.pane_sel.select_item(row as u32, true);
-            self.pane_view
-                .scroll_to(row as u32, gtk::ListScrollFlags::FOCUS, None);
+            // From the find bar, keep the keyboard focus in its entry.
+            let flags = if m.focus_list() {
+                gtk::ListScrollFlags::FOCUS
+            } else {
+                gtk::ListScrollFlags::NONE
+            };
+            self.pane_view.scroll_to(row as u32, flags, None);
+            m.done(self, true);
             return;
         }
-        let scanned = scanned + SCAN_CHUNK.min(n - scanned);
-        if scanned < n {
+        if end < n {
             let w = Rc::downgrade(self);
             glib::idle_add_local_once(move || {
                 if let Some(b) = w.upgrade() {
-                    b.scan_typeahead(prefix, serial, (pos + SCAN_CHUNK) % n, scanned);
+                    b.scan_chunk(m, serial, start, end, forward);
                 }
             });
+        } else {
+            m.done(self, false);
         }
     }
 

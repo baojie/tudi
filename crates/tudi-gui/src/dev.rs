@@ -11,7 +11,8 @@
 //!   `dump`, `open PATH` (counted visit), `treeselect ROW`, `bookmark`,
 //!   `settings`, bar actions `bm N`, `freq N`, `pin N`, `barexclude N`,
 //!   `barexclude-tree N`, `forget N`, `rmbm N`, `copy`, `cut`, `paste`,
-//!   `selectall`, `menu ROW|none`. Prefix a command with `!` to run the next one after 50 ms.
+//!   `selectall`, `menu ROW|none`, find bar `find TEXT`, `findnext`,
+//!   `findprev`, `findenter`, `findclose`. Prefix a command with `!` to run the next one after 50 ms.
 //!   `shot FILE`, `quit`.
 
 // Script results go to stdout on purpose: they are read by test tooling.
@@ -84,6 +85,14 @@ fn step(b: Rc<Browser>, queue: Queue, delay: Duration) {
                     b.type_ahead(c);
                 }
             }
+            "find" => {
+                b.open_find();
+                b.find.entry.set_text(arg);
+            }
+            "findnext" => b.find_jump(false, true),
+            "findprev" => b.find_jump(false, false),
+            "findenter" => b.apply_find_filter(),
+            "findclose" => b.close_find(true),
             "hidden" => b.toggle_hidden(),
             "sort" => b.click_sort(match arg {
                 "size" => 1,

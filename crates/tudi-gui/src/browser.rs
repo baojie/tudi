@@ -81,6 +81,7 @@ pub struct Browser {
     paned: RefCell<Option<gtk::Paned>>,
     pub(crate) toasts: adw::ToastOverlay,
     pub(crate) typeahead: crate::actions::TypeAheadState,
+    pub(crate) find: crate::find::FindBar,
     pub(crate) worker: Worker,
     watcher: Option<tudi_core::watch::Watcher<WatchKey>>,
     /// Tree nodes with a live watch (expanded and listed).
@@ -271,6 +272,7 @@ impl Browser {
                 paned: RefCell::default(),
                 toasts: adw::ToastOverlay::new(),
                 typeahead: Rc::default(),
+                find: crate::find::FindBar::new(),
                 worker,
                 watcher,
                 watched: RefCell::default(),
@@ -312,6 +314,7 @@ impl Browser {
             .build();
         tree_scroll.add_css_class("tudi-tree-scroll");
         let files = gtk::Box::new(gtk::Orientation::Vertical, 0);
+        files.append(&b.find.revealer);
         files.append(&col_header);
         files.append(&gtk::Separator::new(gtk::Orientation::Horizontal));
         files.append(&b.pane_scroll);
@@ -355,6 +358,7 @@ impl Browser {
         });
         b.build_bar();
         b.connect_search();
+        b.connect_find();
         b.connect_signals(&up);
         b.install_shortcuts();
         b.install_drag_source();
@@ -566,6 +570,7 @@ impl Browser {
         add("<Control>d", Box::new(|b| b.bookmark_or_launcher()));
         add("<Control>p", Box::new(|b| b.open_search()));
         add("<Control><Shift>f", Box::new(|b| b.open_search_here()));
+        add("<Control>f", Box::new(|b| b.open_find()));
         add("<Control>comma", Box::new(|b| b.open_settings()));
         for n in 1..=9usize {
             add(
@@ -627,6 +632,13 @@ impl Browser {
                 b.open_search();
                 return glib::Propagation::Stop;
             }
+            if key == gdk::Key::Escape
+                && mods.is_empty()
+                && (b.find.revealer.reveals_child() || b.find.filter.borrow().is_some())
+            {
+                b.close_find(true);
+                return glib::Propagation::Stop;
+            }
             let plain = (mods - gdk::ModifierType::SHIFT_MASK).is_empty();
             if plain
                 && let Some(c) = key.to_unicode()
@@ -644,6 +656,11 @@ impl Browser {
     /// Show `path` in the details list and reveal it in the tree.
     pub fn navigate(self: &Rc<Self>, path: &Path, push_history: bool) {
         let path = path.to_path_buf();
+        if *self.current.borrow() != path {
+            // The filter belongs to the folder it was typed in.
+            self.find.revealer.set_reveal_child(false);
+            self.find.filter.replace(None);
+        }
         {
             let mut cur = self.current.borrow_mut();
             if push_history && !cur.as_os_str().is_empty() && *cur != path {
@@ -668,6 +685,7 @@ impl Browser {
             generation,
             spec: self.spec.get(),
             show_hidden: self.show_hidden.get(),
+            filter: self.find.filter.borrow().clone(),
             select: self
                 .select_after_load
                 .borrow_mut()
@@ -1120,6 +1138,7 @@ impl Browser {
             metas: d.metas.clone(),
             spec: self.spec.get(),
             show_hidden: self.show_hidden.get(),
+            filter: self.find.filter.borrow().clone(),
         });
     }
 
@@ -1200,6 +1219,10 @@ impl Browser {
             &ntr("{} folder", "{} folders", dirs),
             &[&fmt_count(dirs)],
         ));
+        if let Some(f) = self.find.filter.borrow().as_deref() {
+            text.push_str(" · ");
+            text.push_str(&fill(&tr("filtered by “{}”"), &[&f]));
+        }
         if let Some(size) = self.folder_size.get() {
             text.push_str(" · ");
             text.push_str(&crate::format::size(size));
@@ -1308,6 +1331,7 @@ impl Browser {
                 let keep = self.selected_entries();
                 if self.pane.set_order(generation, order, self.spec.get()) {
                     self.after_order_change(keep, Vec::new());
+                    self.after_find_sort();
                 }
             }
             Reply::Meta(batch) => {
@@ -1413,6 +1437,7 @@ impl Browser {
             generation,
             spec: self.spec.get(),
             show_hidden: self.show_hidden.get(),
+            filter: self.find.filter.borrow().clone(),
             select,
         });
     }

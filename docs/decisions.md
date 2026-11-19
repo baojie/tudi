@@ -288,3 +288,19 @@ through `sh` / `python3`; `.desktop` files through `gio launch`.
 - **Consequences.** P8 is met (≈ 140 MB with 1.83M entries) with a
   transient peak during the vocabulary build. The daemon depends on glibc
   for `malloc_trim` (Linux-only project).
+
+## ADR-020: `Ctrl+F` finds in the shown folder; `Enter` filters
+
+- **Context.** Type-ahead only matches name prefixes and resets after a
+  second; the memory search (`Ctrl+P`) leaves the folder. Users wanted to
+  find a row in the current list by any part of its name.
+- **Decision.** `Ctrl+F` shows a find field above the list. Typing jumps to
+  the first row containing the text (case-insensitive substring); `Enter`
+  filters the list to the matches rather than going to the next match
+  (`Down`/`F3` do that). The jump scans on the main loop in chunks, sharing
+  type-ahead's scan; the filter is applied on the listing workers as part
+  of the order (`Job::Sort`), never by iterating the `GListModel`.
+- **Consequences.** A filtered listing is an ordinary order, so live
+  reloads, sorting and selection keep working; one extra lowercase pass per
+  sort while a filter is set. The filter is per folder and is dropped on
+  navigation.
