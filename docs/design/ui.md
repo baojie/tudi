@@ -230,7 +230,9 @@ show the full name.
   order, right-click to rename / remove), a separator, then up to 12 most
   used folders by frecency. Both groups are ordered by open count, most
   first (ADR-023): the history snapshot carries every folder's count;
-  bookmarks never opened keep their saved order at the end (tooltip: path, open count, last visit;
+  bookmarks never opened keep their saved order at the end. Dragging a
+  bookmark onto another switches bookmarks to the saved order
+  (`manual_order`); "Sort by Open Count" switches back (tooltip: path, open count, last visit;
   right-click: pin as bookmark, never show — folder or with subfolders —,
   remove from history). The buttons are clipped, not wrapped; a "»" menu
   lists all bookmarks and the 30 most used folders.

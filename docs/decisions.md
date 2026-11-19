@@ -350,6 +350,12 @@ through `sh` / `python3`; `.desktop` files through `gio launch`.
 - **Consequences.** The order changes as folders are used, so `Alt+N` is
   not a fixed binding. `bookmarks.toml` keeps its order, used only for
   ties.
+- **Follow-up.** The maintainer also wants to drag bookmarks into an
+  order. Dragging one fixes the shown order as the saved order and sets
+  `manual_order = true` in `bookmarks.toml`: from then on bookmarks are
+  shown in that order (new ones at the end) and open counts no longer move
+  them; "Sort by Open Count" in a bookmark's menu goes back. The bar's drag
+  source runs in the capture phase, before the button's click gesture.
 
 ## ADR-024: UI language: English, the system's, or a chosen translation
 

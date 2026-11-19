@@ -35,6 +35,10 @@ impl Bookmark {
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Bookmarks {
+    /// Shown in the saved order (the user dragged them) rather than by
+    /// open count (ADR-023).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub manual_order: bool,
     #[serde(default, rename = "bookmark")]
     pub items: Vec<Bookmark>,
 }
@@ -95,6 +99,25 @@ impl Bookmarks {
         }
     }
 
+    /// Fix the shown `order` (indices into `items`) as the saved order and
+    /// move the bookmark shown at `from` to shown position `to`: the
+    /// bookmarks are in manual order from now on.
+    pub fn reorder(&mut self, order: &[usize], from: usize, to: usize) {
+        let mut items: Vec<Bookmark> = order
+            .iter()
+            .filter_map(|&i| self.items.get(i).cloned())
+            .collect();
+        if items.len() != self.items.len() {
+            return;
+        }
+        if from < items.len() && to < items.len() {
+            let b = items.remove(from);
+            items.insert(to, b);
+        }
+        self.items = items;
+        self.manual_order = true;
+    }
+
     /// Move the bookmark at `from` so it ends up at index `to`.
     pub fn move_to(&mut self, from: usize, to: usize) {
         if from < self.items.len() && to < self.items.len() && from != to {
@@ -107,6 +130,24 @@ impl Bookmarks {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reorder_fixes_the_shown_order() {
+        let mut b = Bookmarks::default();
+        for p in ["/a", "/b", "/c"] {
+            b.add(Path::new(p));
+        }
+        // Shown by count as c, a, b; drag b (shown 2) to the front.
+        b.reorder(&[2, 0, 1], 2, 0);
+        let paths: Vec<&str> = b.items.iter().map(|x| x.path.as_str()).collect();
+        assert_eq!(paths, ["/b", "/c", "/a"]);
+        assert!(b.manual_order);
+        let text = toml::to_string(&b).unwrap();
+        assert!(text.contains("manual_order = true"), "{text}");
+        assert_eq!(toml::from_str::<Bookmarks>(&text).unwrap(), b);
+        b.manual_order = false;
+        assert!(!toml::to_string(&b).unwrap().contains("manual_order"));
+    }
     use std::os::unix::ffi::OsStrExt;
 
     fn labels(b: &Bookmarks) -> Vec<String> {

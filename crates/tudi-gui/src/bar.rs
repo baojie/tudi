@@ -13,7 +13,8 @@
 //! Bookmarks: `Ctrl+D` adds the current folder, `Alt+1..9` opens them (in
 //! the shown order), right-click renames / removes. Bookmarks and frequent
 //! folders are each ordered by how often they were opened, most first
-//! (ties keep the saved order).
+//! (ties keep the saved order) — until bookmarks are dragged into another
+//! order, which is then kept ("Sort by Open Count" goes back).
 //! Frequent folders: right-click pins as a bookmark, excludes from the
 //! history (with or without subfolders) or forgets.
 
@@ -319,6 +320,13 @@ impl Browser {
         );
         add("rename-bookmark", Box::new(|b, i| b.rename_bookmark(i)));
         add(
+            "sort-bookmarks",
+            Box::new(|b, _| {
+                b.shared.bookmarks.borrow_mut().manual_order = false;
+                b.shared.bookmarks_changed();
+            }),
+        );
+        add(
             "remove-bookmark",
             Box::new(|b, i| {
                 b.shared.bookmarks.borrow_mut().remove(i);
@@ -409,7 +417,7 @@ impl Browser {
     }
 
     /// Bookmark indices in display order: most opened first, ties in the
-    /// saved order.
+    /// saved order — or the saved order once the user dragged them.
     fn bookmark_order(&self) -> Vec<usize> {
         let bookmarks = self.shared.bookmarks.borrow();
         let hist = self.hist.borrow();
@@ -420,7 +428,9 @@ impl Browser {
                 .unwrap_or(0)
         };
         let mut order: Vec<usize> = (0..bookmarks.items.len()).collect();
-        order.sort_by_key(|&i| std::cmp::Reverse(count(i)));
+        if !bookmarks.manual_order {
+            order.sort_by_key(|&i| std::cmp::Reverse(count(i)));
+        }
         order
     }
 
@@ -558,6 +568,7 @@ impl Browser {
                 btn.set_action_name(Some("bar.open-bookmark"));
                 btn.set_action_target_value(Some(&(i as i32).to_variant()));
                 self.bookmark_menu(&btn, i);
+                self.bookmark_drag(&btn, n);
                 btn
             });
         }
@@ -644,6 +655,9 @@ impl Browser {
         };
         menu.append_item(&item(tr("Rename…"), "bar.rename-bookmark"));
         menu.append_item(&item(tr("Remove Bookmark"), "bar.remove-bookmark"));
+        if self.shared.bookmarks.borrow().manual_order {
+            menu.append_item(&item(tr("Sort by Open Count"), "bar.sort-bookmarks"));
+        }
         Self::on_right_click(btn, menu);
     }
 
@@ -812,6 +826,41 @@ impl Browser {
             *self.tab().select_after_load.borrow_mut() = Some(name.as_bytes().to_vec());
             self.navigate(dir, true);
         }
+    }
+
+    /// Drag a bookmark onto another to put it there (shown positions). The
+    /// shown order becomes the saved one (manual order).
+    fn bookmark_drag(&self, btn: &gtk::Button, n: usize) {
+        let src = gtk::DragSource::new();
+        src.set_actions(gdk::DragAction::MOVE);
+        // Before the button's own click gesture, which claims the press;
+        // the drag claims it only once the pointer moved, so clicks work.
+        src.set_propagation_phase(gtk::PropagationPhase::Capture);
+        src.connect_prepare(move |_, _, _| {
+            Some(gdk::ContentProvider::for_value(
+                &format!("tudi-bookmark:{n}").to_value(),
+            ))
+        });
+        btn.add_controller(src);
+        let drop = gtk::DropTarget::new(glib::Type::STRING, gdk::DragAction::MOVE);
+        let shared = Rc::downgrade(&self.shared);
+        let order = self.bookmark_order();
+        drop.connect_drop(move |_, v, _, _| {
+            let Some(from) = v
+                .get::<String>()
+                .ok()
+                .and_then(|s| s.strip_prefix("tudi-bookmark:")?.parse::<usize>().ok())
+            else {
+                return false;
+            };
+            if let Some(sh) = shared.upgrade() {
+                sh.bookmarks.borrow_mut().reorder(&order, from, n);
+                // Rebuild after the drag finishes (this button is replaced).
+                glib::idle_add_local_once(move || sh.bookmarks_changed());
+            }
+            true
+        });
+        btn.add_controller(drop);
     }
 }
 

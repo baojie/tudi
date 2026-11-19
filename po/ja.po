@@ -24,8 +24,8 @@ msgstr "{} を実行できません: {}"
 msgid "Could not trash {}"
 msgstr "ゴミ箱に移動できませんでした: {}"
 
-#: crates/tudi-gui/src/actions.rs:398 crates/tudi-gui/src/bar.rs:468
-#: crates/tudi-gui/src/bar.rs:784 crates/tudi-gui/src/tree_menu.rs:77
+#: crates/tudi-gui/src/actions.rs:398 crates/tudi-gui/src/bar.rs:478
+#: crates/tudi-gui/src/bar.rs:798 crates/tudi-gui/src/tree_menu.rs:77
 msgid "Rename"
 msgstr "名前を変更"
 
@@ -61,12 +61,12 @@ msgstr "フォルダーを作成できません: {}"
 msgid "Cancel"
 msgstr "キャンセル"
 
-#: crates/tudi-gui/src/actions.rs:654 crates/tudi-gui/src/bar.rs:432
+#: crates/tudi-gui/src/actions.rs:654 crates/tudi-gui/src/bar.rs:442
 #: crates/tudi-gui/src/tree_menu.rs:86
 msgid "Bookmarked {}"
 msgstr "{} をブックマークしました"
 
-#: crates/tudi-gui/src/actions.rs:659 crates/tudi-gui/src/bar.rs:435
+#: crates/tudi-gui/src/actions.rs:659 crates/tudi-gui/src/bar.rs:445
 #: crates/tudi-gui/src/tree_menu.rs:91
 msgid "Already bookmarked"
 msgstr "すでにブックマークされています"
@@ -99,8 +99,8 @@ msgstr "貼り付け"
 msgid "Copy Path"
 msgstr "パスをコピー"
 
-#: crates/tudi-gui/src/actions.rs:711 crates/tudi-gui/src/bar.rs:645
-#: crates/tudi-gui/src/bar.rs:707 crates/tudi-gui/src/tree_menu.rs:150
+#: crates/tudi-gui/src/actions.rs:711 crates/tudi-gui/src/bar.rs:656
+#: crates/tudi-gui/src/bar.rs:721 crates/tudi-gui/src/tree_menu.rs:150
 msgid "Rename…"
 msgstr "名前を変更…"
 
@@ -177,107 +177,111 @@ msgstr "コピーと移動中…"
 msgid "Moving to the trash…"
 msgstr "ゴミ箱に移動中…"
 
-#: crates/tudi-gui/src/bar.rs:195
+#: crates/tudi-gui/src/bar.rs:196
 msgid "More bookmarks and frequent folders"
 msgstr "その他のブックマークとよく使うフォルダー"
 
-#: crates/tudi-gui/src/bar.rs:260
+#: crates/tudi-gui/src/bar.rs:261
 msgid "Launchers"
 msgstr "ランチャー"
 
-#: crates/tudi-gui/src/bar.rs:261
+#: crates/tudi-gui/src/bar.rs:262
 msgid "Bookmarks"
 msgstr "ブックマーク"
 
-#: crates/tudi-gui/src/bar.rs:262
+#: crates/tudi-gui/src/bar.rs:263
 msgid "Frequent"
 msgstr "よく使う項目"
 
-#: crates/tudi-gui/src/bar.rs:467
+#: crates/tudi-gui/src/bar.rs:477
 msgid "Rename Bookmark"
 msgstr "ブックマークの名前を変更"
 
-#: crates/tudi-gui/src/bar.rs:515
+#: crates/tudi-gui/src/bar.rs:525
 msgid "application"
 msgstr "アプリケーション"
 
-#: crates/tudi-gui/src/bar.rs:517
+#: crates/tudi-gui/src/bar.rs:527
 msgid "runs in a terminal"
 msgstr "端末で実行"
 
-#: crates/tudi-gui/src/bar.rs:519
+#: crates/tudi-gui/src/bar.rs:529
 msgid "runs in the background"
 msgstr "バックグラウンドで実行"
 
-#: crates/tudi-gui/src/bar.rs:524
+#: crates/tudi-gui/src/bar.rs:534
 msgid "Click to run · drop files here to run with them"
 msgstr "クリックで実行 · ファイルをドロップするとそれを引数に実行"
 
-#: crates/tudi-gui/src/bar.rs:565
+#: crates/tudi-gui/src/bar.rs:576
 msgid "Ctrl+D bookmarks the current folder"
 msgstr "Ctrl+D で現在のフォルダーをブックマーク"
 
-#: crates/tudi-gui/src/bar.rs:646
+#: crates/tudi-gui/src/bar.rs:657
 msgid "Remove Bookmark"
 msgstr "ブックマークを削除"
 
-#: crates/tudi-gui/src/bar.rs:657
+#: crates/tudi-gui/src/bar.rs:659
+msgid "Sort by Open Count"
+msgstr "開いた回数で並べ替え"
+
+#: crates/tudi-gui/src/bar.rs:671
 msgid "Pin as Bookmark"
 msgstr "ブックマークとして固定"
 
-#: crates/tudi-gui/src/bar.rs:659
+#: crates/tudi-gui/src/bar.rs:673
 msgid "Never show in history"
 msgstr "履歴に表示しない"
 
-#: crates/tudi-gui/src/bar.rs:661
+#: crates/tudi-gui/src/bar.rs:675
 msgid "Never show, including subfolders"
 msgstr "サブフォルダーも含めて表示しない"
 
-#: crates/tudi-gui/src/bar.rs:664
+#: crates/tudi-gui/src/bar.rs:678
 msgid "Remove from history"
 msgstr "履歴から削除"
 
-#: crates/tudi-gui/src/bar.rs:683
+#: crates/tudi-gui/src/bar.rs:697
 msgid "Run"
 msgstr "実行"
 
-#: crates/tudi-gui/src/bar.rs:690
+#: crates/tudi-gui/src/bar.rs:704
 msgid "Run in a Terminal"
 msgstr "端末で実行"
 
-#: crates/tudi-gui/src/bar.rs:698
+#: crates/tudi-gui/src/bar.rs:712
 msgid "Run in the Background"
 msgstr "バックグラウンドで実行"
 
-#: crates/tudi-gui/src/bar.rs:702
+#: crates/tudi-gui/src/bar.rs:716
 msgid "Arguments…"
 msgstr "引数…"
 
-#: crates/tudi-gui/src/bar.rs:706
+#: crates/tudi-gui/src/bar.rs:720
 msgid "Show in Folder"
 msgstr "フォルダー内に表示"
 
-#: crates/tudi-gui/src/bar.rs:709
+#: crates/tudi-gui/src/bar.rs:723
 msgid "Move Left"
 msgstr "左へ移動"
 
-#: crates/tudi-gui/src/bar.rs:712
+#: crates/tudi-gui/src/bar.rs:726
 msgid "Move Right"
 msgstr "右へ移動"
 
-#: crates/tudi-gui/src/bar.rs:714
+#: crates/tudi-gui/src/bar.rs:728
 msgid "Remove Launcher"
 msgstr "ランチャーを削除"
 
-#: crates/tudi-gui/src/bar.rs:760
+#: crates/tudi-gui/src/bar.rs:774
 msgid "Arguments"
 msgstr "引数"
 
-#: crates/tudi-gui/src/bar.rs:760
+#: crates/tudi-gui/src/bar.rs:774
 msgid "Save"
 msgstr "保存"
 
-#: crates/tudi-gui/src/bar.rs:783
+#: crates/tudi-gui/src/bar.rs:797
 msgid "Rename Launcher"
 msgstr "ランチャーの名前を変更"
 
@@ -309,17 +313,17 @@ msgstr "ファイルシステム"
 msgid "Zoom {}%"
 msgstr "ズーム {}%"
 
-#: crates/tudi-gui/src/browser.rs:1256 crates/tudi-gui/src/pane.rs:592
+#: crates/tudi-gui/src/browser.rs:1256 crates/tudi-gui/src/pane.rs:593
 #: crates/tudi-gui/src/settings.rs:115
 msgid "Name"
 msgstr "名前"
 
-#: crates/tudi-gui/src/browser.rs:1256 crates/tudi-gui/src/pane.rs:594
+#: crates/tudi-gui/src/browser.rs:1256 crates/tudi-gui/src/pane.rs:595
 #: crates/tudi-gui/src/properties.rs:229 crates/tudi-gui/src/settings.rs:115
 msgid "Size"
 msgstr "サイズ"
 
-#: crates/tudi-gui/src/browser.rs:1256 crates/tudi-gui/src/pane.rs:595
+#: crates/tudi-gui/src/browser.rs:1256 crates/tudi-gui/src/pane.rs:596
 #: crates/tudi-gui/src/properties.rs:242 crates/tudi-gui/src/settings.rs:115
 msgid "Modified"
 msgstr "更新日時"
@@ -380,19 +384,19 @@ msgstr "{} をランチャーに追加しました"
 msgid "Already a launcher"
 msgstr "すでにランチャーにあります"
 
-#: crates/tudi-gui/src/main.rs:344
+#: crates/tudi-gui/src/main.rs:352
 msgid "Open a new window"
 msgstr "新しいウィンドウを開く"
 
-#: crates/tudi-gui/src/main.rs:348
+#: crates/tudi-gui/src/main.rs:356
 msgid "Start the resident instance without a window"
 msgstr "ウィンドウを開かずに常駐インスタンスを起動"
 
-#: crates/tudi-gui/src/main.rs:350
+#: crates/tudi-gui/src/main.rs:358
 msgid "Quit the resident instance"
 msgstr "常駐インスタンスを終了"
 
-#: crates/tudi-gui/src/main.rs:354
+#: crates/tudi-gui/src/main.rs:362
 msgid "Import bookmarks and folder history from GTK, autojump and zoxide again"
 msgstr "GTK、autojump、zoxide からブックマークとフォルダー履歴を再インポート"
 
@@ -731,35 +735,35 @@ msgstr ""
 msgid "Clear"
 msgstr "消去"
 
-#: crates/tudi-gui/src/tabs.rs:216
+#: crates/tudi-gui/src/tabs.rs:248
 msgid "Close Tab (Ctrl+W)"
 msgstr "タブを閉じる (Ctrl+W)"
 
-#: crates/tudi-gui/src/tabs.rs:239
+#: crates/tudi-gui/src/tabs.rs:271
 msgid "New Tab (Ctrl+T)"
 msgstr "新しいタブ (Ctrl+T)"
 
-#: crates/tudi-gui/src/tabs.rs:660
+#: crates/tudi-gui/src/tabs.rs:692
 msgid "New Tab"
 msgstr "新しいタブ"
 
-#: crates/tudi-gui/src/tabs.rs:662
+#: crates/tudi-gui/src/tabs.rs:694
 msgid "Stop Side by Side"
 msgstr "並べて表示をやめる"
 
-#: crates/tudi-gui/src/tabs.rs:665
+#: crates/tudi-gui/src/tabs.rs:697
 msgid "Side by Side with Next Tab"
 msgstr "次のタブと並べて表示"
 
-#: crates/tudi-gui/src/tabs.rs:667
+#: crates/tudi-gui/src/tabs.rs:699
 msgid "Side by Side with Current Tab"
 msgstr "現在のタブと並べて表示"
 
-#: crates/tudi-gui/src/tabs.rs:673
+#: crates/tudi-gui/src/tabs.rs:705
 msgid "Close Tab"
 msgstr "タブを閉じる"
 
-#: crates/tudi-gui/src/tabs.rs:675
+#: crates/tudi-gui/src/tabs.rs:707
 msgid "Close Other Tabs"
 msgstr "他のタブを閉じる"
 
@@ -799,17 +803,17 @@ msgid "Moved {} item to the trash"
 msgid_plural "Moved {} items to the trash"
 msgstr[0] "{} 個の項目をゴミ箱に移動しました"
 
-#: crates/tudi-gui/src/bar.rs:287
+#: crates/tudi-gui/src/bar.rs:288
 msgid "{} more"
 msgid_plural "{} more"
 msgstr[0] "他 {} 件"
 
-#: crates/tudi-gui/src/bar.rs:546 crates/tudi-gui/src/bar.rs:590
+#: crates/tudi-gui/src/bar.rs:556 crates/tudi-gui/src/bar.rs:601
 msgid "opened {} time"
 msgid_plural "opened {} times"
 msgstr[0] "{} 回開いた"
 
-#: crates/tudi-gui/src/bar.rs:598
+#: crates/tudi-gui/src/bar.rs:609
 msgid "{} open"
 msgid_plural "{} opens"
 msgstr[0] "{} 回"

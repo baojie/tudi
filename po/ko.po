@@ -24,8 +24,8 @@ msgstr "{}을(를) 실행할 수 없습니다: {}"
 msgid "Could not trash {}"
 msgstr "휴지통으로 옮길 수 없습니다: {}"
 
-#: crates/tudi-gui/src/actions.rs:398 crates/tudi-gui/src/bar.rs:468
-#: crates/tudi-gui/src/bar.rs:784 crates/tudi-gui/src/tree_menu.rs:77
+#: crates/tudi-gui/src/actions.rs:398 crates/tudi-gui/src/bar.rs:478
+#: crates/tudi-gui/src/bar.rs:798 crates/tudi-gui/src/tree_menu.rs:77
 msgid "Rename"
 msgstr "이름 바꾸기"
 
@@ -61,12 +61,12 @@ msgstr "폴더를 만들 수 없습니다: {}"
 msgid "Cancel"
 msgstr "취소"
 
-#: crates/tudi-gui/src/actions.rs:654 crates/tudi-gui/src/bar.rs:432
+#: crates/tudi-gui/src/actions.rs:654 crates/tudi-gui/src/bar.rs:442
 #: crates/tudi-gui/src/tree_menu.rs:86
 msgid "Bookmarked {}"
 msgstr "{}을(를) 북마크했습니다"
 
-#: crates/tudi-gui/src/actions.rs:659 crates/tudi-gui/src/bar.rs:435
+#: crates/tudi-gui/src/actions.rs:659 crates/tudi-gui/src/bar.rs:445
 #: crates/tudi-gui/src/tree_menu.rs:91
 msgid "Already bookmarked"
 msgstr "이미 북마크되어 있습니다"
@@ -99,8 +99,8 @@ msgstr "붙여넣기"
 msgid "Copy Path"
 msgstr "경로 복사"
 
-#: crates/tudi-gui/src/actions.rs:711 crates/tudi-gui/src/bar.rs:645
-#: crates/tudi-gui/src/bar.rs:707 crates/tudi-gui/src/tree_menu.rs:150
+#: crates/tudi-gui/src/actions.rs:711 crates/tudi-gui/src/bar.rs:656
+#: crates/tudi-gui/src/bar.rs:721 crates/tudi-gui/src/tree_menu.rs:150
 msgid "Rename…"
 msgstr "이름 바꾸기…"
 
@@ -177,107 +177,111 @@ msgstr "복사 및 이동하는 중…"
 msgid "Moving to the trash…"
 msgstr "휴지통으로 옮기는 중…"
 
-#: crates/tudi-gui/src/bar.rs:195
+#: crates/tudi-gui/src/bar.rs:196
 msgid "More bookmarks and frequent folders"
 msgstr "북마크 및 자주 사용하는 폴더 더 보기"
 
-#: crates/tudi-gui/src/bar.rs:260
+#: crates/tudi-gui/src/bar.rs:261
 msgid "Launchers"
 msgstr "실행기"
 
-#: crates/tudi-gui/src/bar.rs:261
+#: crates/tudi-gui/src/bar.rs:262
 msgid "Bookmarks"
 msgstr "북마크"
 
-#: crates/tudi-gui/src/bar.rs:262
+#: crates/tudi-gui/src/bar.rs:263
 msgid "Frequent"
 msgstr "자주 사용"
 
-#: crates/tudi-gui/src/bar.rs:467
+#: crates/tudi-gui/src/bar.rs:477
 msgid "Rename Bookmark"
 msgstr "북마크 이름 바꾸기"
 
-#: crates/tudi-gui/src/bar.rs:515
+#: crates/tudi-gui/src/bar.rs:525
 msgid "application"
 msgstr "애플리케이션"
 
-#: crates/tudi-gui/src/bar.rs:517
+#: crates/tudi-gui/src/bar.rs:527
 msgid "runs in a terminal"
 msgstr "터미널에서 실행"
 
-#: crates/tudi-gui/src/bar.rs:519
+#: crates/tudi-gui/src/bar.rs:529
 msgid "runs in the background"
 msgstr "백그라운드에서 실행"
 
-#: crates/tudi-gui/src/bar.rs:524
+#: crates/tudi-gui/src/bar.rs:534
 msgid "Click to run · drop files here to run with them"
 msgstr "클릭하여 실행 · 파일을 여기에 놓으면 해당 파일로 실행"
 
-#: crates/tudi-gui/src/bar.rs:565
+#: crates/tudi-gui/src/bar.rs:576
 msgid "Ctrl+D bookmarks the current folder"
 msgstr "Ctrl+D를 누르면 현재 폴더를 북마크합니다"
 
-#: crates/tudi-gui/src/bar.rs:646
+#: crates/tudi-gui/src/bar.rs:657
 msgid "Remove Bookmark"
 msgstr "북마크 제거"
 
-#: crates/tudi-gui/src/bar.rs:657
+#: crates/tudi-gui/src/bar.rs:659
+msgid "Sort by Open Count"
+msgstr "연 횟수로 정렬"
+
+#: crates/tudi-gui/src/bar.rs:671
 msgid "Pin as Bookmark"
 msgstr "북마크로 고정"
 
-#: crates/tudi-gui/src/bar.rs:659
+#: crates/tudi-gui/src/bar.rs:673
 msgid "Never show in history"
 msgstr "기록에 표시하지 않음"
 
-#: crates/tudi-gui/src/bar.rs:661
+#: crates/tudi-gui/src/bar.rs:675
 msgid "Never show, including subfolders"
 msgstr "하위 폴더 포함 표시하지 않음"
 
-#: crates/tudi-gui/src/bar.rs:664
+#: crates/tudi-gui/src/bar.rs:678
 msgid "Remove from history"
 msgstr "기록에서 제거"
 
-#: crates/tudi-gui/src/bar.rs:683
+#: crates/tudi-gui/src/bar.rs:697
 msgid "Run"
 msgstr "실행"
 
-#: crates/tudi-gui/src/bar.rs:690
+#: crates/tudi-gui/src/bar.rs:704
 msgid "Run in a Terminal"
 msgstr "터미널에서 실행"
 
-#: crates/tudi-gui/src/bar.rs:698
+#: crates/tudi-gui/src/bar.rs:712
 msgid "Run in the Background"
 msgstr "백그라운드에서 실행"
 
-#: crates/tudi-gui/src/bar.rs:702
+#: crates/tudi-gui/src/bar.rs:716
 msgid "Arguments…"
 msgstr "인수…"
 
-#: crates/tudi-gui/src/bar.rs:706
+#: crates/tudi-gui/src/bar.rs:720
 msgid "Show in Folder"
 msgstr "폴더에서 보기"
 
-#: crates/tudi-gui/src/bar.rs:709
+#: crates/tudi-gui/src/bar.rs:723
 msgid "Move Left"
 msgstr "왼쪽으로 이동"
 
-#: crates/tudi-gui/src/bar.rs:712
+#: crates/tudi-gui/src/bar.rs:726
 msgid "Move Right"
 msgstr "오른쪽으로 이동"
 
-#: crates/tudi-gui/src/bar.rs:714
+#: crates/tudi-gui/src/bar.rs:728
 msgid "Remove Launcher"
 msgstr "실행기 제거"
 
-#: crates/tudi-gui/src/bar.rs:760
+#: crates/tudi-gui/src/bar.rs:774
 msgid "Arguments"
 msgstr "인수"
 
-#: crates/tudi-gui/src/bar.rs:760
+#: crates/tudi-gui/src/bar.rs:774
 msgid "Save"
 msgstr "저장"
 
-#: crates/tudi-gui/src/bar.rs:783
+#: crates/tudi-gui/src/bar.rs:797
 msgid "Rename Launcher"
 msgstr "실행기 이름 바꾸기"
 
@@ -309,17 +313,17 @@ msgstr "파일 시스템"
 msgid "Zoom {}%"
 msgstr "확대/축소 {}%"
 
-#: crates/tudi-gui/src/browser.rs:1256 crates/tudi-gui/src/pane.rs:592
+#: crates/tudi-gui/src/browser.rs:1256 crates/tudi-gui/src/pane.rs:593
 #: crates/tudi-gui/src/settings.rs:115
 msgid "Name"
 msgstr "이름"
 
-#: crates/tudi-gui/src/browser.rs:1256 crates/tudi-gui/src/pane.rs:594
+#: crates/tudi-gui/src/browser.rs:1256 crates/tudi-gui/src/pane.rs:595
 #: crates/tudi-gui/src/properties.rs:229 crates/tudi-gui/src/settings.rs:115
 msgid "Size"
 msgstr "크기"
 
-#: crates/tudi-gui/src/browser.rs:1256 crates/tudi-gui/src/pane.rs:595
+#: crates/tudi-gui/src/browser.rs:1256 crates/tudi-gui/src/pane.rs:596
 #: crates/tudi-gui/src/properties.rs:242 crates/tudi-gui/src/settings.rs:115
 msgid "Modified"
 msgstr "수정한 날짜"
@@ -380,19 +384,19 @@ msgstr "{}을(를) 실행기에 추가했습니다"
 msgid "Already a launcher"
 msgstr "이미 실행기에 있습니다"
 
-#: crates/tudi-gui/src/main.rs:344
+#: crates/tudi-gui/src/main.rs:352
 msgid "Open a new window"
 msgstr "새 창 열기"
 
-#: crates/tudi-gui/src/main.rs:348
+#: crates/tudi-gui/src/main.rs:356
 msgid "Start the resident instance without a window"
 msgstr "창 없이 상주 인스턴스 시작"
 
-#: crates/tudi-gui/src/main.rs:350
+#: crates/tudi-gui/src/main.rs:358
 msgid "Quit the resident instance"
 msgstr "상주 인스턴스 종료"
 
-#: crates/tudi-gui/src/main.rs:354
+#: crates/tudi-gui/src/main.rs:362
 msgid "Import bookmarks and folder history from GTK, autojump and zoxide again"
 msgstr "GTK, autojump, zoxide에서 북마크와 폴더 기록을 다시 가져오기"
 
@@ -729,35 +733,35 @@ msgstr "모든 폴더 방문 횟수가 삭제됩니다. 제외 항목과 북마�
 msgid "Clear"
 msgstr "지우기"
 
-#: crates/tudi-gui/src/tabs.rs:216
+#: crates/tudi-gui/src/tabs.rs:248
 msgid "Close Tab (Ctrl+W)"
 msgstr "탭 닫기 (Ctrl+W)"
 
-#: crates/tudi-gui/src/tabs.rs:239
+#: crates/tudi-gui/src/tabs.rs:271
 msgid "New Tab (Ctrl+T)"
 msgstr "새 탭 (Ctrl+T)"
 
-#: crates/tudi-gui/src/tabs.rs:660
+#: crates/tudi-gui/src/tabs.rs:692
 msgid "New Tab"
 msgstr "새 탭"
 
-#: crates/tudi-gui/src/tabs.rs:662
+#: crates/tudi-gui/src/tabs.rs:694
 msgid "Stop Side by Side"
 msgstr "나란히 보기 끝내기"
 
-#: crates/tudi-gui/src/tabs.rs:665
+#: crates/tudi-gui/src/tabs.rs:697
 msgid "Side by Side with Next Tab"
 msgstr "다음 탭과 나란히 보기"
 
-#: crates/tudi-gui/src/tabs.rs:667
+#: crates/tudi-gui/src/tabs.rs:699
 msgid "Side by Side with Current Tab"
 msgstr "현재 탭과 나란히 보기"
 
-#: crates/tudi-gui/src/tabs.rs:673
+#: crates/tudi-gui/src/tabs.rs:705
 msgid "Close Tab"
 msgstr "탭 닫기"
 
-#: crates/tudi-gui/src/tabs.rs:675
+#: crates/tudi-gui/src/tabs.rs:707
 msgid "Close Other Tabs"
 msgstr "다른 탭 닫기"
 
@@ -797,17 +801,17 @@ msgid "Moved {} item to the trash"
 msgid_plural "Moved {} items to the trash"
 msgstr[0] "항목 {}개를 휴지통으로 옮겼습니다"
 
-#: crates/tudi-gui/src/bar.rs:287
+#: crates/tudi-gui/src/bar.rs:288
 msgid "{} more"
 msgid_plural "{} more"
 msgstr[0] "{}개 더"
 
-#: crates/tudi-gui/src/bar.rs:546 crates/tudi-gui/src/bar.rs:590
+#: crates/tudi-gui/src/bar.rs:556 crates/tudi-gui/src/bar.rs:601
 msgid "opened {} time"
 msgid_plural "opened {} times"
 msgstr[0] "{}회 열었음"
 
-#: crates/tudi-gui/src/bar.rs:598
+#: crates/tudi-gui/src/bar.rs:609
 msgid "{} open"
 msgid_plural "{} opens"
 msgstr[0] "{}회"

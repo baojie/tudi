@@ -19,8 +19,8 @@
   `Ctrl` copies, `Shift` moves. Works with files from other apps.
 - "New File…" in the list's right-click menu on empty space.
 - Bookmarks bar: bookmarks and frequent folders are ordered by how often
-  they were opened (`Alt+1..9` follow the shown order); manual reordering
-  is gone.
+  they were opened (`Alt+1..9` follow the shown order). Drag a bookmark
+  to put them in your own order instead; "Sort by Open Count" goes back.
 - Bookmarks bar: shows as many buttons as fit the window instead of at
   most 10; long folder names are shortened to their first two words or a
   length limit (full name in the tooltip and the drop-down).
