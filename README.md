@@ -8,9 +8,9 @@ A fast, two-pane (folder tree + details list) file browser for Linux
 memory-driven search — type the fragments you remember, in any order — and
 keyboard-reachable bookmarks.
 
-**Status:** 0.1.0, a first preview: browsing, live updates and folder
-history work; search, bookmarks and launchers are planned (see
-`docs/PLAN.md` and `CHANGELOG.md`).
+**Status:** 0.1.1, a preview: browsing, live updates, folder history,
+memory search, bookmarks and launchers work; the fanotify helper and the
+polished release are planned (see `docs/PLAN.md` and `CHANGELOG.md`).
 
 ## Building
 
@@ -31,10 +31,10 @@ and libadwaita ≥ 1.5) are on the Releases page:
 
 ```sh
 # Debian / Ubuntu: installs the dependencies too
-sudo apt install ./tudi_0.1.0-1_amd64.deb
+sudo apt install ./tudi_0.1.1-1_amd64.deb
 
 # any distribution: unpack into ~/.local (needs ~/.local/bin in PATH)
-tar -xzf tudi-0.1.0-x86_64-linux.tar.gz -C ~/.local --strip-components=1
+tar -xzf tudi-0.1.1-x86_64-linux.tar.gz -C ~/.local --strip-components=1
 ```
 
 ### Install from source for your user

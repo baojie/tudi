@@ -234,6 +234,9 @@ Short ADR-style records: context / decision / consequences. Newest last.
 - **Consequences.** Packages are only built in CI (local builds embed local
   paths). The English UI is the default; translations follow the system
   locale only with `[ui] language = "system"`.
+- **Follow-up (0.1.1).** Releases before M9 are patch versions (0.1.x),
+  even when they add features; the next minor stays reserved for the M9
+  release.
 
 ### ADR-014 follow-up: launchers live on the bookmarks bar
 

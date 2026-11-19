@@ -1,7 +1,18 @@
 # Changelog
 
-## Unreleased
+## 0.1.1 — 2026-11-20
 
+Memory search with its index daemon, the bookmarks bar, launchers and many
+browsing improvements.
+
+- `Ctrl+F` finds in the shown folder: typing jumps to the first name
+  containing the text, `↓`/`F3` and `↑`/`Shift+F3` step through matches,
+  `Enter` filters the list to the matches, `Esc` clears.
+- The status bar says what is running in the background (reading the
+  folder, file details, folder size, copying, moving, trashing) with a
+  spinner, for work that takes longer than a moment.
+- Fix: launching tudi from the dock while it was already running left the
+  dock icon busy until a timeout.
 - Context menus always show all their items (no scrollbar); near the
   bottom of the window they open upwards.
 - Bookmarks bar: launchers first, then bookmarks and frequent folders; at
