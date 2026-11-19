@@ -418,6 +418,40 @@ impl Browser {
         self.new_folder_in(self.current_dir());
     }
 
+    /// Ask for a name and create an empty file in the current folder.
+    pub(crate) fn new_file(self: &Rc<Self>) {
+        let dir = self.current_dir();
+        let w = Rc::downgrade(self);
+        self.ask_name(
+            &tr("New File"),
+            &tr("Create"),
+            &tr("New File.txt"),
+            move |name| {
+                if let Some(b) = w.upgrade() {
+                    b.make_file_in(&dir, name);
+                }
+            },
+        );
+    }
+
+    /// Create an empty file (never replacing an existing one).
+    pub(crate) fn make_file_in(self: &Rc<Self>, dir: &std::path::Path, name: String) {
+        let f = gio::File::for_path(dir.join(&name));
+        let in_current = dir == self.current_dir();
+        let w = Rc::downgrade(self);
+        glib::spawn_future_local(async move {
+            let r = f
+                .create_future(gio::FileCreateFlags::NONE, glib::Priority::DEFAULT)
+                .await;
+            let Some(b) = w.upgrade() else { return };
+            match r {
+                Ok(_) if !in_current => {}
+                Ok(_) => b.reload(Some(name.into_bytes())),
+                Err(e) => b.toast(&fill(&tr("Cannot create file: {}"), &[&e])),
+            }
+        });
+    }
+
     /// Ask for a name and create a folder in `dir`.
     pub(crate) fn new_folder_in(self: &Rc<Self>, dir: PathBuf) {
         let w = Rc::downgrade(self);
@@ -537,6 +571,7 @@ impl Browser {
         add("rename", |b| b.rename_selected());
         add("trash", |b| b.trash_selected());
         add("new-folder", |b| b.new_folder());
+        add("new-file", |b| b.new_file());
         add("terminal", |b| b.open_terminal());
         add("editor", |b| b.open_editor());
         add("select-all", |b| b.select_all());
@@ -681,6 +716,7 @@ impl Browser {
                 "file.new-folder",
                 "<Control><Shift>n",
             ));
+            folder.append_item(&item(tr("New File…"), "file.new-file", ""));
             folder.append_item(&item(
                 tr("Open Terminal Here"),
                 "file.terminal",

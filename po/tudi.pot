@@ -28,95 +28,111 @@ msgstr ""
 msgid "Cannot rename: {}"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:425 crates/tudi-gui/src/actions.rs:427
-msgid "New Folder"
+#: crates/tudi-gui/src/actions.rs:426
+msgid "New File"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:426
+#: crates/tudi-gui/src/actions.rs:427 crates/tudi-gui/src/actions.rs:460
 msgid "Create"
 msgstr ""
 
+#: crates/tudi-gui/src/actions.rs:428
+msgid "New File.txt"
+msgstr ""
+
 #: crates/tudi-gui/src/actions.rs:450
+msgid "Cannot create file: {}"
+msgstr ""
+
+#: crates/tudi-gui/src/actions.rs:459 crates/tudi-gui/src/actions.rs:461
+msgid "New Folder"
+msgstr ""
+
+#: crates/tudi-gui/src/actions.rs:484
 msgid "Cannot create folder: {}"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:504 crates/tudi-gui/src/settings.rs:449
+#: crates/tudi-gui/src/actions.rs:538 crates/tudi-gui/src/settings.rs:449
 msgid "Cancel"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:608 crates/tudi-gui/src/bar.rs:428 crates/tudi-gui/src/tree_menu.rs:85
+#: crates/tudi-gui/src/actions.rs:643 crates/tudi-gui/src/bar.rs:428 crates/tudi-gui/src/tree_menu.rs:85
 msgid "Bookmarked {}"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:613 crates/tudi-gui/src/bar.rs:431 crates/tudi-gui/src/tree_menu.rs:90
+#: crates/tudi-gui/src/actions.rs:648 crates/tudi-gui/src/bar.rs:431 crates/tudi-gui/src/tree_menu.rs:90
 msgid "Already bookmarked"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:647 crates/tudi-gui/src/tree_menu.rs:125
+#: crates/tudi-gui/src/actions.rs:682 crates/tudi-gui/src/tree_menu.rs:125
 msgid "Open"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:648
+#: crates/tudi-gui/src/actions.rs:683
 msgid "Open in Editor"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:651 crates/tudi-gui/src/tree_menu.rs:138
+#: crates/tudi-gui/src/actions.rs:686 crates/tudi-gui/src/tree_menu.rs:138
 msgid "Cut"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:652 crates/tudi-gui/src/tree_menu.rs:139
+#: crates/tudi-gui/src/actions.rs:687 crates/tudi-gui/src/tree_menu.rs:139
 msgid "Copy"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:653 crates/tudi-gui/src/actions.rs:675
+#: crates/tudi-gui/src/actions.rs:688 crates/tudi-gui/src/actions.rs:710
 msgid "Paste"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:655 crates/tudi-gui/src/tree_menu.rs:142
+#: crates/tudi-gui/src/actions.rs:690 crates/tudi-gui/src/tree_menu.rs:142
 msgid "Copy Path"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:661 crates/tudi-gui/src/bar.rs:634 crates/tudi-gui/src/bar.rs:702 crates/tudi-gui/src/tree_menu.rs:148
+#: crates/tudi-gui/src/actions.rs:696 crates/tudi-gui/src/bar.rs:634 crates/tudi-gui/src/bar.rs:702 crates/tudi-gui/src/tree_menu.rs:148
 msgid "Rename…"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:663 crates/tudi-gui/src/tree_menu.rs:146
+#: crates/tudi-gui/src/actions.rs:698 crates/tudi-gui/src/tree_menu.rs:146
 msgid "Add to Bookmarks"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:666
+#: crates/tudi-gui/src/actions.rs:701
 msgid "Add to Launchers"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:668 crates/tudi-gui/src/tree_menu.rs:149
+#: crates/tudi-gui/src/actions.rs:703 crates/tudi-gui/src/tree_menu.rs:149
 msgid "Move to Trash"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:671 crates/tudi-gui/src/properties.rs:195 crates/tudi-gui/src/tree_menu.rs:153
+#: crates/tudi-gui/src/actions.rs:706 crates/tudi-gui/src/properties.rs:195 crates/tudi-gui/src/tree_menu.rs:153
 msgid "Properties"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:676
+#: crates/tudi-gui/src/actions.rs:711
 msgid "Select All"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:680 crates/tudi-gui/src/tree_menu.rs:145
+#: crates/tudi-gui/src/actions.rs:715 crates/tudi-gui/src/tree_menu.rs:145
 msgid "New Folder…"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:685 crates/tudi-gui/src/tree_menu.rs:134
+#: crates/tudi-gui/src/actions.rs:719
+msgid "New File…"
+msgstr ""
+
+#: crates/tudi-gui/src/actions.rs:721 crates/tudi-gui/src/tree_menu.rs:134
 msgid "Open Terminal Here"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:690
+#: crates/tudi-gui/src/actions.rs:726
 msgid "Bookmark This Folder"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:694
+#: crates/tudi-gui/src/actions.rs:730
 msgid "Show Hidden Files"
 msgstr ""
 
-#: crates/tudi-gui/src/actions.rs:697
+#: crates/tudi-gui/src/actions.rs:733
 msgid "Folder Properties"
 msgstr ""
 

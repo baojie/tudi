@@ -12,7 +12,7 @@
 //!   `settings`, bar actions `bm N`, `freq N`, `pin N`, `barexclude N`,
 //!   `barexclude-tree N`, `forget N`, `rmbm N`, `copy`, `cut`, `paste`,
 //!   `selectall`, `menu ROW|none`, find bar `find TEXT`, `findnext`,
-//!   `findprev`, `findenter`, `findclose`, `winwidth PX`,
+//!   `findprev`, `findenter`, `findclose`, `winwidth PX`, `newfile NAME`,
 //!   `drop ROW|- PATHS [ctrl|shift]`, `droptree ROW PATHS [ctrl|shift]`. Prefix a command with `!` to run the next one after 50 ms.
 //!   `shot FILE`, `quit`.
 
@@ -111,6 +111,7 @@ fn step(b: Rc<Browser>, queue: Queue, delay: Duration) {
                 }
             }
             "mkdir" => b.make_folder(arg.to_string()),
+            "newfile" => b.make_file_in(&b.current_dir(), arg.to_string()),
             "drop" | "droptree" => {
                 // `drop ROW|- PATH,PATH [ctrl|shift]`: as if files were dropped
                 // on a list row (`-`: empty space) or, with `droptree`, a tree row.

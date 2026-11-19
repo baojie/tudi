@@ -117,7 +117,8 @@ transfer thread, never on the main thread); items already in the
 destination are skipped. `Ctrl` copies, `Shift` moves. A folder dropped on
 itself is ignored. Paste (`Ctrl+V`, menus) uses the same `transfer_into`:
 a helper thread, a status-bar task, one toast ("Moved 2, copied 1"). Rows
-under a drag are highlighted (`:drop(active)`).
+under a drag are highlighted (`:drop(active)`). The list's background menu
+also has "New File…" (an empty file, never replacing one).
 
 ## Status bar activity
 
