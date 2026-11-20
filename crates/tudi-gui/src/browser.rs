@@ -959,6 +959,7 @@ impl Browser {
         // The new listing is ordered with the current parameters.
         self.tab().resort_pending.set(false);
         self.tab().pane_error.replace(None);
+        self.tab().visit_after_load.replace(None);
         self.worker.send(Job::ListPane {
             path: path.clone(),
             generation,
@@ -1374,7 +1375,27 @@ impl Browser {
     // ------------------------------------------------------------ history
 
     /// Record a deliberate visit of a folder (ADR-016) and refresh the bar.
+    /// A visit of the folder the tab is still listing waits for the
+    /// listing, so a folder that cannot be opened is never recorded.
     pub(crate) fn record_visit(&self, path: &Path) {
+        let tab = self.tab();
+        if *tab.current.borrow() == path {
+            if tab.pane_error.borrow().is_some() {
+                return;
+            }
+            let listed = {
+                let d = tab.pane.data();
+                d.generation == tab.generation.get() && d.dir == path
+            };
+            if !listed {
+                tab.visit_after_load.replace(Some(path.to_path_buf()));
+                return;
+            }
+        }
+        self.record_visit_now(path);
+    }
+
+    fn record_visit_now(&self, path: &Path) {
         self.shared.history.visit(path.to_path_buf());
         self.shared.history.query(self.worker.reply_sender());
     }
@@ -1677,6 +1698,12 @@ impl Browser {
                     self.request_sort();
                 }
                 self.start_folder_size(p.generation);
+                let visit = self.tab().visit_after_load.take();
+                if let Some(v) = visit
+                    && v == *self.tab().current.borrow()
+                {
+                    self.record_visit_now(&v);
+                }
             }
             Reply::FolderSize {
                 generation,
@@ -1698,6 +1725,7 @@ impl Browser {
                     return;
                 }
                 self.tab().pane.clear(generation);
+                self.tab().visit_after_load.replace(None);
                 self.tab().resort_pending.set(false);
                 self.tab().find.cancel_focus_after_sort();
                 // Stored, not written to the label: any later status update

@@ -324,6 +324,13 @@ buttons to their first two words (split at spaces, `-`, `_`, `.`) or to 16
 columns (CJK counts two), with an ellipsis; tooltips and the drop-down
 show the full name.
 
+A visit (PLAN §5.5) of the folder a tab is still listing is recorded only
+once the listing arrives (`Tab::visit_after_load`) and dropped if the
+folder cannot be listed, so a mistyped path never becomes a frequent
+folder. Paths of list rows are built from the folder the rows were listed
+from (`PaneData::dir`), not from the tab's current folder: while a slow
+folder (an automount) loads, the old rows are still shown.
+
 - `bar.rs`: a bar under the header, like a browser's bookmarks bar: the
   user's bookmarks (`bookmarks.toml`, `Ctrl+D`, `Alt+1..9` in the shown
   order, right-click to rename / remove), a separator, then up to 12 most

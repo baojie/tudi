@@ -65,6 +65,9 @@ pub struct Tab {
     /// Why the shown folder could not be listed; the status bar shows it
     /// instead of the counts until the next listing.
     pub(crate) pane_error: RefCell<Option<String>>,
+    /// A visit of `current` waiting for its listing: recorded when the
+    /// folder lists, dropped if it cannot be (a mistyped path).
+    pub(crate) visit_after_load: RefCell<Option<PathBuf>>,
     pub(crate) spec: Cell<SortSpec>,
     /// Entry name to select once the next listing arrives (e.g. the folder
     /// we came from when going up).
@@ -183,6 +186,7 @@ impl Tab {
                 generation: Cell::new(0),
                 resort_pending: Cell::new(false),
                 pane_error: RefCell::default(),
+                visit_after_load: RefCell::default(),
                 spec: Cell::new(spec),
                 select_after_load: RefCell::default(),
                 keep_scroll: Cell::new(None),
