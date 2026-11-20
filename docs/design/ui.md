@@ -85,7 +85,10 @@ Code: `crates/tudi-gui/src/`. Plan: `docs/PLAN.md` §5.3, §5.7.
 
 ## Folder tree
 
-- Roots: Home and File System (volumes are M4).
+- Roots: Home, File System, then every mounted disk (ADR-033): the
+  mounts of `gio::VolumeMonitor` plus disk mounts read from
+  `/proc/self/mountinfo` (fstab mounts such as `/data`, which GIO hides),
+  added and removed live.
 - Selecting a folder shows it in the list. Navigation from anywhere reveals
   the folder in the tree: ancestors are expanded (listing as needed) and the
   folder is selected; if the path goes through a hidden folder while hidden

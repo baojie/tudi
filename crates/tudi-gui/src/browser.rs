@@ -69,6 +69,8 @@ pub struct Browser {
     /// The folder the tree's context menu was opened on.
     pub(crate) tree_target: RefCell<Option<crate::tree_menu::Target>>,
     volume_monitor: RefCell<Option<gio::VolumeMonitor>>,
+    /// Mount points of the disks last read from mountinfo.
+    disk_paths: RefCell<Vec<PathBuf>>,
     zoom_toast: RefCell<Option<adw::Toast>>,
     paned: RefCell<Option<gtk::Paned>>,
     pub(crate) toasts: adw::ToastOverlay,
@@ -284,6 +286,7 @@ impl Browser {
                 settings_strong: RefCell::default(),
                 tree_target: RefCell::default(),
                 volume_monitor: RefCell::default(),
+                disk_paths: RefCell::default(),
                 zoom_toast: RefCell::default(),
                 paned: RefCell::default(),
                 toasts: adw::ToastOverlay::new(),
@@ -467,6 +470,61 @@ impl Browser {
         });
         // Keep the monitor (and its signals) alive with the window.
         self.volume_monitor.replace(Some(monitor));
+        self.watch_disks();
+    }
+
+    /// Every mounted disk, including fstab mounts GIO hides as "system"
+    /// ones (a second disk at `/data`): mountinfo is read and watched on a
+    /// thread, the list applied here.
+    fn watch_disks(self: &Rc<Self>) {
+        use tudi_core::mounts::{self, MountWatcher};
+        let (tx, rx) = async_channel::unbounded::<Vec<mounts::Disk>>();
+        std::thread::Builder::new()
+            .name("mounts".into())
+            .spawn(move || {
+                let mut w = match MountWatcher::open() {
+                    Ok(w) => w,
+                    Err(e) => {
+                        tracing::warn!("mountinfo: {e}");
+                        return;
+                    }
+                };
+                let mut table = w.read();
+                loop {
+                    match table {
+                        Ok(t) => {
+                            if tx.send_blocking(mounts::disks(&t)).is_err() {
+                                return; // window closed
+                            }
+                        }
+                        Err(e) => {
+                            tracing::warn!("mountinfo: {e}");
+                            return;
+                        }
+                    }
+                    table = w.wait();
+                }
+            })
+            .expect("spawn mounts thread");
+        let w = Rc::downgrade(self);
+        glib::spawn_future_local(async move {
+            while let Ok(disks) = rx.recv().await {
+                let Some(b) = w.upgrade() else { return };
+                b.apply_disks(disks);
+            }
+        });
+    }
+
+    fn apply_disks(&self, disks: Vec<tudi_core::mounts::Disk>) {
+        let old = self
+            .disk_paths
+            .replace(disks.iter().map(|d| d.path.clone()).collect());
+        for p in old.iter().filter(|p| !disks.iter().any(|d| d.path == **p)) {
+            self.remove_root_at(p);
+        }
+        for d in disks {
+            self.add_volume_root(d.path, &d.name);
+        }
     }
 
     fn add_volume(&self, m: &gio::Mount) {
@@ -474,18 +532,34 @@ impl Browser {
             return;
         }
         let Some(path) = m.root().path() else { return };
+        self.add_volume_root(path, &m.name());
+    }
+
+    /// Add a volume root unless its folder is already one.
+    fn add_volume_root(&self, path: PathBuf, name: &str) {
         if path == Path::new("/") || self.roots.borrow().iter().any(|(p, _)| *p == path) {
             return;
         }
-        let id = self.tree.add_root(&path.to_string_lossy(), &m.name());
+        let id = self.tree.add_root(&path.to_string_lossy(), name);
         self.roots.borrow_mut().push((path, id));
     }
 
     fn remove_volume(&self, m: &gio::Mount) {
         let Some(path) = m.root().path() else { return };
+        self.remove_root_at(&path);
+    }
+
+    /// Remove a volume root. Home and File System (the first two roots)
+    /// stay even if a disk is mounted at Home.
+    fn remove_root_at(&self, path: &Path) {
         let id = {
             let mut roots = self.roots.borrow_mut();
-            let Some(i) = roots.iter().position(|(p, _)| *p == path) else {
+            let Some(i) = roots
+                .iter()
+                .skip(2)
+                .position(|(p, _)| p == path)
+                .map(|i| i + 2)
+            else {
                 return;
             };
             roots.remove(i).1

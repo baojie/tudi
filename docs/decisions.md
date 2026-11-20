@@ -545,3 +545,25 @@ through `sh` / `python3`; `.desktop` files through `gio launch`.
   plugin sets. 0.2–0.4 s per real video (release; the first one includes
   GStreamer's start-up). The first frame is often black (fade-in); no
   seeking past it. Rotation metadata of phone videos is not applied.
+
+## ADR-033: Every mounted disk is a tree root, read from mountinfo
+
+- **Context.** Volumes came only from `gio::VolumeMonitor`, which hides
+  mounts it judges to be "system" ones: every fstab mount outside `/media`
+  and `/run/media` (a second disk at `/data`, an exFAT disk at `/extra`, an
+  NTFS partition at `/data/quip`). The maintainer wants every mounted disk
+  shown as a volume in the tree.
+- **Decision.** Keep the GIO monitor (it names removable media and adds
+  gvfs mounts) and also read `/proc/self/mountinfo` on a `mounts` thread
+  that blocks in `poll` (`POLLPRI`) until the table changes and sends the
+  list of disks to the main loop (`tudi_core::mounts`). A disk is a mount
+  of a disk filesystem type (ext4, xfs, btrfs, vfat, exfat, ntfs3,
+  fuseblk, iso9660, …) that is not plumbing: not `/`, not under `/boot`,
+  `/snap`, `/var`, `/usr`, `/tmp`, or `/run` except `/run/media`. Bind
+  mounts of a folder are skipped (btrfs subvolumes are kept), and a
+  filesystem mounted twice is listed once. The label is the mount point's
+  last component. Roots are deduplicated by path with the GIO ones.
+- **Consequences.** fstab disks appear and disappear live without GIO.
+  Network filesystems (nfs, cifs, sshfs) are not disks and still appear
+  only if GIO shows them. A btrfs `/home` subvolume shows as `home` next
+  to Home.

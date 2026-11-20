@@ -10,6 +10,7 @@ pub mod frecency;
 pub mod import;
 pub mod launchers;
 pub mod listing;
+pub mod mounts;
 pub mod state;
 pub mod tree;
 pub mod watch;
