@@ -188,6 +188,11 @@ impl Browser {
         forward.set_tooltip_text(Some(&tr("Forward (Alt+Right)")));
         let up = gtk::Button::from_icon_name("go-up-symbolic");
         up.set_tooltip_text(Some(&tr("Parent folder (Alt+Up)")));
+        // The memory search, visible: most people never find Ctrl+P.
+        let search_button = gtk::Button::from_icon_name("system-search-symbolic");
+        search_button.set_tooltip_text(Some(&tr(
+            "Search all files and folders by parts of the name (Ctrl+P or /)",
+        )));
         let path_entry = gtk::Entry::new();
         path_entry.set_hexpand(true);
         path_entry.set_width_chars(40);
@@ -195,6 +200,7 @@ impl Browser {
         header.pack_start(&back);
         header.pack_start(&forward);
         header.pack_start(&up);
+        header.pack_start(&search_button);
         let hidden_toggle = gtk::ToggleButton::builder()
             .icon_name("view-reveal-symbolic")
             .tooltip_text(tr("Show Hidden Files (Ctrl+H)"))
@@ -374,6 +380,12 @@ impl Browser {
         });
         b.spawn_reply_loop(replies);
         b.spawn_thumb_loop(thumb_rx);
+        let w = Rc::downgrade(&b);
+        search_button.connect_clicked(move |_| {
+            if let Some(b) = w.upgrade() {
+                b.open_search();
+            }
+        });
         let w = Rc::downgrade(&b);
         b.preview_toggle.connect_toggled(move |t| {
             if let Some(b) = w.upgrade()

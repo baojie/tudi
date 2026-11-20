@@ -325,6 +325,13 @@ pub struct SearchUi {
     pub serial: Cell<u64>,
 }
 
+/// How to search: the hint under the empty search field and its tooltip.
+// One literal (no line continuation), so the pot extractor reads it.
+#[rustfmt::skip]
+pub(crate) fn search_tips() -> String {
+    tr("Type parts of a name in any order; pinyin and small typos work.\ndir: folders only · in:work below a folder named work · .pdf · <7d or lastmonth · Ctrl+Shift+F: below this folder")
+}
+
 /// A query problem in the UI language.
 fn hint_text(h: &tudi_index::query::Hint) -> String {
     use tudi_index::query::Hint;
@@ -426,8 +433,11 @@ impl SearchUi {
         entry.set_placeholder_text(Some(&tr(
             "Search files and folders…  (pinyin initials work too)",
         )));
-        let status = gtk::Label::new(None);
+        // How to search, shown while the field is empty and as its tooltip.
+        entry.set_tooltip_text(Some(&search_tips()));
+        let status = gtk::Label::new(Some(&search_tips()));
         status.set_xalign(0.0);
+        status.set_wrap(true);
         status.add_css_class("dim-label");
         status.add_css_class("caption");
         let hint = gtk::Label::new(None);
@@ -660,7 +670,7 @@ impl Browser {
         ui.hint.set_visible(!hints.is_empty());
         if text.is_empty() {
             ui.model.set(Vec::new());
-            ui.status.set_text("");
+            ui.status.set_text(&search_tips());
             return;
         }
         let scope = ui.scope.borrow().clone();

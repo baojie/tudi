@@ -307,14 +307,18 @@ user's comments (`toml_edit`). The language takes effect after a restart.
 
 ## Search overlay (M6)
 
-`search.rs`: `Ctrl+P` or `/` (in the list) shows a card above the panes
+`search.rs`: `Ctrl+P`, `/` (in the list) or the magnifier button in the
+header bar (so the search can be found without knowing the keys) shows a
+card above the panes
 (`GtkOverlay`) with a `GtkSearchEntry` and up to 100 results: icon, name
 with matched characters in bold, folder, size and date. A `tudi-search`
 thread per window talks to the daemon (starting it if needed), sends only
 the latest pending query, and also forwards folder listings with complete
 metadata as `ListingHint`s. `Enter` reveals (navigates to the folder and
 selects the item), `Ctrl+Enter` opens, `Alt+Enter` opens a terminal there,
-`Esc` closes.
+`Esc` closes. While the field is empty, the line under it says how to
+search (fragments in any order, pinyin, `dir:`, `in:`, `.pdf`, `<7d`,
+`Ctrl+Shift+F`); the field's tooltip says the same.
 
 The query syntax (`docs/query-syntax.md`) is parsed once more in the GUI
 (`tudi_index::query::parse_local`, microseconds) only to show translated

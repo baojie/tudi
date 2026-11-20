@@ -299,58 +299,63 @@ msgstr "Suivant (Alt+Right)"
 msgid "Parent folder (Alt+Up)"
 msgstr "Dossier parent (Alt+Up)"
 
-#: crates/tudi-gui/src/browser.rs:200
+#: crates/tudi-gui/src/browser.rs:193
+msgid "Search all files and folders by parts of the name (Ctrl+P or /)"
+msgstr ""
+"Rechercher tous les fichiers et dossiers par morceaux du nom (Ctrl+P ou /)"
+
+#: crates/tudi-gui/src/browser.rs:206
 msgid "Show Hidden Files (Ctrl+H)"
 msgstr "Afficher les fichiers cachés (Ctrl+H)"
 
-#: crates/tudi-gui/src/browser.rs:213
+#: crates/tudi-gui/src/browser.rs:219
 msgid "Settings (Ctrl+,)"
 msgstr "Paramètres (Ctrl+,)"
 
-#: crates/tudi-gui/src/browser.rs:407
+#: crates/tudi-gui/src/browser.rs:419
 msgid "Home"
 msgstr "Dossier personnel"
 
-#: crates/tudi-gui/src/browser.rs:409
+#: crates/tudi-gui/src/browser.rs:421
 msgid "File System"
 msgstr "Système de fichiers"
 
-#: crates/tudi-gui/src/browser.rs:1166
+#: crates/tudi-gui/src/browser.rs:1188
 msgid "Zoom {}%"
 msgstr "Zoom {}%"
 
-#: crates/tudi-gui/src/browser.rs:1350 crates/tudi-gui/src/pane.rs:649
+#: crates/tudi-gui/src/browser.rs:1372 crates/tudi-gui/src/pane.rs:649
 #: crates/tudi-gui/src/settings.rs:115
 msgid "Name"
 msgstr "Nom"
 
-#: crates/tudi-gui/src/browser.rs:1350 crates/tudi-gui/src/pane.rs:651
+#: crates/tudi-gui/src/browser.rs:1372 crates/tudi-gui/src/pane.rs:651
 #: crates/tudi-gui/src/properties.rs:229 crates/tudi-gui/src/settings.rs:115
 msgid "Size"
 msgstr "Taille"
 
-#: crates/tudi-gui/src/browser.rs:1350 crates/tudi-gui/src/pane.rs:652
+#: crates/tudi-gui/src/browser.rs:1372 crates/tudi-gui/src/pane.rs:652
 #: crates/tudi-gui/src/properties.rs:242 crates/tudi-gui/src/settings.rs:115
 msgid "Modified"
 msgstr "Modifié"
 
-#: crates/tudi-gui/src/browser.rs:1446
+#: crates/tudi-gui/src/browser.rs:1468
 msgid "filtered by “{}”"
 msgstr "filtré par « {} »"
 
-#: crates/tudi-gui/src/browser.rs:1454
+#: crates/tudi-gui/src/browser.rs:1476
 msgid "{} free"
 msgstr "{} libres"
 
-#: crates/tudi-gui/src/browser.rs:1459
+#: crates/tudi-gui/src/browser.rs:1481
 msgid "{} selected"
 msgstr "Sélection : {}"
 
-#: crates/tudi-gui/src/browser.rs:1825
+#: crates/tudi-gui/src/browser.rs:1847
 msgid "List (Ctrl+1)"
 msgstr "Liste (Ctrl+1)"
 
-#: crates/tudi-gui/src/browser.rs:1827
+#: crates/tudi-gui/src/browser.rs:1849
 msgid "Thumbnails (Ctrl+2)"
 msgstr "Miniatures (Ctrl+2)"
 
@@ -529,64 +534,75 @@ msgid "Cannot start the search index (tudi-indexd)"
 msgstr "Impossible de démarrer l’index de recherche (tudi-indexd)"
 
 #: crates/tudi-gui/src/search.rs:332
+msgid ""
+"Type parts of a name in any order; pinyin and small typos work.\n"
+"dir: folders only · in:work below a folder named work · .pdf · <7d or "
+"lastmonth · Ctrl+Shift+F: below this folder"
+msgstr ""
+"Tapez des morceaux du nom dans n’importe quel ordre ; le pinyin et les "
+"petites fautes marchent.\n"
+"dir: dossiers seulement · in:work sous un dossier work · .pdf · <7d ou "
+"lastmonth · Ctrl+Shift+F : sous ce dossier"
+
+#: crates/tudi-gui/src/search.rs:339
 msgid "“in:” needs a folder name, e.g. in:acme"
 msgstr "« in: » attend un nom de dossier, p. ex. in:acme"
 
-#: crates/tudi-gui/src/search.rs:333
+#: crates/tudi-gui/src/search.rs:340
 msgid "“ext:” needs an extension, e.g. ext:pdf"
 msgstr "« ext: » attend une extension, p. ex. ext:pdf"
 
-#: crates/tudi-gui/src/search.rs:335
+#: crates/tudi-gui/src/search.rs:342
 msgid "“{}”: dates look like 2025, 2025-06 or 2025-06-15"
 msgstr "« {} » : les dates s’écrivent 2025, 2025-06 ou 2025-06-15"
 
-#: crates/tudi-gui/src/search.rs:339
+#: crates/tudi-gui/src/search.rs:346
 msgid "“{}”: months are “mo” (<3mo); for sizes use size>10M"
 msgstr ""
 "« {} » : les mois s’écrivent « mo » (<3mo) ; pour les tailles, utilisez "
 "size>10M"
 
-#: crates/tudi-gui/src/search.rs:342
+#: crates/tudi-gui/src/search.rs:349
 msgid "“{}”: add a unit: h, d, w, mo or y"
 msgstr "« {} » : ajoutez une unité : h, d, w, mo ou y"
 
-#: crates/tudi-gui/src/search.rs:343
+#: crates/tudi-gui/src/search.rs:350
 msgid "“{}”: write <7d, >2w or >2025-06"
 msgstr "« {} » : écrivez <7d, >2w ou >2025-06"
 
-#: crates/tudi-gui/src/search.rs:344
+#: crates/tudi-gui/src/search.rs:351
 msgid "“{}”: write size>10M or size<500k"
 msgstr "« {} » : écrivez size>10M ou size<500k"
 
-#: crates/tudi-gui/src/search.rs:426
+#: crates/tudi-gui/src/search.rs:433
 msgid "Search files and folders…  (pinyin initials work too)"
 msgstr "Rechercher des fichiers et dossiers…  (initiales pinyin acceptées)"
 
-#: crates/tudi-gui/src/search.rs:445
+#: crates/tudi-gui/src/search.rs:455
 msgid "Search everywhere"
 msgstr "Rechercher partout"
 
-#: crates/tudi-gui/src/search.rs:526
+#: crates/tudi-gui/src/search.rs:536
 msgid "In {}"
 msgstr "Dans {}"
 
-#: crates/tudi-gui/src/search.rs:692
+#: crates/tudi-gui/src/search.rs:702
 msgid "No matches"
 msgstr "Aucun résultat"
 
-#: crates/tudi-gui/src/search.rs:700
+#: crates/tudi-gui/src/search.rs:710
 msgid "still indexing, results may be incomplete"
 msgstr "indexation en cours, résultats peut-être incomplets"
 
-#: crates/tudi-gui/src/search.rs:703
+#: crates/tudi-gui/src/search.rs:713
 msgid "reveal"
 msgstr "afficher"
 
-#: crates/tudi-gui/src/search.rs:705
+#: crates/tudi-gui/src/search.rs:715
 msgid "open"
 msgstr "ouvrir"
 
-#: crates/tudi-gui/src/search.rs:707
+#: crates/tudi-gui/src/search.rs:717
 msgid "terminal"
 msgstr "terminal"
 
@@ -850,13 +866,13 @@ msgid_plural "{} opens"
 msgstr[0] "{} ouverture"
 msgstr[1] "{} ouvertures"
 
-#: crates/tudi-gui/src/browser.rs:1438 crates/tudi-gui/src/properties.rs:167
+#: crates/tudi-gui/src/browser.rs:1460 crates/tudi-gui/src/properties.rs:167
 msgid "{} file"
 msgid_plural "{} files"
 msgstr[0] "{} fichier"
 msgstr[1] "{} fichiers"
 
-#: crates/tudi-gui/src/browser.rs:1441 crates/tudi-gui/src/properties.rs:172
+#: crates/tudi-gui/src/browser.rs:1463 crates/tudi-gui/src/properties.rs:172
 msgid "{} folder"
 msgid_plural "{} folders"
 msgstr[0] "{} dossier"
@@ -910,7 +926,7 @@ msgid_plural "{} items could not be read"
 msgstr[0] "{} élément n’a pas pu être lu"
 msgstr[1] "{} éléments n’ont pas pu être lus"
 
-#: crates/tudi-gui/src/search.rs:694
+#: crates/tudi-gui/src/search.rs:704
 msgid "{} result"
 msgid_plural "{} results"
 msgstr[0] "{} résultat"

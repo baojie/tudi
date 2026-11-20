@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- The memory search is easier to find: a search button in the header bar,
+  and tips on how to search under the empty search field.
 - Fix: opening a folder from outside (`tudi PATH`) could leave it at the
   edge of the folder tree or out of view; it is now shown in the middle.
 - Preview pane (`Alt+P` or the header-bar button): shows the selected
