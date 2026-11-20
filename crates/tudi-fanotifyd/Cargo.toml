@@ -13,3 +13,25 @@ workspace = true
 # Keep this list minimal: the helper runs as root and must stay auditable.
 # No async runtime.
 [dependencies]
+libc.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+tempfile.workspace = true
+
+# Optional package: `tudi-fanotify` (PLAN M9; built by scripts/package.sh).
+[package.metadata.deb]
+name = "tudi-fanotify"
+section = "utils"
+priority = "optional"
+depends = "$auto, tudi"
+extended-description = """\
+Optional root helper for tudi: forwards file change events (fanotify) to \
+each user's tudi index daemon, so new files are findable within a second. \
+Subscribe-only; it drops to an unprivileged user after setup."""
+maintainer-scripts = "../../data/deb/tudi-fanotify/"
+assets = [
+    ["target/release/tudi-fanotifyd", "usr/libexec/", "755"],
+    ["../../data/tudi-fanotifyd.service", "usr/lib/systemd/system/", "644"],
+    ["../../data/tudi-fanotifyd.socket", "usr/lib/systemd/system/", "644"],
+]

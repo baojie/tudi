@@ -1,0 +1,32 @@
+[Unit]
+Description=tudi fanotify helper (live file changes for tudi-indexd)
+Documentation=https://github.com/baojie/tudi/blob/main/docs/design/fanotify.md
+Requires=tudi-fanotifyd.socket
+After=tudi-fanotifyd.socket
+
+[Service]
+ExecStart=/usr/libexec/tudi-fanotifyd
+Restart=on-failure
+RestartSec=5
+# Setup (fanotify marks) needs root; the helper then drops to `nobody` with
+# only CAP_DAC_READ_SEARCH and checks that it did.
+CapabilityBoundingSet=CAP_SYS_ADMIN CAP_DAC_READ_SEARCH CAP_SETUID CAP_SETGID CAP_SETPCAP
+NoNewPrivileges=yes
+PrivateNetwork=yes
+RestrictAddressFamilies=AF_UNIX
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native

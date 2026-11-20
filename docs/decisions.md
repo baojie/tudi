@@ -428,3 +428,31 @@ through `sh` / `python3`; `.desktop` files through `gio launch`.
 - **Consequences.** Moving through a list with the pane open starts a read
   per selected file; only the newest result is shown. PDF, video and
   office documents show no content preview.
+
+## ADR-028: fanotify helper reports changed folders, checks access itself
+
+- **Context.** M7 needs a root helper that forwards fanotify events to
+  user daemons without leaking names (PLAN §5.6). The plan suggested
+  checking access with the client's credentials and marking the
+  filesystems of the configured roots.
+- **Decision.**
+  - Messages name changed *folders*, not entries; the client re-lists them.
+    Events are deduplicated per folder over a 200 ms window.
+  - A folder is sent only if the client can list every folder from one of
+    its roots down to it (and search above the root). Permissions are
+    evaluated in the helper from `lstat` and POSIX ACLs, not by switching
+    to the client's credentials, so the helper keeps only
+    `CAP_DAC_READ_SEARCH` (no `CAP_SETUID` / `CAP_SETGID`) and runs as
+    `nobody` after setup.
+  - Every mounted filesystem of a supported type is marked once at
+    startup; `CAP_SYS_ADMIN` is dropped right after. Clients never cause
+    marks; they learn which filesystems are covered from the fsids in
+    `Covered`.
+  - Hand-written frame protocol, `libc` only; logs go to stderr (journald)
+    instead of `tracing`, to keep the root binary's dependencies minimal.
+- **Consequences.** LSM policies (SELinux, AppArmor) are not evaluated: a
+  client may hear about a folder an LSM hides, never one that file
+  permissions hide. Filesystems mounted after the helper started are not
+  covered until it restarts (their roots keep the fallback). Marking all
+  filesystems means the helper also wakes for changes outside any user's
+  roots (e.g. `/var`); those are resolved and dropped.

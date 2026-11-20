@@ -1787,6 +1787,11 @@ dependencies = [
 [[package]]
 name = "tudi-fanotifyd"
 version = "0.1.2"
+dependencies = [
+ "libc",
+ "proptest",
+ "tempfile",
+]
 
 [[package]]
 name = "tudi-gui"
@@ -1831,6 +1836,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "tudi-core",
+ "tudi-fanotifyd",
  "tudi-index",
  "tudi-proto",
 ]
