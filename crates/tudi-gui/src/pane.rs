@@ -748,37 +748,59 @@ pub fn build_header(model: &PaneModel, columns: &Rc<Columns>, hidden: &Hidden) -
                 r();
             }
         });
+        // Double-click (like Excel): fit the column to its widest text
+        // (header and the rows on screen), within limits. Detected here,
+        // not with a click gesture: the drag claims every press, which
+        // would cancel it. A release without movement is a click; two
+        // within the double-click time are a double-click.
+        let fit_column = {
+            let (cols, r, m, rf) = (
+                columns.clone(),
+                refresh.clone(),
+                model.clone(),
+                refit.clone(),
+            );
+            let header_label = label_of(&column);
+            move || {
+                let text_px =
+                    |l: &gtk::Label| l.create_pango_layout(Some(&l.text())).pixel_size().0;
+                let mut widest = text_px(&header_label);
+                for row in m.imp().bound.borrow().values().filter_map(|w| w.upgrade()) {
+                    let p = parts(&row);
+                    widest = widest.max(text_px(if is_size { &p.size } else { &p.date }));
+                }
+                // Room for the right-aligned text not to touch the line.
+                let px = (widest + 8).clamp(COL_MIN, COL_AUTO_MAX);
+                let c = if is_size { &cols.size } else { &cols.date };
+                c.set(Some(px));
+                r();
+                rf();
+            }
+        };
+        let last_click = Rc::new(Cell::new(None::<std::time::Instant>));
         let rf = refit.clone();
-        drag.connect_drag_end(move |_, _, _| rf());
-        h.add_controller(drag);
-        // Double-click: fit the column to its widest text (header and the
-        // rows on screen), within limits.
-        let autofit = gtk::GestureClick::new();
-        let (cols, r, m, rf) = (
-            columns.clone(),
-            refresh.clone(),
-            model.clone(),
-            refit.clone(),
-        );
-        let header_label = label_of(&column);
-        autofit.connect_pressed(move |_, n, _, _| {
-            if n != 2 {
+        drag.connect_drag_end(move |g, dx, dy| {
+            if dx.abs() > 2.0 || dy.abs() > 2.0 {
+                last_click.set(None);
+                rf();
                 return;
             }
-            let text_px = |l: &gtk::Label| l.create_pango_layout(Some(&l.text())).pixel_size().0;
-            let mut widest = text_px(&header_label);
-            for row in m.imp().bound.borrow().values().filter_map(|w| w.upgrade()) {
-                let p = parts(&row);
-                widest = widest.max(text_px(if is_size { &p.size } else { &p.date }));
+            let ms = g
+                .widget()
+                .map(|w| w.settings().gtk_double_click_time())
+                .unwrap_or(400);
+            let now = std::time::Instant::now();
+            let double = last_click
+                .get()
+                .is_some_and(|t| now.duration_since(t).as_millis() <= ms as u128);
+            if double {
+                last_click.set(None);
+                fit_column();
+            } else {
+                last_click.set(Some(now));
             }
-            // Room for the right-aligned text not to touch the line.
-            let px = (widest + 8).clamp(COL_MIN, COL_AUTO_MAX);
-            let c = if is_size { &cols.size } else { &cols.date };
-            c.set(Some(px));
-            r();
-            rf();
         });
-        h.add_controller(autofit);
+        h.add_controller(drag);
     };
     wire(&size_handle, size.clone(), true);
     wire(&date_handle, date.clone(), false);

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Fix: double-clicking a column divider did not fit the column.
 - The memory search is easier to find: a search button in the header bar,
   and tips on how to search under the empty search field.
 - Fix: opening a folder from outside (`tudi PATH`) could leave it at the
