@@ -20,11 +20,13 @@ What each release added, with screenshots: [`docs/releases.md`](docs/releases.md
 ## Building
 
 Requirements: Rust (the toolchain is pinned in `rust-toolchain.toml` and
-installed by rustup), GTK ≥ 4.14 and libadwaita ≥ 1.5 development files.
+installed by rustup), GTK ≥ 4.14, libadwaita ≥ 1.5 and GStreamer
+development files, gettext; GStreamer decoder plugins at run time (video
+frames in the preview pane).
 
 ```sh
-# Debian/Ubuntu
-sudo apt install libgtk-4-dev libadwaita-1-dev
+scripts/install-deps.sh        # Debian/Ubuntu: installs what is missing (--list shows it)
+scripts/install-deps.sh --dev  # also tools for tests, benchmarks, packaging
 cargo build --workspace
 cargo run -p tudi-gui
 ```

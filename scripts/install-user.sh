@@ -30,6 +30,16 @@ if [ "${1:-}" = "--uninstall" ]; then
     exit 0
 fi
 
+# Build dependencies (scripts/install-deps.sh installs them; not called from
+# here, since this script runs unattended from tudi-restart and hooks).
+for lib in gtk4 libadwaita-1 gstreamer-1.0 gstreamer-app-1.0 gstreamer-video-1.0; do
+    if ! pkg-config --exists "$lib" 2>/dev/null; then
+        echo "missing build dependency: $lib (run scripts/install-deps.sh)" >&2
+        exit 1
+    fi
+done
+command -v msgfmt >/dev/null || { echo "missing msgfmt (run scripts/install-deps.sh)" >&2; exit 1; }
+
 cargo build --release -p tudi-gui -p tudi-indexd --manifest-path "$ROOT/Cargo.toml"
 
 # A running resident instance keeps the old binary; stop it first.
