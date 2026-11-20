@@ -90,8 +90,9 @@ Code: `crates/tudi-gui/src/`. Plan: `docs/PLAN.md` §5.3, §5.7.
   files are off, nothing is selected. The selected row is scrolled to the
   middle of the tree once the inserted rows are measured (a few frames;
   `tudi PATH` from outside can expand hundreds of rows).
-- Expanded state is remembered while collapsed (`tudi-core` tree) and across
-  sessions (`state.toml`, up to 200 folders).
+- Expanded state is remembered while collapsed (`tudi-core` tree), not
+  across sessions: a new window's tree opens only down to the shown folder
+  (`state.toml` keeps `expanded` empty).
 - Tree listings include symlinks to directories (resolved with `statx` on
   the worker).
 

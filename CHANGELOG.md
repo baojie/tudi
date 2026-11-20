@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- The folder tree no longer reopens the folders expanded in the last
+  session; it opens only down to the shown folder.
 - The preview pane can sit below the list as well as right of it (button
   at the top of the pane); remembered per window.
 - Undo (`Ctrl+Z`) for moves, copies, renames, trashing and new folders

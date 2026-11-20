@@ -295,7 +295,9 @@ impl Browser {
                 tree_view,
                 roots: RefCell::default(),
                 reveal: RefCell::default(),
-                expand_paths: RefCell::new(state.expanded.iter().map(PathBuf::from).collect()),
+                // Expanded folders are not restored: a new session's tree
+                // opens only down to the shown folder.
+                expand_paths: RefCell::default(),
                 syncing: Cell::new(false),
                 columns,
                 tabs: RefCell::new(vec![first_tab.clone()]),
@@ -1240,17 +1242,8 @@ impl Browser {
             maximized: self.window.is_maximized(),
             ..Default::default()
         };
-        let tree = self.tree.tree();
-        let mut expanded: Vec<PathBuf> = self
-            .watched
-            .borrow()
-            .iter()
-            .filter(|&&n| tree.node(n).is_expanded())
-            .map(|&n| tree.path(n))
-            .collect();
-        // Parents first, so restoring expands top-down; stable file order.
-        expanded.sort();
-        st.set_paths(&self.active.borrow().current.borrow(), &expanded);
+        // Expanded tree folders are not remembered across sessions.
+        st.set_paths(&self.active.borrow().current.borrow(), &[]);
         let (tabs, active, right) = self.tab_paths();
         st.tabs = tabs
             .iter()
