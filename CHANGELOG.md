@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Showing hidden files (`Ctrl+H`, the eye button) is remembered for new
+  windows and the next start.
 - The folder tree no longer reopens the folders expanded in the last
   session; it opens only down to the shown folder.
 - The preview pane can sit below the list as well as right of it (button

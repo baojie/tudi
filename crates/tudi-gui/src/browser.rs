@@ -961,6 +961,13 @@ impl Browser {
         self.show_hidden.set(!self.show_hidden.get());
         // The header button shows the state (its handler sees no change).
         self.hidden_toggle.set_active(self.show_hidden.get());
+        // Remembered: the next window and session start the same way
+        // (`[browse] show_hidden`, the settings switch's key).
+        let on = self.show_hidden.get();
+        if self.shared.config.borrow().browse.show_hidden != on {
+            self.shared.config.borrow_mut().browse.show_hidden = on;
+            self.shared.save_config();
+        }
         // Every tab's list (hidden files are a window setting).
         let tabs: Vec<Rc<Tab>> = self.tabs.borrow().clone();
         for t in &tabs {
