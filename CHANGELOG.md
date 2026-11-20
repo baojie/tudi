@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- The preview pane can sit below the list as well as right of it (button
+  at the top of the pane); remembered per window.
 - Undo (`Ctrl+Z`) for moves, copies, renames, trashing and new folders
   or files.
 - Pasting or dropping onto existing names asks: replace (the old ones go

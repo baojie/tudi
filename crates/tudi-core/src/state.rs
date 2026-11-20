@@ -30,8 +30,11 @@ pub struct WindowState {
     pub active_tab: usize,
     /// Indices of the tabs on the right side of a split list area.
     pub right_tabs: Vec<usize>,
-    /// Width of the preview pane in pixels; 0 when it is hidden.
+    /// Width of the preview pane in pixels (its height when below the
+    /// list); 0 when it is hidden.
     pub preview_width: i32,
+    /// The preview pane is below the list instead of right of it.
+    pub preview_below: bool,
 }
 
 impl Default for WindowState {
@@ -50,6 +53,7 @@ impl Default for WindowState {
             active_tab: 0,
             right_tabs: Vec::new(),
             preview_width: 0,
+            preview_below: false,
         }
     }
 }

@@ -27,6 +27,8 @@ const TEXT_BYTES: usize = 64 * 1024;
 
 pub struct Preview {
     pub widget: gtk::Box,
+    /// Moves the pane below or right of the list.
+    pub(crate) place: gtk::Button,
     stack: gtk::Stack,
     picture: gtk::Picture,
     text: gtk::TextView,
@@ -87,11 +89,17 @@ impl Preview {
         let widget = gtk::Box::new(gtk::Orientation::Vertical, 6);
         widget.add_css_class("tudi-preview");
         widget.set_size_request(200, -1);
+        let place = gtk::Button::from_icon_name("pan-down-symbolic");
+        place.add_css_class("flat");
+        place.add_css_class("circular");
+        place.set_halign(gtk::Align::End);
+        widget.append(&place);
         widget.append(&stack);
         widget.append(&title);
         widget.append(&details);
         Self {
             widget,
+            place,
             stack,
             picture,
             text,
@@ -273,13 +281,14 @@ impl Browser {
         });
     }
 
-    /// The pane and its toggle, around the list area.
+    /// The pane and its toggle, around the list area: right of it, or
+    /// below with `below`; `size` is its width (or height) to restore.
     pub(crate) fn build_preview(
         stage: &gtk::Widget,
-        width: i32,
+        size: i32,
+        below: bool,
     ) -> (gtk::Paned, gtk::ToggleButton) {
         let paned = gtk::Paned::builder()
-            .orientation(gtk::Orientation::Horizontal)
             .start_child(stage)
             .wide_handle(true)
             .shrink_start_child(true)
@@ -291,25 +300,74 @@ impl Browser {
             .icon_name("view-dual-symbolic")
             .tooltip_text(tr("Preview (Alt+P)"))
             .build();
-        // The position is set from the right once the paned has a width.
-        let w = if width > 0 { width.max(200) } else { 320 };
-        paned.add_tick_callback(move |p, _| {
-            if p.width() > 0 {
-                p.set_position((p.width() - w).max(200));
-                glib::ControlFlow::Break
-            } else {
-                glib::ControlFlow::Continue
-            }
-        });
+        place_paned(&paned, below, size);
         (paned, toggle)
     }
 
-    /// Width of the preview pane, for the window state (0: hidden).
-    pub(crate) fn preview_width(&self) -> i32 {
-        if self.preview_shown() {
-            self.preview.widget.width()
+    /// Move the preview pane below the list, or back to its right.
+    pub(crate) fn set_preview_below(self: &Rc<Self>, below: bool) {
+        if self.preview_below.replace(below) == below {
+            return;
+        }
+        self.place_preview_widgets();
+        place_paned(&self.preview_paned, below, 0);
+    }
+
+    /// The pane's minimum size and its button for where it is.
+    pub(crate) fn place_preview_widgets(&self) {
+        let below = self.preview_below.get();
+        let pv = &self.preview;
+        if below {
+            pv.widget.set_size_request(-1, 140);
+            pv.place.set_icon_name("pan-end-symbolic");
+            pv.place
+                .set_tooltip_text(Some(&tr("Show the preview right of the list")));
         } else {
-            0
+            pv.widget.set_size_request(200, -1);
+            pv.place.set_icon_name("pan-down-symbolic");
+            pv.place
+                .set_tooltip_text(Some(&tr("Show the preview below the list")));
         }
     }
+
+    /// Width (or, below the list, height) of the preview pane, for the
+    /// window state (0: hidden).
+    pub(crate) fn preview_width(&self) -> i32 {
+        if !self.preview_shown() {
+            0
+        } else if self.preview_below.get() {
+            self.preview.widget.height()
+        } else {
+            self.preview.widget.width()
+        }
+    }
+}
+
+/// Orient the split for a preview right of (or below) the list and give
+/// the pane `size` pixels (0: the default) once the split has its size.
+fn place_paned(paned: &gtk::Paned, below: bool, size: i32) {
+    paned.set_orientation(if below {
+        gtk::Orientation::Vertical
+    } else {
+        gtk::Orientation::Horizontal
+    });
+    let size = match (size > 0, below) {
+        (true, true) => size.max(140),
+        (true, false) => size.max(200),
+        (false, true) => 260,
+        (false, false) => 320,
+    };
+    // After a layout in the new orientation (two frames), so the room is
+    // the split's real height or width.
+    let frames = std::cell::Cell::new(0);
+    paned.add_tick_callback(move |p, _| {
+        frames.set(frames.get() + 1);
+        let room = if below { p.height() } else { p.width() };
+        if room > 0 && frames.get() >= 2 {
+            p.set_position((room - size).max(120));
+            glib::ControlFlow::Break
+        } else {
+            glib::ControlFlow::Continue
+        }
+    });
 }

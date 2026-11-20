@@ -111,6 +111,8 @@ pub struct Browser {
     pub(crate) preview: crate::preview::Preview,
     pub(crate) preview_paned: gtk::Paned,
     pub(crate) preview_toggle: gtk::ToggleButton,
+    /// The preview pane is below the list (else right of it).
+    pub(crate) preview_below: Cell<bool>,
     /// Show / hide hidden files (follows `Ctrl+H` and the settings).
     pub(crate) hidden_toggle: gtk::ToggleButton,
 
@@ -212,8 +214,11 @@ impl Browser {
             .build();
         let strip = crate::tabs::TabStrip::new();
         let preview = crate::preview::Preview::new();
-        let (preview_paned, preview_toggle) =
-            Browser::build_preview(strip.stage.upcast_ref(), state.preview_width);
+        let (preview_paned, preview_toggle) = Browser::build_preview(
+            strip.stage.upcast_ref(),
+            state.preview_width,
+            state.preview_below,
+        );
         preview_paned.set_end_child(Some(&preview.widget));
         preview.widget.set_visible(state.preview_width > 0);
         preview_toggle.set_active(state.preview_width > 0);
@@ -307,6 +312,7 @@ impl Browser {
                 preview,
                 preview_paned: preview_paned.clone(),
                 preview_toggle: preview_toggle.clone(),
+                preview_below: Cell::new(state.preview_below),
                 path_entry,
                 crumbs,
                 back,
@@ -392,6 +398,14 @@ impl Browser {
         search_button.connect_clicked(move |_| {
             if let Some(b) = w.upgrade() {
                 b.open_search();
+            }
+        });
+        b.place_preview_widgets();
+        let w = Rc::downgrade(&b);
+        b.preview.place.connect_clicked(move |_| {
+            if let Some(b) = w.upgrade() {
+                let below = !b.preview_below.get();
+                b.set_preview_below(below);
             }
         });
         let w = Rc::downgrade(&b);
@@ -1219,6 +1233,7 @@ impl Browser {
             tree_width: self.paned.borrow().as_ref().map_or(280, |p| p.position()),
             size_column: self.columns.size.get().unwrap_or(0),
             preview_width: self.preview_width(),
+            preview_below: self.preview_below.get(),
             date_column: self.columns.date.get().unwrap_or(0),
             width: self.window.default_width(),
             height: self.window.default_height(),

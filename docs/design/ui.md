@@ -266,7 +266,9 @@ their icon. A live reload of the folder drops its textures.
 ## Preview pane (ADR-027)
 
 `preview.rs`: `Alt+P` or a header-bar toggle shows a pane right of the
-list area (a `GtkPaned`; its width is saved, 0 = hidden). It follows the
+list area, or below it (the button at the pane's top switches; the
+`GtkPaned` turns vertical). Its place and size are saved per window
+(`preview_below`, `preview_width`, 0 = hidden). It follows the
 active tab: one selected image is shown whole (decoded at up to 1600 px),
 a text or code file shows its first 64 KB (monospace; NUL bytes mean
 binary, shown as details), anything else its icon, name, size and date;

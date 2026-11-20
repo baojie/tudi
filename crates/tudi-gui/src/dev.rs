@@ -253,6 +253,7 @@ fn step(b: Rc<Browser>, queue: Queue, delay: Duration) {
                 }
             }
             "preview" => b.set_preview(arg != "off"),
+            "previewbelow" => b.set_preview_below(arg != "off"),
             "tile" => b.toggle_tile(),
             "shot" => screenshot(&b, Path::new(arg)),
             "quit" => {
