@@ -19,6 +19,7 @@
 //! below exact matches.
 
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use nucleo_matcher::pattern::{Atom, AtomKind, CaseMatching, Normalization};
 use nucleo_matcher::{Config, Matcher, Utf32Str};
@@ -83,7 +84,10 @@ pub struct SearchData {
     alt: Alternates,
     /// Lowercased words of names with the nodes containing them, for the
     /// typo fallback (built lazily, or by [`SearchData::warm`]).
-    vocab: std::sync::OnceLock<Vocab>,
+    vocab: std::sync::OnceLock<Arc<Vocab>>,
+    /// Vocabulary of the nodes added after `vocab` was built (see
+    /// [`SearchData::build_reusing`]).
+    delta: Option<Vocab>,
 }
 
 fn bag_byte(b: u8) -> u64 {
@@ -208,6 +212,8 @@ impl Alternates {
 /// word, and the nodes containing each word in one postings array.
 #[derive(Default)]
 struct Vocab {
+    /// Nodes `0..end` were included when this was built.
+    end: u32,
     text: String,
     words: Vec<VocabWord>,
     postings: Vec<u32>,
@@ -265,7 +271,26 @@ impl SearchData {
             bags,
             alt,
             vocab: std::sync::OnceLock::new(),
+            delta: None,
         }
+    }
+
+    /// Like [`SearchData::build`], but share `prev`'s typo vocabulary (if
+    /// built) and add a small one for the nodes appended since, instead of
+    /// rebuilding it: the full vocabulary build is the largest temporary
+    /// allocation of a refresh. Only valid while node ids are unchanged
+    /// (`Index::generation` equal); nodes deleted since are skipped at query
+    /// time.
+    pub fn build_reusing(ix: &Index, prev: &SearchData) -> Self {
+        let mut sd = Self::build(ix);
+        if let Some(base) = prev.vocab.get() {
+            let end = ix.nodes.len() as u32;
+            if base.end <= end {
+                sd.delta = Some(build_vocab(ix, base.end..end));
+                let _ = sd.vocab.set(base.clone());
+            }
+        }
+        sd
     }
 
     /// Build the typo vocabulary now (e.g. on a background thread after
@@ -275,49 +300,60 @@ impl SearchData {
     }
 
     fn vocab(&self, ix: &Index) -> &Vocab {
-        self.vocab.get_or_init(|| {
-            // (word, node) pairs, sorted, then grouped.
-            let mut pairs: Vec<(String, u32)> = (0..ix.nodes.len() as u32)
-                .into_par_iter()
-                .filter(|&i| {
-                    let n = &ix.nodes[i as usize];
-                    !n.is_dead() && n.parent != NONE
-                })
-                .flat_map_iter(|i| {
-                    words(&String::from_utf8_lossy(ix.name(i)))
-                        .into_iter()
-                        .filter(|w| w.len() >= 3 && w.len() < 64)
-                        .map(move |w| (w, i))
-                })
-                .collect();
-            pairs.par_sort_unstable();
-            pairs.dedup();
-            let mut v = Vocab::default();
-            v.postings.reserve_exact(pairs.len());
-            let mut k = 0;
-            while k < pairs.len() {
-                let word = pairs[k].0.clone();
-                let post_off = v.postings.len() as u32;
-                while k < pairs.len() && pairs[k].0 == word {
-                    v.postings.push(pairs[k].1);
-                    k += 1;
-                }
-                let off = v.text.len() as u32;
-                v.text.push_str(&word);
-                v.words.push(VocabWord {
-                    off,
-                    len: word.len() as u16,
-                    chars: word.chars().count().min(255) as u8,
-                    bag: bag(word.as_bytes()),
-                    post_off,
-                    post_len: v.postings.len() as u32 - post_off,
-                });
-            }
-            v.text.shrink_to_fit();
-            v.words.shrink_to_fit();
-            v
-        })
+        self.vocab
+            .get_or_init(|| Arc::new(build_vocab(ix, 0..ix.nodes.len() as u32)))
     }
+
+    /// The typo vocabularies: the shared one and the one for newer nodes.
+    fn vocabs(&self, ix: &Index) -> impl Iterator<Item = &Vocab> {
+        std::iter::once(self.vocab(ix)).chain(self.delta.as_ref())
+    }
+}
+
+/// Typo vocabulary of the live nodes in `range`.
+fn build_vocab(ix: &Index, range: std::ops::Range<u32>) -> Vocab {
+    // (word, node) pairs, sorted, then grouped.
+    let mut pairs: Vec<(String, u32)> = range
+        .clone()
+        .into_par_iter()
+        .filter(|&i| {
+            let n = &ix.nodes[i as usize];
+            !n.is_dead() && n.parent != NONE
+        })
+        .flat_map_iter(|i| {
+            words(&String::from_utf8_lossy(ix.name(i)))
+                .into_iter()
+                .filter(|w| w.len() >= 3 && w.len() < 64)
+                .map(move |w| (w, i))
+        })
+        .collect();
+    pairs.par_sort_unstable();
+    pairs.dedup();
+    let mut v = Vocab::default();
+    v.postings.reserve_exact(pairs.len());
+    let mut k = 0;
+    while k < pairs.len() {
+        let word = pairs[k].0.clone();
+        let post_off = v.postings.len() as u32;
+        while k < pairs.len() && pairs[k].0 == word {
+            v.postings.push(pairs[k].1);
+            k += 1;
+        }
+        let off = v.text.len() as u32;
+        v.text.push_str(&word);
+        v.words.push(VocabWord {
+            off,
+            len: word.len() as u16,
+            chars: word.chars().count().min(255) as u8,
+            bag: bag(word.as_bytes()),
+            post_off,
+            post_len: v.postings.len() as u32 - post_off,
+        });
+    }
+    v.end = range.end;
+    v.text.shrink_to_fit();
+    v.words.shrink_to_fit();
+    v
 }
 
 /// Extra context for ranking.
@@ -512,22 +548,25 @@ pub fn search_query(
         let max = if len >= 8 { 2 } else { 1 };
         let tbag = token_bags[t];
         // Each edit changes at most two bits of the character bag.
-        let vocab = sd.vocab(ix);
-        let close: Vec<&VocabWord> = vocab
-            .words
-            .par_iter()
-            .filter(|v| {
-                usize::from(v.chars).abs_diff(len) <= max
-                    && (v.bag ^ tbag).count_ones() as usize <= 2 * max
-                    && vocab.word(v) != tok
-                    && osa_distance(vocab.word(v), tok, max) <= max
-            })
-            .collect();
-        for v in close {
-            {
+        for vocab in sd.vocabs(ix) {
+            let close: Vec<&VocabWord> = vocab
+                .words
+                .par_iter()
+                .filter(|v| {
+                    usize::from(v.chars).abs_diff(len) <= max
+                        && (v.bag ^ tbag).count_ones() as usize <= 2 * max
+                        && vocab.word(v) != tok
+                        && osa_distance(vocab.word(v), tok, max) <= max
+                })
+                .collect();
+            for v in close {
                 let nodes =
                     &vocab.postings[v.post_off as usize..(v.post_off + v.post_len) as usize];
                 for &i in nodes {
+                    // The vocabulary may predate deletions.
+                    if ix.nodes[i as usize].is_dead() {
+                        continue;
+                    }
                     if masks[i as usize] & bit == 0 {
                         masks[i as usize] |= bit;
                         scores[i as usize] += 16.0 * w.typo;
@@ -699,6 +738,43 @@ mod tests {
         assert_eq!(osa_distance("invocie", "invoice", 1), 1);
         assert_eq!(osa_distance("reprot", "report", 1), 1);
         assert_eq!(osa_distance("abc", "xyz", 1), 2);
+    }
+
+    #[test]
+    fn reused_vocabulary_covers_new_nodes_and_skips_deleted() {
+        let mut ix = build(&["docs/invoice-march.pdf", "docs/report.txt"]);
+        let old = SearchData::build(&ix);
+        old.warm(&ix);
+        let docs = ix.find(Path::new("/r/docs")).unwrap();
+        // Delete the invoice, add a new file after the vocabulary was built.
+        let gone = ix.find(Path::new("/r/docs/invoice-march.pdf")).unwrap();
+        let entries = [
+            Entry {
+                name: b"report.txt".to_vec(),
+                kind: Kind::File,
+                size: 1,
+                mtime: 1_700_000_000,
+            },
+            Entry {
+                name: b"quarterly-budget.ods".to_vec(),
+                kind: Kind::File,
+                size: 1,
+                mtime: 1_700_000_000,
+            },
+        ];
+        ix.apply_listing(docs, &entries);
+        assert!(ix.nodes[gone as usize].is_dead());
+        let sd = SearchData::build_reusing(&ix, &old);
+        let q = |text: &str| -> Vec<String> {
+            search(&ix, &sd, text, 10, &Weights::default(), &Context::default())
+                .iter()
+                .map(|h| ix.path(h.node).to_string_lossy().into_owned())
+                .collect()
+        };
+        // Typo matches through the delta vocabulary.
+        assert_eq!(q("quartely"), ["/r/docs/quarterly-budget.ods"]);
+        // The shared vocabulary still lists the deleted file: not returned.
+        assert!(q("invocie").is_empty());
     }
 
     #[test]

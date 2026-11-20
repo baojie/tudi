@@ -213,6 +213,38 @@ pub fn scan_below(
     Some(stats)
 }
 
+/// Apply a fresh listing of the folder `node` at `path` (change events,
+/// listing hints): update its entries; new sub-folders are marked excluded
+/// (exclude pattern, or on another mount than `mnt`) or scanned fully.
+/// Returns whether the index changed.
+pub fn apply_dir(
+    ix: &mut Index,
+    node: u32,
+    path: &Path,
+    items: Vec<Listed>,
+    mnt: Option<u64>,
+    excludes: &Excludes,
+    cancel: &AtomicBool,
+) -> bool {
+    let other: std::collections::HashSet<Vec<u8>> = items
+        .iter()
+        .filter(|l| l.other_fs)
+        .map(|l| l.entry.name.clone())
+        .collect();
+    let entries: Vec<Entry> = items.into_iter().map(|l| l.entry).collect();
+    let (new_dirs, changed) = ix.apply_listing(node, &entries);
+    for d in new_dirs {
+        let name = ix.name(d).to_vec();
+        let child = path.join(OsStr::from_bytes(&name));
+        if other.contains(&name) || excludes.matches(&child) {
+            ix.nodes[d as usize].flags |= flags::EXCLUDED;
+            continue;
+        }
+        let _ = scan_below(ix, d, mnt, excludes, cancel, |_| {});
+    }
+    changed
+}
+
 /// Result of a reconcile pass.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct ReconcileStats {
@@ -415,6 +447,35 @@ mod tests {
         assert_eq!(ix.nodes[l as usize].kind(), Kind::Symlink);
         let size = ix.nodes[ix.find(&r.join("proj/src/main.rs")).unwrap() as usize].size;
         assert_eq!(size, 11);
+    }
+
+    #[test]
+    fn apply_dir_excludes_new_folders() {
+        let t = tempfile::tempdir().unwrap();
+        let r = t.path();
+        let none = AtomicBool::new(false);
+        let mut ix = build(&[r.to_path_buf()], &Excludes::defaults(), &none, |_| {}).unwrap();
+        fs::create_dir_all(r.join("node_modules/lib")).unwrap();
+        fs::create_dir_all(r.join("src/deep")).unwrap();
+        fs::write(r.join("src/deep/a.rs"), "").unwrap();
+        let mnt = mount_id(r);
+        let mut buf = vec![MaybeUninit::<u8>::uninit(); 64 * 1024];
+        let items = list_dir(r, mnt, &mut buf).unwrap();
+        let root = ix.find(r).unwrap();
+        assert!(apply_dir(
+            &mut ix,
+            root,
+            r,
+            items,
+            mnt,
+            &Excludes::defaults(),
+            &none
+        ));
+        let nm = ix.find(&r.join("node_modules")).unwrap();
+        assert!(ix.nodes[nm as usize].flags & flags::EXCLUDED != 0);
+        assert!(ix.find(&r.join("node_modules/lib")).is_none());
+        // Other new folders are scanned to the bottom.
+        assert!(ix.find(&r.join("src/deep/a.rs")).is_some());
     }
 
     #[test]

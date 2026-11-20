@@ -103,6 +103,19 @@ pub fn release_free_memory() {
     }
 }
 
+/// Make large allocations (index arrays, their copies, search data) always
+/// use their own mappings, returned to the system when freed. glibc
+/// otherwise raises its mmap threshold after the first such free, and later
+/// big buffers come from the heap, where freed space fragments and RSS
+/// creeps up (seen with the per-minute search-data refresh, M7).
+pub fn tune_allocator() {
+    // SAFETY: mallopt only sets a glibc tuning parameter; called once at
+    // startup before other threads exist.
+    unsafe {
+        libc::mallopt(libc::M_MMAP_THRESHOLD, 1 << 20);
+    }
+}
+
 /// `mtime` (Unix seconds) to the stored form.
 pub fn pack_mtime(unix: i64) -> u32 {
     (unix - EPOCH_2000).clamp(0, i64::from(u32::MAX)) as u32
@@ -138,6 +151,9 @@ pub struct Index {
     /// Root folders: (absolute path, node).
     pub roots: Vec<(PathBuf, u32)>,
     tombstones: usize,
+    /// Bumped whenever node ids change (compaction), so data keyed by node
+    /// id that was built from a copy can be checked before use.
+    generation: u64,
 }
 
 impl Index {
@@ -156,6 +172,11 @@ impl Index {
 
     pub fn tombstones(&self) -> usize {
         self.tombstones
+    }
+
+    /// Changes whenever existing node ids are renumbered.
+    pub fn generation(&self) -> u64 {
+        self.generation
     }
 
     pub(crate) fn set_tombstones(&mut self, n: usize) {
@@ -399,6 +420,7 @@ impl Index {
             .filter(|(_, r)| remap[*r as usize] != NONE)
             .map(|(p, r)| (p.clone(), remap[*r as usize]))
             .collect();
+        out.generation = self.generation + 1;
         *self = out;
     }
 }
@@ -429,6 +451,14 @@ mod tests {
         );
         ix.apply_listing(dirs[0], &[e("b", Kind::Dir), e(".hidden", Kind::File)]);
         ix
+    }
+
+    #[test]
+    fn compaction_bumps_generation() {
+        let mut ix = sample();
+        let g = ix.generation();
+        ix.compact();
+        assert_eq!(ix.generation(), g + 1);
     }
 
     #[test]
