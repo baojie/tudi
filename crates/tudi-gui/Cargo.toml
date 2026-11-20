@@ -26,6 +26,9 @@ adw.workspace = true
 anyhow.workspace = true
 async-channel.workspace = true
 pulldown-cmark = { version = "0.13.6", default-features = false }
+gstreamer = "0.25.4"
+gstreamer-app = "0.25.2"
+gstreamer-video = "0.25.4"
 syntect = { version = "5.3.0", default-features = false, features = ["parsing", "default-syntaxes", "default-themes", "regex-fancy"] }
 rustix.workspace = true
 gettext-rs.workspace = true
@@ -38,6 +41,9 @@ tracing-subscriber.workspace = true
 tudi-core = { path = "../tudi-core" }
 tudi-index = { path = "../tudi-index" }
 
+[dev-dependencies]
+tempfile.workspace = true
+
 # `.deb` package (scripts/package.sh passes --maintainer).
 [package.metadata.deb]
 name = "tudi"
@@ -48,6 +54,8 @@ tudi is a fast, tree-first file browser for Linux (GTK4/libadwaita): a \
 folder tree on the left, a details list on the right, live updates, and \
 a history of the folders you open most."""
 depends = "$auto"
+# Decoders for video frames in the preview pane.
+recommends = "gstreamer1.0-plugins-good, gstreamer1.0-plugins-bad, gstreamer1.0-libav"
 assets = [
     ["target/release/tudi", "usr/bin/", "755"],
     ["target/release/tudi-gui", "usr/bin/", "755"],

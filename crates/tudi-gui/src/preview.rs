@@ -1,7 +1,8 @@
 //! The optional preview pane (ADR-027): to the right of the list, it shows
 //! the selected file of the active tab — an image, the start of a text
 //! file (Markdown rendered, see `markdown.rs`; code highlighted, see
-//! `highlight.rs`), or the item's details (several selected: their count and size;
+//! `highlight.rs`), the first frame of a video (`video.rs`), or the
+//! item's details (several selected: their count and size;
 //! none: the shown folder).
 //!
 //! Files are read on a short-lived thread, never on the main thread; a
@@ -146,8 +147,19 @@ fn read_text(path: &Path) -> Option<String> {
     Some(String::from_utf8_lossy(&buf).into_owned())
 }
 
-fn load(path: &Path, image: bool, dark: bool) -> Content {
-    if image {
+/// What the loader thread reads.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Source {
+    Image,
+    Video,
+    Text,
+}
+
+fn load(path: &Path, source: Source, dark: bool) -> Content {
+    if source == Source::Video {
+        return crate::video::first_frame(path, IMAGE_PX).map_or(Content::Nothing, Content::Image);
+    }
+    if source == Source::Image {
         let p = gdk_pixbuf::Pixbuf::from_file_at_scale(path, IMAGE_PX, IMAGE_PX, true)
             .ok()
             .and_then(|p| p.apply_embedded_orientation());
@@ -274,17 +286,24 @@ impl Browser {
         } else {
             Kind::File(crate::icons::category(&name))
         };
-        let image = !dir && crate::thumbs::is_image(&name);
-        let text = !dir && !image && is_text(&name) && m.size > 0;
+        let source = if dir {
+            None
+        } else if crate::thumbs::is_image(&name) {
+            Some(Source::Image)
+        } else if crate::video::is_video(&name) && m.size > 0 {
+            Some(Source::Video)
+        } else if is_text(&name) && m.size > 0 {
+            Some(Source::Text)
+        } else {
+            None
+        };
         pv.show_icon(kind);
-        if !image && !text {
-            return;
-        }
+        let Some(source) = source else { return };
         let (tx, rx) = async_channel::bounded(1);
         let p = path.clone();
         let dark = adw::StyleManager::default().is_dark();
         std::thread::spawn(move || {
-            let _ = tx.send_blocking(load(&p, image, dark));
+            let _ = tx.send_blocking(load(&p, source, dark));
         });
         let w = self.me.clone();
         glib::spawn_future_local(async move {

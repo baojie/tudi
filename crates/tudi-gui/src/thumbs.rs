@@ -48,6 +48,25 @@ impl Pixels {
         })
     }
 
+    #[cfg(test)]
+    pub fn width(&self) -> i32 {
+        self.width
+    }
+
+    #[cfg(test)]
+    pub fn height(&self) -> i32 {
+        self.height
+    }
+
+    /// The colour at (x, y), for tests.
+    #[cfg(test)]
+    pub fn rgb_at(&self, x: i32, y: i32) -> (u8, u8, u8) {
+        let n = if self.alpha { 4 } else { 3 };
+        let i = y as usize * self.stride + x as usize * n;
+        let b = &self.bytes[i..i + 3];
+        (b[0], b[1], b[2])
+    }
+
     /// A texture of the pixels (main thread).
     pub fn texture(&self) -> gdk::Texture {
         let format = if self.alpha {

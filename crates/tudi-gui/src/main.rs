@@ -39,6 +39,7 @@ mod tabs;
 mod thumbs;
 mod tree_menu;
 mod undo;
+mod video;
 mod worker;
 mod zoom;
 

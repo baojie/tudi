@@ -526,3 +526,22 @@ through `sh` / `python3`; `.desktop` files through `gio launch`.
   `deny.toml` because it only decodes syntect's embedded dumps. Highlighting
   64 KB takes ≈ 0.25 s on the loader thread (34 KB of Rust: 129 ms,
   release). A theme switch applies on the next selection.
+
+## ADR-032: Video frames in the preview pane through a GStreamer appsink
+
+- **Context.** The maintainer wants the preview pane to show a video's
+  first frame. GTK's own `GtkMediaFile` (GStreamer inside GTK, no new
+  dependency) was tried first: in the headless test session it sometimes
+  never prepared and once showed a solid green frame (its sink goes
+  through GL), so its result could not be verified.
+- **Decision.** gstreamer-rs (MIT/Apache-2.0, same glib as gtk-rs): on the
+  pane's loader thread, a `playbin` with video only, an `appsink` behind
+  `videoconvert ! videoscale` asking for RGB with square pixels, set to
+  PAUSED; the prerolled sample is copied into a pixbuf (scaled to 1600 px)
+  and shown like an image. Timeout 10 s; a missing decoder or a broken
+  file leaves the icon.
+- **Consequences.** Building needs the GStreamer development files
+  (`scripts/install-deps.sh`); the `.deb` recommends the good/bad/libav
+  plugin sets. 0.2–0.4 s per real video (release; the first one includes
+  GStreamer's start-up). The first frame is often black (fade-in); no
+  seeking past it. Rotation metadata of phone videos is not applied.
