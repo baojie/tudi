@@ -14,6 +14,8 @@ Code: `crates/tudi-gui/src/`. Plan: `docs/PLAN.md` §5.3, §5.7.
 | `actions.rs` | type-ahead, clipboard, external commands, rename, trash, new folder, drag out |
 | `find.rs` | `Ctrl+F` find bar: jump to matches, `Enter` filters the list |
 | `tabs.rs` | tabs of the list, the tab strip, side-by-side tiles |
+| `undo.rs` | `Ctrl+Z`: the window's last file operations, reversed |
+| `crumbs.rs` | clickable path bar: a button per folder, `›` lists subfolders |
 | `preview.rs` | optional preview pane: image, start of a text file, or details |
 | `thumbs.rs` | thumbnail view: grid cells, thumbnail loader threads, texture cache |
 | `activity.rs` | background tasks named in the status bar, with a spinner |
@@ -156,6 +158,38 @@ itself is ignored. Paste (`Ctrl+V`, menus) uses the same `transfer_into`:
 a helper thread, a status-bar task, one toast ("Moved 2, copied 1"). Rows
 under a drag are highlighted (`:drop(active)`). The list's background menu
 also has "New File…" (an empty file, never replacing one).
+
+## Undo (`undo.rs`, docs/ideas.md #1)
+
+Each finished copy or move (paste, drop), rename, trash, new folder or
+file pushes an `Op` on the window's stack (50 deep). `Ctrl+Z` in the list
+or the tree, or "Undo" in the list's background menu, pops the last one
+and reverses it on a helper thread: moved items go back
+(`fileops::move_back`, never over an existing name), copies and new items
+go to the trash, trashed items come back from `trash:///` (matched by
+`trash::orig-path`, the latest trashed before the undo started, so a copy
+the undo itself just trashed is not taken for a replaced original),
+renames are reverted. The toast says what was undone or what could not
+be.
+
+## Name conflicts (`drop.rs`, docs/ideas.md #2)
+
+Before a paste or drop, `fileops::conflicts` (helper thread) lists the
+names that already exist in the destination. If there are any, a dialog
+asks: **Replace** (the existing items go to the trash first, so undo
+brings them back; if they cannot be trashed, both are kept and a toast
+says so), **Skip** (those items are left out), **Keep Both** (default:
+`name (2)`), or Cancel.
+
+## Path bar (`crumbs.rs`, docs/ideas.md #3)
+
+The header's path is a row of buttons, one per folder (from "Home" below
+the home folder, else from "/"), the current one in bold; the end stays in
+view. A click goes there; files dropped on a button go into that folder.
+The `›` after each lists its subfolders (read on a helper thread, hidden
+ones only when shown, at most 300) to jump to. A click on the empty part
+or `Ctrl+L` shows the text entry with the path selected; `Enter` goes
+there, `Esc` or leaving the entry shows the buttons again.
 
 ## Status bar activity
 

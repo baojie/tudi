@@ -48,6 +48,14 @@ impl Browser {
             let tmpl = b.shared.config.borrow().commands.terminal.clone();
             b.run_command_in(&tmpl, t.path.clone(), &[]);
         });
+        add("copy-name", |b, t| {
+            let name = t
+                .path
+                .file_name()
+                .map_or_else(|| t.path.to_string_lossy(), |n| n.to_string_lossy());
+            b.window.clipboard().set_text(&name);
+            b.toast(&tr("Copied the name"));
+        });
         add("copy-path", |b, t| {
             b.window.clipboard().set_text(&t.path.to_string_lossy());
             b.toast(&tr("Copied the path"));
@@ -141,7 +149,8 @@ impl Browser {
             edit.append_item(&item(tr("Copy"), "tree.copy"));
         }
         edit.append_item(&item(tr("Paste Into Folder"), "tree.paste"));
-        edit.append_item(&item(tr("Copy Path"), "tree.copy-path"));
+        edit.append_item(&item(tr("Copy Name"), "tree.copy-name"));
+        edit.append_item(&item(tr("Copy Full Path"), "tree.copy-path"));
         menu.append_section(None, &edit);
         let manage = gio::Menu::new();
         manage.append_item(&item(tr("New Folder…"), "tree.new-folder"));

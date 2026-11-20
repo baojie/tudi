@@ -561,7 +561,7 @@ impl Browser {
     pub(crate) fn sync_chrome(self: &Rc<Self>) {
         let tab = self.active.borrow().clone();
         let cur = tab.current.borrow().clone();
-        self.path_entry.set_text(&cur.to_string_lossy());
+        self.set_location(&cur);
         self.window
             .set_title(Some(&format!("{} — tudi", title_of(&cur))));
         self.back.set_sensitive(!tab.history.borrow().is_empty());

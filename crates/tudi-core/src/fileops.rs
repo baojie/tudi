@@ -129,6 +129,8 @@ pub struct Report {
     pub failed: Vec<(PathBuf, io::Error)>,
     /// Of `done`: how many were moved (the rest were copied).
     pub moved: usize,
+    /// For each of `done`: where it came from and how (for undo).
+    pub sources: Vec<(PathBuf, Mode)>,
 }
 
 /// How to transfer dropped or pasted items.
@@ -167,8 +169,11 @@ pub fn transfer_choice(srcs: &[PathBuf], dest_dir: &Path, choice: Choice) -> Rep
             },
         };
         match transfer(s, dest_dir, mode) {
+            // Moving within the same folder changes nothing.
+            Ok(p) if p == *s => {}
             Ok(p) => {
                 r.done.push(p);
+                r.sources.push((s.clone(), mode));
                 if mode == Mode::Move {
                     r.moved += 1;
                 }
@@ -177,6 +182,38 @@ pub fn transfer_choice(srcs: &[PathBuf], dest_dir: &Path, choice: Choice) -> Rep
         }
     }
     r
+}
+
+/// Existing paths in `dest_dir` that `srcs` would clash with (items already
+/// in `dest_dir` itself are not conflicts: nothing happens to them).
+pub fn conflicts(srcs: &[PathBuf], dest_dir: &Path) -> Vec<PathBuf> {
+    srcs.iter()
+        .filter(|s| s.parent() != Some(dest_dir))
+        .filter_map(|s| s.file_name().map(|n| dest_dir.join(n)))
+        .filter(|d| fs::symlink_metadata(d).is_ok())
+        .collect()
+}
+
+/// Undo a move: put `now` back at `was` (which must not exist), across
+/// filesystems if needed.
+pub fn move_back(now: &Path, was: &Path) -> io::Result<()> {
+    if fs::symlink_metadata(was).is_ok() {
+        return Err(io::Error::new(
+            io::ErrorKind::AlreadyExists,
+            format!("{} exists", was.display()),
+        ));
+    }
+    match fs::rename(now, was) {
+        Ok(()) => Ok(()),
+        Err(e) if e.raw_os_error() == Some(18) => {
+            if let Err(e) = copy_tree(now, was) {
+                let _ = remove_tree(was);
+                return Err(e);
+            }
+            remove_tree(now)
+        }
+        Err(e) => Err(e),
+    }
 }
 
 /// Transfer each source into `dest_dir`, continuing after failures.
@@ -312,5 +349,25 @@ mod tests {
         let r = transfer_choice(std::slice::from_ref(&b), &out, Choice::Copy);
         assert_eq!((r.done.len(), r.moved), (1, 0));
         assert!(b.exists());
+    }
+
+    #[test]
+    fn conflicts_and_moving_back() {
+        let t = tempfile::tempdir().unwrap();
+        let (a, b) = (t.path().join("a"), t.path().join("b"));
+        write(&a.join("x.txt"), "1");
+        write(&a.join("y.txt"), "2");
+        write(&b.join("x.txt"), "old");
+        let srcs = vec![a.join("x.txt"), a.join("y.txt")];
+        assert_eq!(conflicts(&srcs, &b), vec![b.join("x.txt")]);
+        // Items already in the folder are no conflict.
+        assert!(conflicts(&srcs, &a).is_empty());
+        let r = transfer_choice(&srcs[1..], &b, Choice::Move);
+        assert_eq!(r.sources, vec![(a.join("y.txt"), Mode::Move)]);
+        move_back(&r.done[0], &r.sources[0].0).unwrap();
+        assert_eq!(fs::read_to_string(a.join("y.txt")).unwrap(), "2");
+        assert!(!b.join("y.txt").exists());
+        // Never over an existing file.
+        assert!(move_back(&b.join("x.txt"), &a.join("x.txt")).is_err());
     }
 }

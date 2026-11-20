@@ -271,6 +271,21 @@ impl Browser {
         });
     }
 
+    /// The selected items' names as text, one per line.
+    pub(crate) fn copy_names(&self) {
+        let paths = self.selected_paths();
+        let names: Vec<String> = paths
+            .iter()
+            .filter_map(|p| p.file_name().map(|n| n.to_string_lossy().into_owned()))
+            .collect();
+        if names.is_empty() {
+            return;
+        }
+        self.window.clipboard().set_text(&names.join("\n"));
+        let n = names.len() as u64;
+        self.toast(&fill(&ntr("Copied {} name", "Copied {} names", n), &[&n]));
+    }
+
     /// Ctrl+Shift+C: absolute paths as text (current folder if none).
     pub(crate) fn copy_paths(&self) {
         let mut paths = self.selected_paths();
@@ -358,14 +373,24 @@ impl Browser {
         let w = Rc::downgrade(self);
         glib::spawn_future_local(async move {
             let mut failed = Vec::new();
+            let mut failed_paths = Vec::new();
             for p in &paths {
                 let f = gio::File::for_path(p);
                 if let Err(e) = f.trash_future(glib::Priority::DEFAULT).await {
                     failed.push(format!("{}: {e}", p.display()));
+                    failed_paths.push(p.clone());
                 }
             }
             let Some(b) = w.upgrade() else { return };
             b.end_task(Task::Trashing);
+            let trashed: Vec<PathBuf> = paths
+                .iter()
+                .filter(|p| !failed_paths.contains(p))
+                .cloned()
+                .collect();
+            if !trashed.is_empty() {
+                b.push_undo(crate::undo::Op::Trash(trashed));
+            }
             let ok = paths.len() - failed.len();
             if failed.is_empty() {
                 let ok = ok as u64;
@@ -411,7 +436,12 @@ impl Browser {
                 .await;
             let Some(b) = w.upgrade() else { return };
             match r {
-                Ok(_) => b.reload(Some(new.into_bytes())),
+                Ok(f) => {
+                    if let Some(to) = f.path() {
+                        b.push_undo(crate::undo::Op::Rename { from: path, to });
+                    }
+                    b.reload(Some(new.into_bytes()));
+                }
                 Err(e) => b.toast(&fill(&tr("Cannot rename: {}"), &[&e])),
             }
         });
@@ -440,7 +470,8 @@ impl Browser {
 
     /// Create an empty file (never replacing an existing one).
     pub(crate) fn make_file_in(self: &Rc<Self>, dir: &std::path::Path, name: String) {
-        let f = gio::File::for_path(dir.join(&name));
+        let path = dir.join(&name);
+        let f = gio::File::for_path(&path);
         let in_current = dir == self.current_dir();
         let w = Rc::downgrade(self);
         glib::spawn_future_local(async move {
@@ -448,6 +479,9 @@ impl Browser {
                 .create_future(gio::FileCreateFlags::NONE, glib::Priority::DEFAULT)
                 .await;
             let Some(b) = w.upgrade() else { return };
+            if r.is_ok() {
+                b.push_undo(crate::undo::Op::Create(path));
+            }
             match r {
                 Ok(_) if !in_current => {}
                 Ok(_) => b.reload(Some(name.into_bytes())),
@@ -476,12 +510,16 @@ impl Browser {
     }
 
     pub(crate) fn make_folder_in(self: &Rc<Self>, dir: &std::path::Path, name: String) {
-        let f = gio::File::for_path(dir.join(&name));
+        let path = dir.join(&name);
+        let f = gio::File::for_path(&path);
         let in_current = dir == self.current_dir();
         let w = Rc::downgrade(self);
         glib::spawn_future_local(async move {
             let r = f.make_directory_future(glib::Priority::DEFAULT).await;
             let Some(b) = w.upgrade() else { return };
+            if r.is_ok() {
+                b.push_undo(crate::undo::Op::Create(path));
+            }
             match r {
                 Ok(()) if !in_current => {}
                 Ok(()) => b.reload(Some(name.into_bytes())),
@@ -577,6 +615,8 @@ impl Browser {
         add("cut", |b| b.cut_files());
         add("paste", |b| b.paste());
         add("copy-path", |b| b.copy_paths());
+        add("copy-name", |b| b.copy_names());
+        add("undo", |b| b.undo_last());
         add("rename", |b| b.rename_selected());
         add("trash", |b| b.trash_selected());
         add("new-folder", |b| b.new_folder());
@@ -701,8 +741,9 @@ impl Browser {
             edit.append_item(&item(tr("Cut"), "file.cut", "<Control>x"));
             edit.append_item(&item(tr("Copy"), "file.copy", "<Control>c"));
             edit.append_item(&item(tr("Paste"), "file.paste", "<Control>v"));
+            edit.append_item(&item(tr("Copy Name"), "file.copy-name", ""));
             edit.append_item(&item(
-                tr("Copy Path"),
+                tr("Copy Full Path"),
                 "file.copy-path",
                 "<Control><Shift>c",
             ));
@@ -722,6 +763,9 @@ impl Browser {
             menu.append_section(None, &info);
         } else {
             let edit = gio::Menu::new();
+            if self.can_undo() {
+                edit.append_item(&item(tr("Undo"), "file.undo", "<Control>z"));
+            }
             edit.append_item(&item(tr("Paste"), "file.paste", "<Control>v"));
             edit.append_item(&item(tr("Select All"), "file.select-all", "<Control>a"));
             menu.append_section(None, &edit);

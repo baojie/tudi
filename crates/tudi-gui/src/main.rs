@@ -16,6 +16,7 @@ mod activity;
 mod bar;
 mod bench;
 mod browser;
+mod crumbs;
 mod dev;
 mod drop;
 mod find;
@@ -35,6 +36,7 @@ mod sidebar;
 mod tabs;
 mod thumbs;
 mod tree_menu;
+mod undo;
 mod worker;
 mod zoom;
 
@@ -92,6 +94,11 @@ const CSS: &str = "
 .tudi-grid > child { padding: 8px; border-radius: 8px; }
 .tudi-grid > child:selected { background-color: alpha(@accent_bg_color, 0.25); color: inherit; }
 .tudi-preview { padding: 12px; background-color: @view_bg_color; }
+.tudi-crumb-field { background-color: alpha(currentColor, 0.08); border-radius: 6px; min-height: 30px; padding: 0 4px; }
+.tudi-crumb { padding: 2px 6px; min-height: 0; font-weight: normal; }
+.tudi-crumb.current { font-weight: bold; }
+.tudi-crumb-sep { padding: 2px 3px; min-width: 0; min-height: 0; opacity: 0.6; }
+.tudi-crumb:drop(active) { background-color: alpha(@accent_bg_color, 0.25); }
 .tudi-tab-close { min-width: 20px; min-height: 20px; padding: 0; }
 .tudi-tab-add { min-width: 24px; min-height: 24px; padding: 0 4px; margin-bottom: 2px; }
 .tudi-search { padding: 10px; box-shadow: 0 8px 28px alpha(black, 0.25); }

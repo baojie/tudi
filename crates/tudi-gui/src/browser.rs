@@ -103,6 +103,8 @@ pub struct Browser {
     pub(crate) thumbs: Rc<crate::thumbs::Thumbnailer>,
     /// List / thumbnails switch (shown when the folder has images).
     pub(crate) view_toggle: gtk::Button,
+    /// File operations that `Ctrl+Z` can undo, last on top.
+    pub(crate) undo: RefCell<Vec<crate::undo::Op>>,
     /// This window (for code that holds only `&self`).
     pub(crate) me: std::rc::Weak<Browser>,
     /// The preview pane right of the list area, its split and its toggle.
@@ -113,6 +115,8 @@ pub struct Browser {
     pub(crate) hidden_toggle: gtk::ToggleButton,
 
     pub(crate) path_entry: gtk::Entry,
+    /// The path bar's clickable folders (the entry is shown for typing).
+    pub(crate) crumbs: crate::crumbs::Crumbs,
     pub(crate) back: gtk::Button,
     pub(crate) forward: gtk::Button,
     pub(crate) status: gtk::Label,
@@ -221,7 +225,8 @@ impl Browser {
         header.pack_end(&view_toggle);
         header.pack_end(&hidden_toggle);
         header.pack_end(&preview_toggle);
-        header.set_title_widget(Some(&path_entry));
+        let crumbs = crate::crumbs::Crumbs::new(&path_entry);
+        header.set_title_widget(Some(&crumbs.stack));
 
         let status = gtk::Label::new(None);
         status.set_xalign(0.0);
@@ -298,10 +303,12 @@ impl Browser {
                 view_toggle: view_toggle.clone(),
                 hidden_toggle: hidden_toggle.clone(),
                 me: weak.clone(),
+                undo: RefCell::default(),
                 preview,
                 preview_paned: preview_paned.clone(),
                 preview_toggle: preview_toggle.clone(),
                 path_entry,
+                crumbs,
                 back,
                 forward,
                 status,
@@ -372,6 +379,7 @@ impl Browser {
         b.install_file_actions();
         b.install_tree_actions();
         b.install_tab_actions();
+        b.install_crumbs();
         let w = Rc::downgrade(&b);
         gear.connect_clicked(move |_| {
             if let Some(b) = w.upgrade() {
@@ -556,6 +564,19 @@ impl Browser {
             }
         });
         self.tree_view.add_controller(keys);
+        // Ctrl+Z also from the tree (its menu renames, trashes, creates).
+        let ctl = gtk::ShortcutController::new();
+        let w = Rc::downgrade(self);
+        ctl.add_shortcut(gtk::Shortcut::new(
+            gtk::ShortcutTrigger::parse_string("<Control>z"),
+            Some(gtk::CallbackAction::new(move |_, _| {
+                if let Some(b) = w.upgrade() {
+                    b.undo_last();
+                }
+                glib::Propagation::Stop
+            })),
+        ));
+        self.tree_view.add_controller(ctl);
     }
 
     fn install_shortcuts(self: &Rc<Self>) {
@@ -778,6 +799,7 @@ impl Browser {
         add("<Control><Shift>c", Box::new(|b| b.copy_paths()));
         add("Delete", Box::new(|b| b.trash_selected()));
         add("F2", Box::new(|b| b.rename_selected()));
+        add("<Control>z", Box::new(|b| b.undo_last()));
         target.add_controller(ctl);
 
         // Backspace goes up only from the panes, not while editing the path.
@@ -843,7 +865,7 @@ impl Browser {
             self.end_tasks(Task::Details);
             self.end_tasks(Task::Listing);
             self.begin_task(Task::Listing);
-            self.path_entry.set_text(&path.to_string_lossy());
+            self.set_location(&path);
             self.window
                 .set_title(Some(&format!("{} — tudi", crate::tabs::title_of(&path))));
             self.back.set_sensitive(!tab.history.borrow().is_empty());
@@ -907,8 +929,7 @@ impl Browser {
     }
 
     fn focus_path(&self) {
-        self.path_entry.grab_focus();
-        self.path_entry.select_region(0, -1);
+        self.edit_location();
     }
 
     fn switch_pane_focus(&self) {

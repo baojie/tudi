@@ -243,6 +243,15 @@ fn step(b: Rc<Browser>, queue: Queue, delay: Duration) {
             }
             "closetab" => b.close_active_tab(),
             "thumbs" => b.set_thumbnails(arg != "off"),
+            "undo" => b.undo_last(),
+            "copyname" => b.copy_names(),
+            "respond" => {
+                // Answer the open alert dialog (conflicts) as if clicked.
+                if let Some(d) = b.window.visible_dialog().and_downcast::<adw::AlertDialog>() {
+                    d.emit_by_name::<()>("response", &[&arg]);
+                    d.close();
+                }
+            }
             "preview" => b.set_preview(arg != "off"),
             "tile" => b.toggle_tile(),
             "shot" => screenshot(&b, Path::new(arg)),

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Undo (`Ctrl+Z`) for moves, copies, renames, trashing and new folders
+  or files.
+- Pasting or dropping onto existing names asks: replace (the old ones go
+  to the trash), skip, or keep both.
+- The path bar is a row of clickable folders; the `›` after each lists its
+  subfolders, and files can be dropped on a folder. Click the empty part
+  or press `Ctrl+L` to type a path.
+- "Copy Name" next to "Copy Full Path" in the list and tree menus.
+- `docs/ideas.md`: design ideas from Finder and Windows Explorer.
 - Hidden files and folders are shown dimmed, in the list, the tree and
   the thumbnails.
 - Fix: double-clicking a column divider did not fit the column.
