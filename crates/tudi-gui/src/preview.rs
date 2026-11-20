@@ -258,11 +258,10 @@ impl Browser {
         }
         let e = selected[0];
         let name = d.name(e).to_vec();
+        let path = d.path(e);
         let dir = d.is_dir(e);
         let m = *d.metas.get(e as usize);
         drop(d);
-        use std::os::unix::ffi::OsStrExt;
-        let path = cur.join(std::ffi::OsStr::from_bytes(&name));
         let key = format!("{}|{}|{}", path.display(), m.mtime, m.size);
         if *pv.key.borrow() == key {
             return;

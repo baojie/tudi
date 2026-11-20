@@ -14,6 +14,7 @@
 
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -70,6 +71,10 @@ impl PaneRow {
 #[derive(Default)]
 pub struct PaneData {
     pub generation: u64,
+    /// The folder the rows were listed from. While a new folder is being
+    /// listed the tab's `current` already names it but the rows are still
+    /// the old folder's, so paths of rows are built from this.
+    pub dir: PathBuf,
     pub listing: Option<Arc<Listing>>,
     pub rank: Option<Arc<NameRank>>,
     pub order: Vec<u32>,
@@ -94,6 +99,12 @@ impl PaneData {
 
     pub fn name(&self, entry: u32) -> &[u8] {
         self.listing.as_ref().expect("listing").name(entry as usize)
+    }
+
+    /// Absolute path of an entry.
+    pub fn path(&self, entry: u32) -> PathBuf {
+        use std::os::unix::ffi::OsStrExt;
+        self.dir.join(std::ffi::OsStr::from_bytes(self.name(entry)))
     }
 
     pub fn is_dir(&self, entry: u32) -> bool {
@@ -170,6 +181,7 @@ impl PaneModel {
     pub fn set_listing(
         &self,
         generation: u64,
+        dir: PathBuf,
         listing: Arc<Listing>,
         rank: Arc<NameRank>,
         order: Order,
@@ -178,6 +190,7 @@ impl PaneModel {
         let removed = self.n_items();
         {
             let mut d = self.imp().data.borrow_mut();
+            d.dir = dir;
             d.metas = MetaTable::new(listing.len());
             d.generation = generation;
             d.listing = Some(listing);

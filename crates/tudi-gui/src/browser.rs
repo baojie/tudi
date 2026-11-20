@@ -815,12 +815,7 @@ impl Browser {
         let pos = tab.pane.bound_position(&row)?;
         let d = tab.pane.data();
         let &e = d.order.get(pos as usize)?;
-        use std::os::unix::ffi::OsStrExt;
-        d.is_dir(e).then(|| {
-            tab.current
-                .borrow()
-                .join(std::ffi::OsStr::from_bytes(d.name(e)))
-        })
+        d.is_dir(e).then(|| d.path(e))
     }
 
     /// Restore the remembered tabs (first window, no path given) or start
@@ -1052,20 +1047,14 @@ impl Browser {
     }
 
     pub(crate) fn activate_entry(self: &Rc<Self>, pos: u32) {
-        let (name, is_dir) = {
+        let (path, is_dir) = {
             let tab = self.tab();
             let d = tab.pane.data();
             let Some(&entry) = d.order.get(pos as usize) else {
                 return;
             };
-            (d.name(entry).to_vec(), d.is_dir(entry))
+            (d.path(entry), d.is_dir(entry))
         };
-        use std::os::unix::ffi::OsStrExt;
-        let path = self
-            .tab()
-            .current
-            .borrow()
-            .join(std::ffi::OsStr::from_bytes(&name));
         if is_dir {
             self.navigate(&path, true);
             self.record_visit(&path);
@@ -1667,8 +1656,11 @@ impl Browser {
                 }
                 let first: Vec<u32> = p.order.order.iter().take(FIRST_SCREEN).copied().collect();
                 let listing = p.listing.clone();
+                // Same generation: `current` is the folder that was listed.
+                let dir = self.tab().current.borrow().clone();
                 self.tab().pane.set_listing(
                     p.generation,
+                    dir,
                     p.listing,
                     p.rank,
                     p.order,

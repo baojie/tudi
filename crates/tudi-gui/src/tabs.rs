@@ -134,14 +134,8 @@ impl Tab {
                     b.with_tab(&t, |b| b.file_menu(pos, w, x, y));
                 }
             });
-            let tw = me.clone();
-            let dir: Rc<dyn Fn() -> PathBuf> = Rc::new(move || {
-                tw.upgrade()
-                    .map(|t| t.current.borrow().clone())
-                    .unwrap_or_default()
-            });
             let grid_view =
-                crate::thumbs::build_grid(&pane, &pane_sel, thumbs, dir, &grid_bound, grid_menu);
+                crate::thumbs::build_grid(&pane, &pane_sel, thumbs, &grid_bound, grid_menu);
             let pane_scroll = gtk::ScrolledWindow::builder()
                 .overlay_scrolling(false)
                 .hscrollbar_policy(gtk::PolicyType::Never)
@@ -255,7 +249,6 @@ impl Tab {
         if !self.thumbs_mode.get() {
             return;
         }
-        let dir = self.current.borrow().clone();
         let cells: Vec<(u32, gtk::Box)> = self
             .grid_bound
             .borrow()
@@ -263,7 +256,7 @@ impl Tab {
             .filter_map(|(&p, w)| w.upgrade().map(|c| (p, c)))
             .collect();
         for (p, c) in cells {
-            crate::thumbs::fill_cell(&c, &self.pane, p, &dir, thumbs);
+            crate::thumbs::fill_cell(&c, &self.pane, p, thumbs);
         }
     }
 

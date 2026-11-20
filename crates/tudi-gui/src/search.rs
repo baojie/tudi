@@ -513,11 +513,7 @@ impl Browser {
             .selected_entries()
             .first()
             .filter(|&&e| d.is_dir(e))
-            .map(|&e| {
-                use std::os::unix::ffi::OsStrExt;
-                self.current_dir()
-                    .join(std::ffi::OsStr::from_bytes(d.name(e)))
-            })
+            .map(|&e| d.path(e))
             .unwrap_or_else(|| self.current_dir());
         drop(d);
         self.set_search_scope(Some(dir));

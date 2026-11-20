@@ -4,8 +4,6 @@
 //! run a script, spawning, the log file — happens on a helper thread; the
 //! result comes back to the main loop for a toast.
 
-use std::ffi::OsStr;
-use std::os::unix::ffi::OsStrExt;
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
@@ -160,8 +158,7 @@ impl Browser {
         } else {
             0o100644
         };
-        is_launchable(&String::from_utf8_lossy(name), mode)
-            .then(|| self.current_dir().join(OsStr::from_bytes(name)))
+        is_launchable(&String::from_utf8_lossy(name), mode).then(|| d.path(e))
     }
 
     /// `Ctrl+D`: a selected script or app becomes a launcher; a selected

@@ -281,10 +281,8 @@ pub fn fill_cell(
     cell: &gtk::Box,
     model: &crate::pane::PaneModel,
     position: u32,
-    dir: &Path,
     thumbs: &Thumbnailer,
 ) {
-    use std::os::unix::ffi::OsStrExt;
     let Some(icon) = cell.first_child().and_downcast::<crate::icons::FileIcon>() else {
         return;
     };
@@ -306,7 +304,7 @@ pub fn fill_cell(
     icon.set_opacity(o);
     picture.set_opacity(o);
     let texture = (!is_dir && is_image(name))
-        .then(|| thumbs.get(&dir.join(std::ffi::OsStr::from_bytes(name))))
+        .then(|| thumbs.get(&d.path(entry)))
         .flatten()
         .flatten();
     use crate::icons::Kind as Icon;
@@ -333,12 +331,11 @@ pub fn fill_cell(
 }
 
 /// Build a tab's thumbnail grid for the same model and selection as its
-/// list (attached when shown). `dir` gives the shown folder.
+/// list (attached when shown).
 pub fn build_grid(
     model: &crate::pane::PaneModel,
     selection: &gtk::MultiSelection,
     thumbs: &std::rc::Rc<Thumbnailer>,
-    dir: std::rc::Rc<dyn Fn() -> PathBuf>,
     bound: &GridBound,
     on_menu: crate::pane::MenuFn,
 ) -> gtk::GridView {
@@ -359,12 +356,12 @@ pub fn build_grid(
         cell.add_controller(click);
         item.set_child(Some(&cell));
     });
-    let (m, t, d, b) = (model.clone(), thumbs.clone(), dir.clone(), bound.clone());
+    let (m, t, b) = (model.clone(), thumbs.clone(), bound.clone());
     factory.connect_bind(move |_, item| {
         let item = item.downcast_ref::<gtk::ListItem>().unwrap();
         let cell = item.child().and_downcast::<gtk::Box>().unwrap();
         let pos = item.position();
-        fill_cell(&cell, &m, pos, &d(), &t);
+        fill_cell(&cell, &m, pos, &t);
         b.borrow_mut().insert(pos, cell.downgrade());
     });
     let b = bound.clone();

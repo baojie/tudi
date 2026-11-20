@@ -64,8 +64,7 @@ impl Browser {
                 let tab = self.tab();
                 let d = tab.pane.data();
                 let &e = d.order.get(pos as usize)?;
-                d.is_dir(e)
-                    .then(|| dir.join(std::ffi::OsStr::from_bytes(d.name(e))))
+                d.is_dir(e).then(|| d.path(e))
             })
             .unwrap_or(dir);
         self.drop_into(files, dest, mods)

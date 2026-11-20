@@ -6,8 +6,6 @@
 //! never blocks on the filesystem.
 
 use std::cell::RefCell;
-use std::ffi::OsStr;
-use std::os::unix::ffi::OsStrExt;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
@@ -69,14 +67,10 @@ impl Browser {
 
     /// Absolute paths of the selected entries.
     pub(crate) fn selected_paths(&self) -> Vec<PathBuf> {
-        let dir = self.current_dir();
         let entries = self.selected_entries();
         let tab = self.tab();
         let d = tab.pane.data();
-        entries
-            .into_iter()
-            .map(|e| dir.join(OsStr::from_bytes(d.name(e))))
-            .collect()
+        entries.into_iter().map(|e| d.path(e)).collect()
     }
 
     pub(crate) fn toast(&self, text: &str) {
@@ -647,9 +641,8 @@ impl Browser {
         {
             let tab = self.tab();
             let d = tab.pane.data();
-            let dir = self.current_dir();
             for e in entries {
-                let p = dir.join(OsStr::from_bytes(d.name(e)));
+                let p = d.path(e);
                 if d.is_dir(e) {
                     folder.get_or_insert(p);
                 } else {
@@ -683,7 +676,7 @@ impl Browser {
             self.selected_entries()
                 .into_iter()
                 .find(|&e| d.is_dir(e))
-                .map(|e| self.current_dir().join(OsStr::from_bytes(d.name(e))))
+                .map(|e| d.path(e))
         };
         let Some(p) = target else {
             self.bookmark_current();
