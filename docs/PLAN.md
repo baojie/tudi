@@ -971,7 +971,11 @@ unplugged while browsing, 100k-file directory on a slow USB stick.
   entries; `docs/benchmarks.md` M8 section)**
 - [x] M6 Memory search — P7 p95 23 ms on 1.83M entries; golden set 47/47
   in the top 3; overlay, `tudi q`
-- [ ] M7 fanotify helper
+- [x] M7 fanotify helper — P10 median 207–213 ms (max 257 ms); `git clone`
+  of 100k files: lag 0.41–0.46 s, RSS peak 1.53–1.55×; two-user isolation,
+  privilege drop and overflow covered by root tests (6/6); security
+  checklist in `docs/design/fanotify.md`. Synthetic test uids, not real
+  second accounts
 - [x] M8 Query power features — parser tests for every form incl. hints;
   `合同 .pdf 上月` acceptance test; scoped search; pinyin collation
   (optional); `tudi init bash|zsh|fish` (fish untested: not installed)

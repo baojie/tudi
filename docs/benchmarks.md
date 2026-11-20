@@ -165,3 +165,54 @@ list + sort of `flat-100k` 31.8 ms → ≈ 37 ms (budget < 80 ms); a re-sort
 by name (`order`, 0.21 ms) becomes ≈ 5 ms, off the main thread. An
 allocation-free ASCII path (byte windows, or a stack buffer plus
 `str::contains`) measured the same within noise and was not adopted.
+
+### M7 — fanotify helper (2026-11-20)
+
+Real home index (`/home`, ext4, 1.96M entries), release build,
+`tudi-fanotifyd` installed as a system unit (marks `/` and `/data`, both
+ext4), `benches/m7_live.py`.
+
+**P10 (change → findable, budget < 1 s).** `touch ~/tudi-m7/xN/y/<unique>.txt`
+in folders that are not among the inotify-watched frequent folders, then
+poll `tudi q` every 10 ms (each poll includes starting the CLI):
+
+| Setup | Result |
+|---|---|
+| Without the helper (M5 fallback) | not found within 60 s (next reconcile: ≤ 10 min) |
+| Helper, n = 10, three runs | 204–220 ms, medians 207–213 ms |
+| Helper, file created during a search-data refresh (n = 3) | 227–257 ms |
+
+The helper's 200 ms batch window is most of it. The first measurement had
+one 1,146 ms outlier: the updater thread was rebuilding the search data
+and saving the snapshot (≈ 1.2 s, once a minute after small changes) while
+the event waited. That refresh now runs on its own thread and reuses the
+typo vocabulary (ADR-029): 0.18–0.34 s instead of ≈ 1.2 s.
+
+**`git clone` of 100,000 files** (2,000 folders × 50 files, generated
+once into the excluded `~/.cache`, cloned with `--no-local` into
+`~/tudi-m7`). Budget: lag < 5 s, RSS < 2× temporarily. RSS is sampled
+every 50 ms from the clone start until 70 s after its end, so the search
+data refresh that follows the clone is included.
+
+| Build | Clone | Lag after clone end | RSS before → peak |
+|---|---|---|---|
+| final, run 1 | 1.5 s | 0.46 s | 202 → 313 MB (1.55×) |
+| final, run 2 | 1.6 s | 0.41 s | 209 → 319 MB (1.53×) |
+| refresh from a copy of the index, full vocabulary (rejected) | 1.7 s | 0.31 s | 196 → 393 MB (2.00×) |
+
+"Lag": until the last-written files and 25 random ones are all found.
+No queue overflow in any run (helper log). Removing the clone brings the
+entry count back to the value before it.
+
+**Steady RSS of the daemon** (sampled for 10 min, refresh every minute
+because something in the home folder changes all the time): 196–199 MB
+with the final build. A refresh that copied the index crept up to
+240–290 MB (glibc served the per-minute 100 MB copy from its heap once the
+dynamic mmap threshold had risen); fixed by building in place and by
+`mallopt(M_MMAP_THRESHOLD, 1 MiB)`. Before reusing the typo vocabulary
+every refresh peaked at 850–880 MB for about a second (≈ 4.4×, also true
+before M7 whenever a refresh ran; it now runs only after compaction and
+at startup: 693 MB once).
+
+Helper: 0.8 MB RSS idle (peak 3.3 MB at startup), runs as `nobody` with
+`CapEff 0000000000000004`, `NoNewPrivs 1`.
