@@ -221,6 +221,7 @@ fn fill(b: &gtk::Box, model: &TreeModel, node: NodeId, error: bool) {
             _ => String::new(),
         };
         p.label.set_text(&msg);
+        p.label.set_opacity(1.0);
         p.label.add_css_class("dim-label");
         return;
     }
@@ -238,7 +239,12 @@ fn fill(b: &gtk::Box, model: &TreeModel, node: NodeId, error: bool) {
     }
     p.icon.set_visible(false);
     p.folder.set_visible(true);
-    p.label.set_text(&model.label(node));
+    let label = model.label(node);
+    // Hidden folders are dimmed, as in the list.
+    let o = crate::pane::hidden_opacity(label.as_bytes());
+    p.label.set_opacity(o);
+    p.folder.set_opacity(o);
+    p.label.set_text(&label);
 }
 
 /// Build the tree `ListView`. `on_toggle(position)` is called when an

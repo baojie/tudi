@@ -282,6 +282,10 @@ pub fn fill_cell(
     let name = d.name(entry);
     let is_dir = d.is_dir(entry);
     label.set_text(&crate::format::name(name));
+    let o = crate::pane::hidden_opacity(name);
+    label.set_opacity(o);
+    icon.set_opacity(o);
+    picture.set_opacity(o);
     let texture = (!is_dir && is_image(name))
         .then(|| thumbs.get(&dir.join(std::ffi::OsStr::from_bytes(name))))
         .flatten()

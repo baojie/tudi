@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Hidden files and folders are shown dimmed, in the list, the tree and
+  the thumbnails.
 - Fix: double-clicking a column divider did not fit the column.
 - The memory search is easier to find: a search button in the header bar,
   and tips on how to search under the empty search field.

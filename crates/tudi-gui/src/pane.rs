@@ -474,6 +474,10 @@ fn fill(row: &gtk::Box, model: &PaneModel, position: u32) {
         link,
     );
     p.name.set_text(&format::name(name));
+    // Hidden entries (dot names) are dimmed: name and icon.
+    let o = hidden_opacity(name);
+    p.name.set_opacity(o);
+    p.icon.set_opacity(o);
     match m.status {
         MetaStatus::Ok => {
             p.size.set_text(&if dir {
@@ -502,6 +506,15 @@ impl PaneModel {
                     .is_some_and(|r| r.upcast_ref::<gtk::Widget>() == row)
             })
             .map(|(&p, _)| p)
+    }
+}
+
+/// Opacity of a name and its icon: hidden (dot) names are dimmed.
+pub fn hidden_opacity(name: &[u8]) -> f64 {
+    if name.first() == Some(&b'.') {
+        0.55
+    } else {
+        1.0
     }
 }
 

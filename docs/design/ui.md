@@ -52,6 +52,8 @@ Code: `crates/tudi-gui/src/`. Plan: `docs/PLAN.md` §5.3, §5.7.
 - Type-ahead scans at most 4,096 rows per main-loop turn and continues in
   idle callbacks; a newer keystroke cancels an older scan.
 - The status bar sums sizes only for selections of ≤ 5,000 entries.
+- Hidden entries (dot names) are dimmed — name and icon at 55 % opacity —
+  in the list, the tree and the thumbnail grid (`pane::hidden_opacity`).
 - Column widths: the header has an 8 px drag handle left of the size and
   date columns (the gaps the rows have between columns). Dragging sets that
   column's width in pixels (24–800; the name column takes the rest);
