@@ -12,11 +12,16 @@
 //! - Scans of a root run into a separate index and are grafted in, so
 //!   searching keeps working while a slow volume is scanned. Reconciles
 //!   `statx` under a read lock and take the write lock only to apply.
-//! - Also: inotify on the most used folders, listing hints from the GUI,
-//!   snapshots after changes and on `Stop`.
+//! - Change sources: the fanotify helper (`tudi-fanotifyd`, M7) when it is
+//!   installed — live events for every root on a filesystem it marks, and
+//!   such roots are reconciled at most hourly; otherwise inotify on the
+//!   most used folders. Always: listing hints from the GUI, periodic
+//!   reconcile. Snapshots after changes and on `Stop`.
 //!
 //! Threads: one updater owns every change to the index; queries take a
 //! read lock. The daemon lowers its own CPU and I/O priority.
+
+mod helper;
 
 use std::collections::HashMap;
 use std::os::unix::ffi::OsStrExt;
@@ -29,7 +34,9 @@ use std::time::{Duration, Instant};
 
 use tudi_index::fsinfo::{RootInfo, detect, looks_offline};
 use tudi_index::matcher::{Context, SearchData, Weights, search_query};
-use tudi_index::scan::{Excludes, apply_changed, changed_dirs, reconcile_root, scan_below};
+use tudi_index::scan::{
+    Excludes, Listed, apply_changed, apply_dir, changed_dirs, reconcile_root, scan_below,
+};
 use tudi_index::{Entry, Index, Kind, snapshot};
 use tudi_proto::{Request, Response, ResultItem, Status, read_frame, write_frame};
 
@@ -37,10 +44,15 @@ use tudi_proto::{Request, Response, ResultItem, Status, read_frame, write_frame}
 const ONLINE_CHECK: Duration = Duration::from_secs(30);
 /// Default reconcile interval for slow devices.
 const SLOW_MINUTES: u32 = 24 * 60;
+/// Shortest reconcile interval for roots with live fanotify events (the
+/// reconcile is then only a safety net).
+const LIVE_RECONCILE: Duration = Duration::from_secs(60 * 60);
 
 struct Engine {
     ix: Index,
     sd: Arc<SearchData>,
+    /// `ix.generation()` that `sd` was built for.
+    sd_gen: u64,
     frecency: HashMap<u32, f32>,
 }
 
@@ -62,11 +74,17 @@ struct Shared {
     offline: Mutex<Vec<PathBuf>>,
     updates: Mutex<mpsc::Sender<Update>>,
     stop: AtomicBool,
+    helper: Arc<helper::State>,
+    /// Serialises snapshot writes (updater and refresher).
+    save_lock: Mutex<()>,
+    /// Wakes the refresher thread.
+    refresh: Mutex<mpsc::Sender<()>>,
 }
 
 enum Update {
     Hint(PathBuf, Vec<Entry>),
     Changed(Vec<PathBuf>),
+    Helper(helper::Event),
     Rescan,
     Frecency,
 }
@@ -129,16 +147,33 @@ fn root_node(ix: &Index, path: &Path) -> Option<u32> {
     ix.roots.iter().find(|(p, _)| p == path).map(|(_, n)| *n)
 }
 
+/// New search data for `ix`. With the same node ids as `prev` (built for
+/// generation `prev_gen`), keep its typo vocabulary — the biggest temporary
+/// allocation, several times the index — and add a small one for the newer
+/// nodes; after a compaction everything is rebuilt (by `warm`).
+fn build_search_data(ix: &Index, prev: &SearchData, prev_gen: u64) -> SearchData {
+    if prev_gen == ix.generation() {
+        SearchData::build_reusing(ix, prev)
+    } else {
+        SearchData::build(ix)
+    }
+}
+
 /// Rebuild the search data off the write lock, then swap it in. Only the
 /// updater thread changes the index, so nothing races.
 fn refresh_search_data(sh: &Shared) {
-    let (sd, frec) = {
+    let (sd, frec, generation) = {
         let e = sh.engine.read().unwrap();
-        (Arc::new(SearchData::build(&e.ix)), load_frecency(&e.ix))
+        (
+            Arc::new(build_search_data(&e.ix, &e.sd, e.sd_gen)),
+            load_frecency(&e.ix),
+            e.ix.generation(),
+        )
     };
     {
         let mut e = sh.engine.write().unwrap();
         e.sd = sd.clone();
+        e.sd_gen = generation;
         e.frecency = frec;
     }
     let e = sh.engine.read().unwrap();
@@ -148,11 +183,42 @@ fn refresh_search_data(sh: &Shared) {
 }
 
 fn save(sh: &Shared, path: &Path) {
+    let _g = sh.save_lock.lock().unwrap();
     let e = sh.engine.read().unwrap();
     let t = Instant::now();
     match snapshot::save(&e.ix, path) {
         Ok(()) => tracing::info!("snapshot saved ({} entries, {:?})", e.ix.len(), t.elapsed()),
         Err(err) => tracing::warn!("cannot save snapshot: {err}"),
+    }
+}
+
+/// Refresher thread: after small changes, rebuild the search data and save
+/// the snapshot off the updater thread, which keeps applying change events
+/// meanwhile (P10). The search data is built under a read lock (≈ 0.1 s:
+/// the typo vocabulary is reused, see `build_search_data`), so the updater
+/// waits at most that long for its write lock; no copy of the index is
+/// made, which would add its size to the peak memory.
+fn refresher(sh: Arc<Shared>, rx: mpsc::Receiver<()>, snap: PathBuf) {
+    while rx.recv().is_ok() {
+        while rx.try_recv().is_ok() {}
+        let t = Instant::now();
+        let (sd, frec, generation) = {
+            let e = sh.engine.read().unwrap();
+            let sd = build_search_data(&e.ix, &e.sd, e.sd_gen);
+            sd.warm(&e.ix);
+            (Arc::new(sd), load_frecency(&e.ix), e.ix.generation())
+        };
+        {
+            let mut e = sh.engine.write().unwrap();
+            if e.ix.generation() == generation {
+                e.sd = sd;
+                e.sd_gen = generation;
+                e.frecency = frec;
+            }
+        }
+        save(&sh, &snap);
+        tracing::info!("refreshed search data and snapshot in {:?}", t.elapsed());
+        tudi_index::release_free_memory();
     }
 }
 
@@ -244,11 +310,68 @@ fn check_offline(sh: &Shared, r: &RootCfg) -> bool {
     looks_offline(&r.path, children)
 }
 
+/// The configured root holding `dir` (the innermost one).
+fn root_of<'a>(roots: &'a [RootCfg], dir: &Path) -> Option<&'a RootCfg> {
+    roots
+        .iter()
+        .filter(|r| dir.starts_with(&r.path))
+        .max_by_key(|r| r.path.as_os_str().len())
+}
+
+/// Re-list changed folders: find them under a read lock, list them with no
+/// lock held, apply under the write lock. Folders not in the index (inside
+/// excluded folders, or gone) are skipped. Returns whether anything
+/// changed.
+fn relist(sh: &Shared, roots: &[RootCfg], mut dirs: Vec<PathBuf>, cancel: &AtomicBool) -> bool {
+    dirs.sort_unstable();
+    dirs.dedup();
+    let found: Vec<(u32, PathBuf)> = {
+        let e = sh.engine.read().unwrap();
+        dirs.into_iter()
+            .filter_map(|d| {
+                let n = e.ix.find(&d)?;
+                let node = &e.ix.nodes[n as usize];
+                (node.is_dir() && node.flags & tudi_index::flags::EXCLUDED == 0).then_some((n, d))
+            })
+            .collect()
+    };
+    if found.is_empty() {
+        return false;
+    }
+    let mut buf = vec![std::mem::MaybeUninit::<u8>::uninit(); 64 * 1024];
+    let listed: Vec<(u32, PathBuf, Option<u64>, Vec<Listed>)> = found
+        .into_iter()
+        .filter_map(|(n, d)| {
+            let mnt = tudi_index::scan::mount_id(&d);
+            let items = tudi_index::scan::list_dir(&d, mnt, &mut buf).ok()?;
+            Some((n, d, mnt, items))
+        })
+        .collect();
+    let mut e = sh.engine.write().unwrap();
+    let mut changed = false;
+    for (n, d, mnt, items) in listed {
+        if let Some(r) = root_of(roots, &d) {
+            changed |= apply_dir(&mut e.ix, n, &d, items, mnt, &r.excludes, cancel);
+        }
+    }
+    changed
+}
+
 fn updater(sh: Arc<Shared>, rx: mpsc::Receiver<Update>, snap: PathBuf) {
     let cancel = AtomicBool::new(false);
     let mut dirty = false;
     let mut last_save = Instant::now();
     let roots = sh.roots.clone();
+    let startup = Instant::now();
+    // Roots with live helper events.
+    let mut live: Vec<bool> = vec![false; roots.len()];
+    let every = |i: usize, live: &[bool]| {
+        if live[i] {
+            roots[i].every.max(LIVE_RECONCILE)
+        } else {
+            roots[i].every
+        }
+    };
 
     // Roots in the snapshot that are no longer configured.
     {
@@ -271,8 +394,12 @@ fn updater(sh: Arc<Shared>, rx: mpsc::Receiver<Update>, snap: PathBuf) {
     order.sort_by_key(|&i| roots[i].info.slow());
     let mut next: Vec<Instant> = vec![Instant::now(); roots.len()];
     let mut online: Vec<bool> = vec![true; roots.len()];
+    // When each root's startup pass began: helper events from before that
+    // need no extra reconcile.
+    let mut began: Vec<Instant> = vec![startup; roots.len()];
     for &i in &order {
         let r = &roots[i];
+        began[i] = Instant::now();
         if check_offline(&sh, r) {
             tracing::info!("{} is offline", r.path.display());
             online[i] = false;
@@ -308,6 +435,7 @@ fn updater(sh: Arc<Shared>, rx: mpsc::Receiver<Update>, snap: PathBuf) {
         .and_then(|v| v.parse().ok())
         .map_or(ONLINE_CHECK, Duration::from_secs);
     let mut next_online_check = Instant::now() + online_check;
+    let mut stash: Option<Update> = None;
     loop {
         if sh.stop.load(Ordering::Relaxed) {
             return;
@@ -318,17 +446,21 @@ fn updater(sh: Arc<Shared>, rx: mpsc::Receiver<Update>, snap: PathBuf) {
             .min()
             .unwrap_or(next_online_check)
             .min(next_online_check);
-        let job = match rx.recv_timeout(due.saturating_duration_since(Instant::now())) {
-            Ok(j) => Some(j),
-            Err(mpsc::RecvTimeoutError::Timeout) => None,
-            Err(mpsc::RecvTimeoutError::Disconnected) => return,
+        let job = if let Some(j) = stash.take() {
+            Some(j)
+        } else {
+            match rx.recv_timeout(due.saturating_duration_since(Instant::now())) {
+                Ok(j) => Some(j),
+                Err(mpsc::RecvTimeoutError::Timeout) => None,
+                Err(mpsc::RecvTimeoutError::Disconnected) => return,
+            }
         };
         match job {
             Some(Update::Rescan) => {
                 for &i in &order {
                     if online[i] {
                         scan_root(&sh, &roots[i], &cancel);
-                        next[i] = Instant::now() + roots[i].every;
+                        next[i] = Instant::now() + every(i, &live);
                     }
                 }
                 save(&sh, &snap);
@@ -337,42 +469,68 @@ fn updater(sh: Arc<Shared>, rx: mpsc::Receiver<Update>, snap: PathBuf) {
             }
             Some(Update::Hint(dir, entries)) => {
                 let mut e = sh.engine.write().unwrap();
-                if let Some(node) = e.ix.find(&dir) {
-                    let (new_dirs, ch) = e.ix.apply_listing(node, &entries);
+                if let (Some(node), Some(r)) = (e.ix.find(&dir), root_of(&roots, &dir)) {
                     let mnt = tudi_index::scan::mount_id(&dir);
-                    let ex = roots
-                        .iter()
-                        .filter(|r| dir.starts_with(&r.path))
-                        .max_by_key(|r| r.path.as_os_str().len())
-                        .map(|r| r.excludes.clone());
-                    if let Some(ex) = ex {
-                        for d in new_dirs {
-                            let _ = scan_below(&mut e.ix, d, mnt, &ex, &cancel, |_| {});
-                        }
-                    }
-                    dirty |= ch;
+                    let items = entries
+                        .into_iter()
+                        .map(|entry| Listed {
+                            entry,
+                            other_fs: false,
+                        })
+                        .collect();
+                    dirty |= apply_dir(&mut e.ix, node, &dir, items, mnt, &r.excludes, &cancel);
                 }
             }
             Some(Update::Changed(dirs)) => {
-                let mut buf = vec![std::mem::MaybeUninit::<u8>::uninit(); 64 * 1024];
-                let mut e = sh.engine.write().unwrap();
-                for dir in dirs {
-                    let Some(node) = e.ix.find(&dir) else {
-                        continue;
-                    };
-                    let mnt = tudi_index::scan::mount_id(&dir);
-                    if let Ok(items) = tudi_index::scan::list_dir(&dir, mnt, &mut buf) {
-                        let entries: Vec<Entry> = items.into_iter().map(|l| l.entry).collect();
-                        let (new_dirs, ch) = e.ix.apply_listing(node, &entries);
-                        if let Some(r) = roots.iter().find(|r| dir.starts_with(&r.path)) {
-                            for d in new_dirs {
-                                let _ = scan_below(&mut e.ix, d, mnt, &r.excludes, &cancel, |_| {});
+                dirty |= relist(&sh, &roots, dirs, &cancel);
+            }
+            Some(Update::Helper(ev)) => match ev {
+                helper::Event::Changed(dirs) => {
+                    // Batch whatever else the helper already sent.
+                    let mut dirs = dirs;
+                    while dirs.len() < 100_000 {
+                        match rx.try_recv() {
+                            Ok(Update::Helper(helper::Event::Changed(more))) => dirs.extend(more),
+                            Ok(other) => {
+                                // Not a change batch: handle it next.
+                                stash = Some(other);
+                                break;
                             }
+                            Err(_) => break,
                         }
-                        dirty |= ch;
+                    }
+                    dirty |= relist(&sh, &roots, dirs, &cancel);
+                }
+                helper::Event::Up { covered, at } => {
+                    for (i, r) in roots.iter().enumerate() {
+                        live[i] = covered.contains(&r.path);
+                        // Changes between the root's startup pass and this
+                        // connection were seen by no one: reconcile now.
+                        // Connected before that pass began: the next
+                        // reconcile is a safety net, an hour away.
+                        next[i] = if live[i] && at > began[i] {
+                            Instant::now()
+                        } else {
+                            Instant::now() + every(i, &live)
+                        };
                     }
                 }
-            }
+                helper::Event::Overflow => {
+                    for i in 0..roots.len() {
+                        if live[i] {
+                            next[i] = Instant::now();
+                        }
+                    }
+                }
+                helper::Event::Down => {
+                    for (i, l) in live.iter_mut().enumerate() {
+                        if *l {
+                            *l = false;
+                            next[i] = Instant::now() + roots[i].every;
+                        }
+                    }
+                }
+            },
             Some(Update::Frecency) => {
                 let frec = {
                     let e = sh.engine.read().unwrap();
@@ -380,69 +538,70 @@ fn updater(sh: Arc<Shared>, rx: mpsc::Receiver<Update>, snap: PathBuf) {
                 };
                 sh.engine.write().unwrap().frecency = frec;
             }
-            None => {
-                // Timers: online checks, then due reconciles.
-                if Instant::now() >= next_online_check {
-                    next_online_check = Instant::now() + online_check;
-                    for (i, r) in roots.iter().enumerate() {
-                        let off = check_offline(&sh, r);
-                        let was_offline = !online[i];
-                        if off != was_offline {
-                            online[i] = !off;
-                            tracing::info!(
-                                "{} is {}",
-                                r.path.display(),
-                                if off { "offline" } else { "back online" }
-                            );
-                            if !off {
-                                next[i] = Instant::now(); // reconcile now
-                            }
+            None => {}
+        }
+        let now = Instant::now();
+        if now >= next_online_check || next.iter().any(|t| now >= *t) {
+            // Timers: online checks, then due reconciles.
+            if Instant::now() >= next_online_check {
+                next_online_check = Instant::now() + online_check;
+                for (i, r) in roots.iter().enumerate() {
+                    let off = check_offline(&sh, r);
+                    let was_offline = !online[i];
+                    if off != was_offline {
+                        online[i] = !off;
+                        tracing::info!(
+                            "{} is {}",
+                            r.path.display(),
+                            if off { "offline" } else { "back online" }
+                        );
+                        if !off {
+                            next[i] = Instant::now(); // reconcile now
                         }
                     }
-                    *sh.offline.lock().unwrap() = roots
-                        .iter()
-                        .zip(&online)
-                        .filter(|(_, on)| !**on)
-                        .map(|(r, _)| r.path.clone())
-                        .collect();
                 }
-                for &i in &order {
-                    if Instant::now() < next[i] {
-                        continue;
-                    }
-                    next[i] = Instant::now() + roots[i].every;
-                    if !online[i] {
-                        continue;
-                    }
-                    let r = &roots[i];
-                    let known = root_node(&sh.engine.read().unwrap().ix, &r.path).is_some();
-                    if known {
-                        if reconcile_one(&sh, r, &cancel) {
-                            refresh_search_data(&sh);
-                            save(&sh, &snap);
-                            dirty = false;
-                            last_save = Instant::now();
-                        }
-                    } else {
-                        scan_root(&sh, r, &cancel);
+                *sh.offline.lock().unwrap() = roots
+                    .iter()
+                    .zip(&online)
+                    .filter(|(_, on)| !**on)
+                    .map(|(r, _)| r.path.clone())
+                    .collect();
+            }
+            for &i in &order {
+                if Instant::now() < next[i] {
+                    continue;
+                }
+                next[i] = Instant::now() + every(i, &live);
+                if !online[i] {
+                    continue;
+                }
+                let r = &roots[i];
+                let known = root_node(&sh.engine.read().unwrap().ix, &r.path).is_some();
+                if known {
+                    if reconcile_one(&sh, r, &cancel) {
+                        refresh_search_data(&sh);
                         save(&sh, &snap);
                         dirty = false;
                         last_save = Instant::now();
                     }
+                } else {
+                    scan_root(&sh, r, &cancel);
+                    save(&sh, &snap);
+                    dirty = false;
+                    last_save = Instant::now();
                 }
-                let mut e = sh.engine.write().unwrap();
-                if e.ix.needs_compaction() {
-                    e.ix.compact();
-                    dirty = true;
-                }
+            }
+            let mut e = sh.engine.write().unwrap();
+            if e.ix.needs_compaction() {
+                e.ix.compact();
+                dirty = true;
             }
         }
         set_state(&sh, "ready");
-        // Small changes (hints, inotify): searchable at once; search data
-        // and snapshot refreshed at most once a minute.
+        // Small changes (helper, hints, inotify): searchable at once; search
+        // data and snapshot refreshed at most once a minute, off this thread.
         if dirty && last_save.elapsed() > Duration::from_secs(60) {
-            refresh_search_data(&sh);
-            save(&sh, &snap);
+            let _ = sh.refresh.lock().unwrap().send(());
             dirty = false;
             last_save = Instant::now();
         }
@@ -523,6 +682,7 @@ fn handle(sh: &Shared, req: Request, snap: &Path) -> Response {
         Request::Status => {
             let e = sh.engine.read().unwrap();
             let offline = sh.offline.lock().unwrap();
+            let live = sh.helper.covered();
             Response::Status(Status {
                 entries: e.ix.len() as u64,
                 roots: sh
@@ -536,7 +696,13 @@ fn handle(sh: &Shared, req: Request, snap: &Path) -> Response {
                         if offline.contains(&r.path) {
                             tags.push("offline".into());
                         }
-                        tags.push(format!("every {} min", r.every.as_secs() / 60));
+                        let every = if live.contains(&r.path) {
+                            tags.push("live".into());
+                            r.every.max(LIVE_RECONCILE)
+                        } else {
+                            r.every
+                        };
+                        tags.push(format!("every {} min", every.as_secs() / 60));
                         format!("{} ({})", r.path.display(), tags.join(", "))
                     })
                     .collect(),
@@ -671,6 +837,7 @@ fn configured_roots(cfg: &tudi_core::config::IndexConfig) -> Vec<RootCfg> {
 }
 
 fn main() -> anyhow::Result<()> {
+    tudi_index::tune_allocator();
     lower_priority();
     tracing_subscriber::fmt()
         .with_env_filter(
@@ -708,27 +875,60 @@ fn main() -> anyhow::Result<()> {
     let sd = Arc::new(SearchData::build(&ix));
     let frecency = load_frecency(&ix);
     let (tx, rx) = mpsc::channel();
+    let (refresh_tx, refresh_rx) = mpsc::channel();
     let sh = Arc::new(Shared {
-        engine: RwLock::new(Engine { ix, sd, frecency }),
+        engine: RwLock::new(Engine {
+            sd_gen: ix.generation(),
+            ix,
+            sd,
+            frecency,
+        }),
         state: Mutex::new(state.into()),
         last_scan: Mutex::new(0),
         roots,
         offline: Mutex::default(),
         updates: Mutex::new(tx.clone()),
         stop: AtomicBool::new(false),
+        helper: Arc::default(),
+        save_lock: Mutex::new(()),
+        refresh: Mutex::new(refresh_tx),
     });
 
-    // inotify on the most used folders (fallback change source).
+    // Live events from the fanotify helper, if installed.
+    {
+        let roots: Vec<PathBuf> = sh
+            .roots
+            .iter()
+            .filter(|r| r.info.fanotify)
+            .map(|r| r.path.clone())
+            .collect();
+        let htx = Mutex::new(tx.clone());
+        helper::spawn(
+            roots,
+            sh.helper.clone(),
+            Arc::new(AtomicBool::new(false)),
+            move |ev| {
+                let _ = htx.lock().unwrap().send(Update::Helper(ev));
+            },
+        );
+    }
+
+    // inotify on the most used folders (fallback change source; ignored
+    // for roots with live helper events).
     let watched = frecent_dirs(200);
     let table = Arc::new(watched.clone());
     let wtx = Mutex::new(tx.clone());
     let t2 = table.clone();
+    let hs = sh.helper.clone();
     let watcher = tudi_core::watch::Watcher::start(256, move |keys: Vec<usize>| {
-        let dirs = keys
+        let dirs: Vec<PathBuf> = keys
             .into_iter()
             .filter_map(|k| t2.get(k).cloned())
+            .filter(|d| !hs.is_live(d))
             .collect();
-        let _ = wtx.lock().unwrap().send(Update::Changed(dirs));
+        if !dirs.is_empty() {
+            let _ = wtx.lock().unwrap().send(Update::Changed(dirs));
+        }
     })
     .ok();
     if let Some(w) = &watcher {
@@ -742,6 +942,12 @@ fn main() -> anyhow::Result<()> {
         std::thread::Builder::new()
             .name("updater".into())
             .spawn(move || updater(sh, rx, snap))?;
+    }
+    {
+        let (sh, snap) = (sh.clone(), snap.clone());
+        std::thread::Builder::new()
+            .name("refresher".into())
+            .spawn(move || refresher(sh, refresh_rx, snap))?;
     }
     tracing::info!("listening on {}", sock.display());
     for stream in listener.incoming() {

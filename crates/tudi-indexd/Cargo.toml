@@ -17,4 +17,5 @@ tracing-subscriber.workspace = true
 tudi-core = { path = "../tudi-core" }
 tudi-index = { path = "../tudi-index" }
 tudi-proto = { path = "../tudi-proto" }
+tudi-fanotifyd = { path = "../tudi-fanotifyd" }
 libc.workspace = true

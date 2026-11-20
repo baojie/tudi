@@ -456,3 +456,37 @@ through `sh` / `python3`; `.desktop` files through `gio launch`.
   covered until it restarts (their roots keep the fallback). Marking all
   filesystems means the helper also wakes for changes outside any user's
   roots (e.g. `/var`); those are resolved and dropped.
+
+## ADR-029: Live roots reconciled hourly; search data refreshed off the updater
+
+- **Context.** With the helper, a root's changes arrive within a second;
+  the 10-minute reconcile and inotify on frequent folders become
+  redundant work. Measuring P10 also showed that the once-a-minute search
+  data refresh (≈ 1.2 s on the updater thread, peaking at ≈ 4× the
+  daemon's RSS while rebuilding the typo vocabulary) delays events and,
+  now that the home folder produces changes every minute, runs every
+  minute.
+- **Decision.**
+  - A root covered by the helper ("live") is reconciled at most hourly as
+    a safety net, and inotify events inside it are ignored. Overflow, or a
+    connection made after the root's startup pass began, reconciles at
+    once. On disconnect live roots return to their interval and inotify.
+  - Change batches are re-listed with no lock held and applied under the
+    write lock (`scan::apply_dir`), which also excludes new folders such
+    as `node_modules` instead of indexing their contents (a bug the
+    listing-hint and inotify paths had before).
+  - The refresh after small changes runs on a `refresher` thread, under a
+    read lock, without copying the index. It keeps the previous typo
+    vocabulary (shared `Arc`) and builds a small one for the nodes added
+    since, as long as node ids are unchanged (`Index::generation`, bumped
+    by compaction); the typo fallback skips deleted nodes. Reconciles use
+    the same reuse.
+  - `mallopt(M_MMAP_THRESHOLD, 1 MiB)` at daemon start, so large
+    temporary buffers are returned to the system when freed.
+- **Consequences.** A refresh takes ≈ 0.2 s and peaks at ≈ 1.5× RSS; the
+  updater waits at most that long for its write lock. The extra
+  vocabulary grows with the nodes added since the last compaction (when
+  tombstones exceed 20 %), and so does its rebuild each minute. If the
+  helper missed events without an overflow, results could stay stale for
+  up to an hour; the kernel reports queue overflows, so this needs a
+  helper bug.

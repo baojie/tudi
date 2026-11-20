@@ -36,15 +36,24 @@ and rebuilds the child lists. `$XDG_CACHE_HOME/tudi/index-v1.bin`.
 - Lowers its own priority (nice 10, idle I/O) before starting threads.
 - Serves queries from the loaded snapshot at once; the updater thread then
   reconciles (or scans from scratch without a snapshot of the same roots).
-- One updater thread owns every change: periodic reconcile, inotify events
-  for the 200 most used folders, listing hints from the GUI, rescans. Search
+- One updater thread owns every change: periodic reconcile, live events
+  from the fanotify helper when installed (`docs/design/fanotify.md`),
+  otherwise inotify events for the 200 most used folders, listing hints
+  from the GUI, rescans. Changed folders are re-listed with no lock held
+  and applied under the write lock (`scan::apply_dir`). Search
   data is rebuilt off the write lock and swapped in; new nodes are
   searchable before that because the prefilter lets nodes without a
   character bag through.
 - Snapshot saved after every scan / changing reconcile, at most once a
-  minute for small changes, and on `Stop`.
+  minute for small changes (with the search data refresh, on the
+  `refresher` thread), and on `Stop`.
+- Search data refreshes keep the typo vocabulary while node ids are
+  unchanged (`Index::generation`, bumped by compaction) and add a small
+  one for newer nodes (`SearchData::build_reusing`, ADR-029).
 - After large builds `malloc_trim` returns the temporary memory of rayon
   threads to the system (RSS 140 MB with 1.83M entries).
+  `mallopt(M_MMAP_THRESHOLD, 1 MiB)` at start keeps large buffers in their
+  own mappings, so they are returned when freed (`tune_allocator`).
 
 ## Protocol
 
