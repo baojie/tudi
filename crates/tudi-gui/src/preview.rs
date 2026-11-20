@@ -1,6 +1,7 @@
 //! The optional preview pane (ADR-027): to the right of the list, it shows
 //! the selected file of the active tab — an image, the start of a text
-//! file (Markdown rendered, see `markdown.rs`), or the item's details (several selected: their count and size;
+//! file (Markdown rendered, see `markdown.rs`; code highlighted, see
+//! `highlight.rs`), or the item's details (several selected: their count and size;
 //! none: the shown folder).
 //!
 //! Files are read on a short-lived thread, never on the main thread; a
@@ -45,7 +46,11 @@ pub struct Preview {
 enum Content {
     Image(crate::thumbs::Pixels),
     Text(String),
-    Markdown(Vec<crate::markdown::Run>),
+    /// Styled runs; `mono`: code (monospace) rather than Markdown.
+    Styled {
+        runs: Vec<crate::markdown::Run>,
+        mono: bool,
+    },
     Nothing,
 }
 
@@ -141,7 +146,7 @@ fn read_text(path: &Path) -> Option<String> {
     Some(String::from_utf8_lossy(&buf).into_owned())
 }
 
-fn load(path: &Path, image: bool) -> Content {
+fn load(path: &Path, image: bool, dark: bool) -> Content {
     if image {
         let p = gdk_pixbuf::Pixbuf::from_file_at_scale(path, IMAGE_PX, IMAGE_PX, true)
             .ok()
@@ -158,9 +163,17 @@ fn load(path: &Path, image: bool) -> Content {
         .map(|n| n.as_encoded_bytes())
         .unwrap_or_default();
     if crate::markdown::is_markdown(name) {
-        Content::Markdown(crate::markdown::render(&text))
-    } else {
-        Content::Text(text)
+        return Content::Styled {
+            runs: crate::markdown::render(&text, dark),
+            mono: false,
+        };
+    }
+    match crate::highlight::syntax_for_file(&String::from_utf8_lossy(name), &text) {
+        Some(syntax) => Content::Styled {
+            runs: crate::highlight::highlight(&text, syntax, dark, &[]),
+            mono: true,
+        },
+        None => Content::Text(text),
     }
 }
 
@@ -269,8 +282,9 @@ impl Browser {
         }
         let (tx, rx) = async_channel::bounded(1);
         let p = path.clone();
+        let dark = adw::StyleManager::default().is_dark();
         std::thread::spawn(move || {
-            let _ = tx.send_blocking(load(&p, image));
+            let _ = tx.send_blocking(load(&p, image, dark));
         });
         let w = self.me.clone();
         glib::spawn_future_local(async move {
@@ -290,15 +304,9 @@ impl Browser {
                     pv.text.buffer().set_text(&t);
                     pv.stack.set_visible_child_name("text");
                 }
-                Content::Markdown(runs) => {
-                    pv.text.set_monospace(false);
-                    let buf = pv.text.buffer();
-                    buf.set_text("");
-                    let mut end = buf.end_iter();
-                    for r in &runs {
-                        buf.insert_with_tags_by_name(&mut end, &r.text, &r.tags);
-                    }
-                    buf.place_cursor(&buf.start_iter());
+                Content::Styled { runs, mono } => {
+                    pv.text.set_monospace(mono);
+                    crate::markdown::insert_runs(&pv.text.buffer(), &runs);
                     pv.stack.set_visible_child_name("text");
                 }
                 Content::Nothing => {}

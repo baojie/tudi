@@ -21,6 +21,7 @@ mod dev;
 mod drop;
 mod find;
 mod format;
+mod highlight;
 mod history;
 mod i18n;
 mod icons;

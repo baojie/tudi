@@ -6,6 +6,13 @@ all-features = true
 [advisories]
 version = 2
 yanked = "deny"
+ignore = [
+    # bincode 1.x is unmaintained (not a vulnerability). Pulled in by
+    # syntect (preview syntax highlighting, ADR-031), which only uses it to
+    # decode the syntax and theme dumps compiled into the binary: no
+    # untrusted input reaches it.
+    { id = "RUSTSEC-2025-0141", reason = "syntect decodes only its own embedded dumps (ADR-031)" },
+]
 
 [licenses]
 version = 2

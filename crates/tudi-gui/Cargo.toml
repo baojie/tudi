@@ -26,6 +26,7 @@ adw.workspace = true
 anyhow.workspace = true
 async-channel.workspace = true
 pulldown-cmark = { version = "0.13.6", default-features = false }
+syntect = { version = "5.3.0", default-features = false, features = ["parsing", "default-syntaxes", "default-themes", "regex-fancy"] }
 rustix.workspace = true
 gettext-rs.workspace = true
 gio.workspace = true

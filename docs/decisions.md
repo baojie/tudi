@@ -504,3 +504,25 @@ through `sh` / `python3`; `.desktop` files through `gio launch`.
 - **Consequences.** Raw HTML is dropped, images show their alt text, links
   are styled but not clickable, table columns are not aligned. A file cut
   at 64 KB may end mid-construct (rendered as far as it parses).
+
+## ADR-031: Syntax highlighting in the preview pane with syntect
+
+- **Context.** The maintainer wants code highlighted in the preview pane:
+  code files and fenced code blocks in Markdown. GtkSourceView highlights
+  one language per buffer (Markdown with code blocks needs several) and
+  its development files are not a build dependency so far.
+- **Decision.** `syntect` (MIT) with its bundled Sublime grammars and
+  themes and the pure-Rust `fancy-regex` engine (no oniguruma), on the
+  loader thread, into the same text runs as Markdown plus a colour per
+  run; the pane creates colour tags on demand. Grammar by code block info
+  string, else file extension or name, else first line (shebang). Themes:
+  `InspiredGitHub` (light), `base16-ocean.dark` (dark), picked from the
+  style manager when the file is loaded; colours equal to the theme's
+  default foreground are left unset. Lines beyond 4,000 or longer than
+  2,000 bytes stay plain.
+- **Consequences.** The release binary grows by ≈ 1.4 MB (10.9 → 12.2 MB,
+  with pulldown-cmark). syntect pulls in
+  bincode 1.x, flagged unmaintained (RUSTSEC-2025-0141); ignored in
+  `deny.toml` because it only decodes syntect's embedded dumps. Highlighting
+  64 KB takes ≈ 0.25 s on the loader thread (34 KB of Rust: 129 ms,
+  release). A theme switch applies on the next selection.

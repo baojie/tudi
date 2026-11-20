@@ -1,16 +1,19 @@
 //! Markdown for the preview pane: CommonMark (plus tables, strikethrough
 //! and task lists) turned into runs of text with style names, on the
 //! loader thread. The pane maps the names to `GtkTextTag`s
-//! ([`create_tags`]); no HTML engine is involved. Raw HTML is dropped,
-//! images show their alt text.
+//! ([`create_tags`], [`insert_runs`]); no HTML engine is involved. Raw
+//! HTML is dropped, images show their alt text. Fenced code blocks with a
+//! known language are syntax-highlighted (`highlight.rs`).
 
 use pulldown_cmark::{CodeBlockKind, Event, HeadingLevel, Options, Parser, Tag, TagEnd};
 
-/// A piece of text and the style tags to apply to it.
+/// A piece of text, the style tags to apply to it, and an optional
+/// foreground colour (`0xRRGGBB`, from syntax highlighting).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Run {
     pub text: String,
     pub tags: Vec<&'static str>,
+    pub color: Option<u32>,
 }
 
 const HEADINGS: [&str; 6] = ["md-h1", "md-h2", "md-h3", "md-h4", "md-h5", "md-h6"];
@@ -33,6 +36,9 @@ const DIM: &str = "md-dim";
 
 #[derive(Default)]
 struct Out {
+    dark: bool,
+    /// Inside a fenced code block: its language and text so far.
+    code: Option<(String, String)>,
     runs: Vec<Run>,
     /// Trailing newlines of the output so far.
     newlines: usize,
@@ -88,18 +94,35 @@ impl Out {
         let mut tags = self.tags();
         tags.extend_from_slice(extra);
         match self.runs.last_mut() {
-            Some(last) if last.tags == tags => last.text.push_str(text),
+            Some(last) if last.tags == tags && last.color.is_none() => last.text.push_str(text),
             _ => self.runs.push(Run {
                 text: text.to_string(),
                 tags,
+                color: None,
             }),
         }
+        self.count_newlines(text);
+    }
+
+    fn count_newlines(&mut self, text: &str) {
         let trailing = text.bytes().rev().take_while(|&b| b == b'\n').count();
         self.newlines = if trailing == text.len() {
             self.newlines + trailing
         } else {
             trailing
         };
+    }
+
+    /// A finished code block: highlighted if its language is known.
+    fn code_block(&mut self, lang: &str, code: &str) {
+        match crate::highlight::syntax_for_lang(lang) {
+            Some(syntax) => {
+                let runs = crate::highlight::highlight(code, syntax, self.dark, &self.tags());
+                self.runs.extend(runs);
+                self.count_newlines(code);
+            }
+            None => self.push(code, &[]),
+        }
     }
 
     /// End the current line, and leave `n - 1` blank lines (none at the
@@ -111,10 +134,11 @@ impl Out {
         while self.newlines < n {
             // Plain newline: block tags (margins, backgrounds) end here.
             match self.runs.last_mut() {
-                Some(last) if last.tags.is_empty() => last.text.push('\n'),
+                Some(last) if last.tags.is_empty() && last.color.is_none() => last.text.push('\n'),
                 _ => self.runs.push(Run {
                     text: "\n".into(),
                     tags: Vec::new(),
+                    color: None,
                 }),
             }
             self.newlines += 1;
@@ -122,10 +146,13 @@ impl Out {
     }
 }
 
-/// Render `src` into styled runs.
-pub fn render(src: &str) -> Vec<Run> {
+/// Render `src` into styled runs; `dark` picks the highlighting colours.
+pub fn render(src: &str, dark: bool) -> Vec<Run> {
     let opts = Options::ENABLE_TABLES | Options::ENABLE_STRIKETHROUGH | Options::ENABLE_TASKLISTS;
-    let mut o = Out::default();
+    let mut o = Out {
+        dark,
+        ..Out::default()
+    };
     for ev in Parser::new_ext(src, opts) {
         match ev {
             Event::Start(tag) => match tag {
@@ -152,13 +179,16 @@ pub fn render(src: &str) -> Vec<Run> {
                 }
                 Tag::CodeBlock(kind) => {
                     o.lines(2);
-                    if let CodeBlockKind::Fenced(lang) = kind
-                        && !lang.is_empty()
-                    {
+                    let lang = match kind {
+                        CodeBlockKind::Fenced(lang) => lang.to_string(),
+                        CodeBlockKind::Indented => String::new(),
+                    };
+                    if !lang.is_empty() {
                         o.push(&lang, &[DIM]);
                         o.lines(1);
                     }
                     o.pre = true;
+                    o.code = Some((lang, String::new()));
                 }
                 Tag::List(start) => {
                     if o.lists.is_empty() {
@@ -214,6 +244,9 @@ pub fn render(src: &str) -> Vec<Run> {
                     o.lines(1);
                 }
                 TagEnd::CodeBlock => {
+                    if let Some((lang, code)) = o.code.take() {
+                        o.code_block(&lang, &code);
+                    }
                     // The block's own last newline ends it.
                     o.pre = false;
                     o.lines(1);
@@ -237,7 +270,10 @@ pub fn render(src: &str) -> Vec<Run> {
                 TagEnd::Table => o.lines(1),
                 _ => {}
             },
-            Event::Text(t) => o.push(&t, &[]),
+            Event::Text(t) => match &mut o.code {
+                Some((_, code)) => code.push_str(&t),
+                None => o.push(&t, &[]),
+            },
             Event::Code(t) => o.push(&t, &[CODE]),
             Event::SoftBreak => o.push(" ", &[]),
             Event::HardBreak => o.push("\n", &[]),
@@ -271,6 +307,37 @@ pub fn is_markdown(name: &[u8]) -> bool {
     [&b".md"[..], b".markdown", b".mdown", b".mkd", b".mdx"]
         .iter()
         .any(|ext| lower.ends_with(ext) && lower.len() > ext.len())
+}
+
+/// Replace `buf`'s text with `runs`, creating colour tags as needed.
+pub fn insert_runs(buf: &gtk::TextBuffer, runs: &[Run]) {
+    use gtk::prelude::*;
+    buf.set_text("");
+    let table = buf.tag_table();
+    let mut end = buf.end_iter();
+    for r in runs {
+        let start = end.offset();
+        buf.insert_with_tags_by_name(&mut end, &r.text, &r.tags);
+        if let Some(c) = r.color {
+            let name = format!("fg-{c:06x}");
+            let tag = table.lookup(&name).unwrap_or_else(|| {
+                let rgba = gtk::gdk::RGBA::new(
+                    f32::from((c >> 16) as u8) / 255.0,
+                    f32::from((c >> 8) as u8) / 255.0,
+                    f32::from(c as u8) / 255.0,
+                    1.0,
+                );
+                let t = gtk::TextTag::builder()
+                    .name(name.as_str())
+                    .foreground_rgba(&rgba)
+                    .build();
+                table.add(&t);
+                t
+            });
+            buf.apply_tag(&tag, &buf.iter_at_offset(start), &end);
+        }
+    }
+    buf.place_cursor(&buf.start_iter());
 }
 
 /// Create the style tags in `table` (once per text buffer).
@@ -339,6 +406,10 @@ pub fn create_tags(table: &gtk::TextTagTable) {
 mod tests {
     use super::*;
 
+    fn render_l(src: &str) -> Vec<Run> {
+        render(src, false)
+    }
+
     fn text(runs: &[Run]) -> String {
         runs.iter().map(|r| r.text.as_str()).collect()
     }
@@ -349,7 +420,7 @@ mod tests {
 
     #[test]
     fn headings_paragraphs_and_inline_styles() {
-        let r = render("# Title\n\nSome **bold**, *italic*, ~~gone~~ and `code`.\nNext line.\n");
+        let r = render_l("# Title\n\nSome **bold**, *italic*, ~~gone~~ and `code`.\nNext line.\n");
         assert_eq!(
             text(&r),
             "Title\n\nSome bold, italic, gone and code. Next line."
@@ -363,7 +434,7 @@ mod tests {
 
     #[test]
     fn lists_nested_and_ordered() {
-        let r = render("- one\n- two\n  1. a\n  2. b\n- [x] done\n");
+        let r = render_l("- one\n- two\n  1. a\n  2. b\n- [x] done\n");
         assert_eq!(text(&r), "• one\n• two\n1. a\n2. b\n• ☑ done");
         assert_eq!(tags_of(&r, "one"), ["md-indent-1"]);
         assert_eq!(tags_of(&r, "a"), ["md-indent-2"]);
@@ -371,30 +442,43 @@ mod tests {
 
     #[test]
     fn code_blocks_quotes_links_rules() {
-        let r = render(
+        let r = render_l(
             "Intro\n\n```rust\nfn main() {}\n```\n\n> quoted\n\n[site](https://example.com)\n\n---\n\nEnd",
         );
         assert_eq!(
             text(&r),
             "Intro\n\nrust\nfn main() {}\n\nquoted\n\nsite\n\n──────────\n\nEnd"
         );
-        assert_eq!(tags_of(&r, "fn main"), ["md-pre"]);
+        // Highlighted: several coloured runs, all in the code block style.
+        let code: Vec<&Run> = r.iter().filter(|r| r.tags.contains(&"md-pre")).collect();
+        assert!(code.len() > 2);
+        assert!(code.iter().any(|r| r.color.is_some()));
+        let plain = render_l("```\nfn main() {}\n```\n");
+        assert_eq!(
+            plain,
+            [Run {
+                text: "fn main() {}".into(),
+                tags: vec!["md-pre"],
+                color: None
+            }]
+        );
         assert_eq!(tags_of(&r, "quoted"), ["md-quote", "md-indent-1"]);
         assert_eq!(tags_of(&r, "site"), ["md-link"]);
     }
 
     #[test]
     fn tables_and_html() {
-        let r = render("| a | b |\n|---|---|\n| 1 | 2 |\n\n<div>raw</div>\n\n![logo](x.png)\n");
+        let r = render_l("| a | b |\n|---|---|\n| 1 | 2 |\n\n<div>raw</div>\n\n![logo](x.png)\n");
         assert_eq!(text(&r), "a  │  b\n1  │  2\n\n[logo]");
         assert_eq!(tags_of(&r, "a"), ["md-bold"]);
     }
 
     #[test]
     fn cjk_and_truncated_input() {
-        let r = render("## 标题\n\n正文**加粗");
+        let r = render_l("## 标题\n\n正文**加粗");
         assert_eq!(text(&r), "标题\n\n正文**加粗");
-        assert!(render("").is_empty());
+        assert!(render_l("").is_empty());
+        assert!(render("", true).is_empty());
     }
 
     #[test]
