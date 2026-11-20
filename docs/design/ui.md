@@ -17,6 +17,7 @@ Code: `crates/tudi-gui/src/`. Plan: `docs/PLAN.md` §5.3, §5.7.
 | `undo.rs` | `Ctrl+Z`: the window's last file operations, reversed |
 | `crumbs.rs` | clickable path bar: a button per folder, `›` lists subfolders |
 | `preview.rs` | optional preview pane: image, start of a text file, or details |
+| `markdown.rs` | Markdown to styled text runs for the preview pane |
 | `thumbs.rs` | thumbnail view: grid cells, thumbnail loader threads, texture cache |
 | `activity.rs` | background tasks named in the status bar, with a spinner |
 | `format.rs` | sizes, dates, icons from file names |
@@ -271,7 +272,8 @@ list area, or below it (the button at the pane's top switches; the
 (`preview_below`, `preview_width`, 0 = hidden). It follows the
 active tab: one selected image is shown whole (decoded at up to 1600 px),
 a text or code file shows its first 64 KB (monospace; NUL bytes mean
-binary, shown as details), anything else its icon, name, size and date;
+binary, shown as details), Markdown (`.md`, `.markdown`, `.mdown`, `.mkd`,
+`.mdx`) rendered (ADR-030), anything else its icon, name, size and date;
 several selected items show their count and size, none the shown folder.
 Files are read on a short-lived thread; a serial number drops results of
 an older selection. The pane is refreshed from `update_status` (every

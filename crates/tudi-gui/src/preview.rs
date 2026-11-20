@@ -1,6 +1,6 @@
 //! The optional preview pane (ADR-027): to the right of the list, it shows
 //! the selected file of the active tab — an image, the start of a text
-//! file, or the item's details (several selected: their count and size;
+//! file (Markdown rendered, see `markdown.rs`), or the item's details (several selected: their count and size;
 //! none: the shown folder).
 //!
 //! Files are read on a short-lived thread, never on the main thread; a
@@ -45,6 +45,7 @@ pub struct Preview {
 enum Content {
     Image(crate::thumbs::Pixels),
     Text(String),
+    Markdown(Vec<crate::markdown::Run>),
     Nothing,
 }
 
@@ -62,6 +63,7 @@ impl Preview {
         text.set_left_margin(8);
         text.set_right_margin(8);
         text.set_top_margin(6);
+        crate::markdown::create_tags(&text.buffer().tag_table());
         let text_scroll = gtk::ScrolledWindow::builder()
             .child(&text)
             .vexpand(true)
@@ -148,7 +150,18 @@ fn load(path: &Path, image: bool) -> Content {
             .and_then(|p| crate::thumbs::Pixels::from_pixbuf(&p))
             .map_or(Content::Nothing, Content::Image);
     }
-    read_text(path).map_or(Content::Nothing, Content::Text)
+    let Some(text) = read_text(path) else {
+        return Content::Nothing;
+    };
+    let name = path
+        .file_name()
+        .map(|n| n.as_encoded_bytes())
+        .unwrap_or_default();
+    if crate::markdown::is_markdown(name) {
+        Content::Markdown(crate::markdown::render(&text))
+    } else {
+        Content::Text(text)
+    }
 }
 
 impl Browser {
@@ -273,7 +286,19 @@ impl Browser {
                     pv.stack.set_visible_child_name("image");
                 }
                 Content::Text(t) => {
+                    pv.text.set_monospace(true);
                     pv.text.buffer().set_text(&t);
+                    pv.stack.set_visible_child_name("text");
+                }
+                Content::Markdown(runs) => {
+                    pv.text.set_monospace(false);
+                    let buf = pv.text.buffer();
+                    buf.set_text("");
+                    let mut end = buf.end_iter();
+                    for r in &runs {
+                        buf.insert_with_tags_by_name(&mut end, &r.text, &r.tags);
+                    }
+                    buf.place_cursor(&buf.start_iter());
                     pv.stack.set_visible_child_name("text");
                 }
                 Content::Nothing => {}

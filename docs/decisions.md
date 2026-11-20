@@ -490,3 +490,17 @@ through `sh` / `python3`; `.desktop` files through `gio launch`.
   helper missed events without an overflow, results could stay stale for
   up to an hour; the kernel reports queue overflows, so this needs a
   helper bug.
+
+## ADR-030: Markdown rendered in the preview pane with text tags
+
+- **Context.** The maintainer wants Markdown files rendered, not shown as
+  source, in the preview pane.
+- **Decision.** `pulldown-cmark` (MIT, no default features) parses the
+  first 64 KB on the loader thread into runs of text with style names
+  (`markdown.rs`, unit-tested without GTK); the pane inserts them into its
+  `GtkTextView` with `GtkTextTag`s: headings, bold, italic,
+  strikethrough, inline and block code, links, quotes, nested lists,
+  task boxes, rules, tables as `│`-separated rows. No WebKit or HTML.
+- **Consequences.** Raw HTML is dropped, images show their alt text, links
+  are styled but not clickable, table columns are not aligned. A file cut
+  at 64 KB may end mid-construct (rendered as far as it parses).
